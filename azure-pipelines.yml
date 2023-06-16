@@ -1,0 +1,45 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+strategy:
+  matrix:
+    Python38:
+      python.version: '3.8'
+
+steps:
+- checkout: self
+  persistCredentials: true
+
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Use Python $(python.version)'
+
+- script: |
+    python -m pip install --upgrade pip
+    pip install pillow torch torchvision torchaudio
+    pip install -r requirements.txt
+    python -m pip install .
+  displayName: 'Install Package'
+
+- task: CmdLine@2
+  inputs:
+    script: |
+      version=$(python3.8 -c 'import unitorch_microsoft; print(unitorch_microsoft.VERSION)')
+      git config --global user.email "decu@microsoft.com"
+      git config --global user.name "decu"
+      version="v$version"
+      if git rev-parse -q --verify "refs/tags/$version"; then
+        git tag -d $version
+      fi
+      git tag $version
+      git push origin :refs/tags/$version
+      git push origin $version
+  displayName: 'Update Tag To Latest Commit'
