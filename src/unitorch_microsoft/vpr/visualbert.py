@@ -183,6 +183,7 @@ class VisualBertForClassification(GenericModel):
         config_path: str,
         image_embed_dim: Optional[int] = 100,
         projection_dim: Optional[int] = 64,
+        freeze_base_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
         output_query_embed: Optional[bool] = False,
         output_offer_embed: Optional[bool] = False,
@@ -211,6 +212,16 @@ class VisualBertForClassification(GenericModel):
 
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
+
+        if freeze_base_model:
+            for p in self.image_conv.parameters():
+                p.requires_grad = False
+
+            for p in self.query_bert.parameters():
+                p.requires_grad = False
+
+            for p in self.offer_bert.parameters():
+                p.requires_grad = False
 
     def from_pretrained(self, weight_path):
         if not os.path.exists(weight_path):
@@ -243,6 +254,7 @@ class VisualBertForClassification(GenericModel):
         config_path = cached_path(config_path)
         image_embed_dim = config.getoption("image_embed_dim", 64)
         projection_dim = config.getoption("projection_dim", 64)
+        freeze_base_model = config.getoption("freeze_base_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
 
         output_query_embed = config.getoption("output_query_embed", False)
@@ -252,6 +264,7 @@ class VisualBertForClassification(GenericModel):
             config_path,
             image_embed_dim=image_embed_dim,
             projection_dim=projection_dim,
+            freeze_base_model=freeze_base_model,
             gradient_checkpointing=gradient_checkpointing,
             output_query_embed=output_query_embed,
             output_offer_embed=output_offer_embed,
