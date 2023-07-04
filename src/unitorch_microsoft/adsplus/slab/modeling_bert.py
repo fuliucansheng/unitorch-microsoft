@@ -25,6 +25,7 @@ class BertForClassification(_BertForClassification):
         self,
         config_path: str,
         num_classes: Optional[int] = 10,
+        label_gains: Optional[List[float]] = None,
         gradient_checkpointing: Optional[bool] = False,
     ):
         """
@@ -40,6 +41,9 @@ class BertForClassification(_BertForClassification):
             num_classes=num_classes,
             gradient_checkpointing=gradient_checkpointing,
         )
+        if label_gains is None:
+            label_gains = [i for i in range(1, num_classes + 1)]
+        self.label_gains = label_gains
 
     @classmethod
     @add_default_section_for_init("microsoft/adsplus/slab/classification/bert")
@@ -64,9 +68,10 @@ class BertForClassification(_BertForClassification):
             nested_dict_value(pretrained_bert_infos, pretrained_name, "config"),
         )
         config_path = cached_path(config_path)
+        label_gains = config.getoption("label_gains", None)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
 
-        inst = cls(config_path, num_classes, gradient_checkpointing)
+        inst = cls(config_path, num_classes, label_gains, gradient_checkpointing,)
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         weight_path = pop_value(
             pretrained_weight_path,
@@ -111,6 +116,6 @@ class BertForClassification(_BertForClassification):
         scores = torch.zeros(outputs.size(0), 1).to(outputs.device)
         outputs = torch.sigmoid(outputs)
         for i in range(outputs.size(-1)):
-            scores += outputs[:, i].unsqueeze(-1) * i
+            scores += outputs[:, i].unsqueeze(-1) * self.label_gains[i]
         
         return ClassificationOutputs(outputs=scores)
