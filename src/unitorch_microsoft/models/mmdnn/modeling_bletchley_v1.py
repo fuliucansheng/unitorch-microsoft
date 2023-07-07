@@ -39,7 +39,7 @@ class MMDNNBletchleyForClassification(GenericModel):
     def __init__(
         self,
         config_type: str,
-        text_layer_num: Optional[int] = 6,
+        num_text_layers: Optional[int] = 6,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -62,7 +62,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         self.padding_idx = padding_idx
         self.text_embed_dim = text_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
-        text_config.num_hidden_layers = text_layer_num
+        text_config.num_hidden_layers = num_text_layers
 
         self.output_text_embed = output_text_embed
         self.output_image_embed = output_image_embed
@@ -134,7 +134,7 @@ class MMDNNBletchleyForClassification(GenericModel):
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v1")
         config_type = config.getoption("config_type", "0.3B")
-        text_layer_num = config.getoption("text_layer_num", 6)
+        num_text_layers = config.getoption("num_text_layers", 6)
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -152,7 +152,7 @@ class MMDNNBletchleyForClassification(GenericModel):
 
         inst = cls(
             config_type=config_type,
-            text_layer_num=text_layer_num,
+            num_text_layers=num_text_layers,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
