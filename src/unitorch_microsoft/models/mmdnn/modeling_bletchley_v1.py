@@ -38,7 +38,8 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
 class MMDNNBletchleyForClassification(GenericModel):
     def __init__(
         self,
-        config_type: str,
+        text_config_type: str,
+        image_config_type: str,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -47,6 +48,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
         freeze_base_model: Optional[bool] = True,
+        freeze_image_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
         output_text_embed: Optional[bool] = False,
         output_image_embed: Optional[bool] = False,
@@ -54,8 +56,8 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_final_image_embed: Optional[bool] = False,
     ):
         super().__init__()
-        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
-        image_config = get_bletchley_image_config(config_type, gradient_checkpointing)
+        text_config = get_bletchley_text_config(text_config_type, gradient_checkpointing)
+        image_config = get_bletchley_image_config(image_config_type, gradient_checkpointing)
 
         self.padding_idx = padding_idx
         self.text_embed_dim = text_config.hidden_size
@@ -116,13 +118,22 @@ class MMDNNBletchleyForClassification(GenericModel):
 
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
+        
+        if freeze_image_model:
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+            for p in self.image_projection.parameters():
+                p.requires_grad = False
+            for p in self.final_visual_projection.parameters():
+                p.requires_grad = False
+
 
     @classmethod
     @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v1")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v1")
-        config_type = config.getoption("config_type", "0.8B")
-
+        text_config_type = config.getoption("text_config_type", "0.3B")
+        image_config_type = config.getoption("image_config_type", "0.3B")
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -131,6 +142,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_image_model = config.getoption("freeze_image_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         output_text_embed = config.getoption("output_text_embed", False)
         output_image_embed = config.getoption("output_image_embed", False)
@@ -138,7 +150,8 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_final_image_embed = config.getoption("output_final_image_embed", False)
 
         inst = cls(
-            config_type=config_type,
+            text_config_type=text_config_type,
+            image_config_type=image_config_type,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
@@ -147,6 +160,7 @@ class MMDNNBletchleyForClassification(GenericModel):
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
             freeze_base_model=freeze_base_model,
+            freeze_image_model=freeze_image_model,
             gradient_checkpointing=gradient_checkpointing,
             output_text_embed=output_text_embed,
             output_image_embed=output_image_embed,
