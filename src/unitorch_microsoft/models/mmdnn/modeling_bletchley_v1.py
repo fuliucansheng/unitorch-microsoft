@@ -38,8 +38,8 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
 class MMDNNBletchleyForClassification(GenericModel):
     def __init__(
         self,
-        text_config_type: str,
-        image_config_type: str,
+        config_type: str,
+        text_layer_num: Optional[int] = 6,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -56,12 +56,13 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_final_image_embed: Optional[bool] = False,
     ):
         super().__init__()
-        text_config = get_bletchley_text_config(text_config_type, gradient_checkpointing)
-        image_config = get_bletchley_image_config(image_config_type, gradient_checkpointing)
+        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
+        image_config = get_bletchley_image_config(config_type, gradient_checkpointing)
 
         self.padding_idx = padding_idx
         self.text_embed_dim = text_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
+        text_config.num_hidden_layers = text_layer_num
 
         self.output_text_embed = output_text_embed
         self.output_image_embed = output_image_embed
@@ -132,8 +133,8 @@ class MMDNNBletchleyForClassification(GenericModel):
     @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v1")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v1")
-        text_config_type = config.getoption("text_config_type", "0.3B")
-        image_config_type = config.getoption("image_config_type", "0.3B")
+        config_type = config.getoption("config_type", "0.3B")
+        text_layer_num = config.getoption("text_layer_num", 6)
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -150,8 +151,8 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_final_image_embed = config.getoption("output_final_image_embed", False)
 
         inst = cls(
-            text_config_type=text_config_type,
-            image_config_type=image_config_type,
+            config_type=config_type,
+            text_layer_num=text_layer_num,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
