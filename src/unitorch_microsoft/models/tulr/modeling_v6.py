@@ -834,7 +834,9 @@ class TULRV6Model(TULRV6PreTrainedModel):
             return_dict=return_dict,
         )
         sequence_output = encoder_outputs[0]
-        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+        pooled_output = (
+            self.pooler(sequence_output) if self.pooler is not None else None
+        )
         if not return_dict:
             outputs = (
                 sequence_output,

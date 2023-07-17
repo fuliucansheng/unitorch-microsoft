@@ -71,7 +71,12 @@ class BertForClassification(_BertForClassification):
         label_gains = config.getoption("label_gains", None)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
 
-        inst = cls(config_path, num_classes, label_gains, gradient_checkpointing,)
+        inst = cls(
+            config_path,
+            num_classes,
+            label_gains,
+            gradient_checkpointing,
+        )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         weight_path = pop_value(
             pretrained_weight_path,
@@ -112,10 +117,10 @@ class BertForClassification(_BertForClassification):
         )
         if self.training:
             return ClassificationOutputs(outputs=outputs)
-        
+
         scores = torch.zeros(outputs.size(0), 1).to(outputs.device)
         outputs = torch.sigmoid(outputs)
         for i in range(outputs.size(-1)):
             scores += outputs[:, i].unsqueeze(-1) * self.label_gains[i]
-        
+
         return ClassificationOutputs(outputs=scores)
