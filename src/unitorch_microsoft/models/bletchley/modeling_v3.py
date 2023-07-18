@@ -245,7 +245,11 @@ class BletchleyTextEncoder(nn.Module):
         gradient_checkpointing=False,
     ):
         super().__init__()
-        if config_type == "0.3B":
+        if config_type == "0.15B":
+            self.hidden_layers = 3
+            self.hidden_size = 768
+            self.num_heads = 12
+        elif config_type == "0.3B":
             self.hidden_layers = 6
             self.hidden_size = 768
             self.num_heads = 12

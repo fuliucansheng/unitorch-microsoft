@@ -294,6 +294,82 @@ class MMDNNBletchleyForClassification(GenericModel):
         return ClassificationOutputs(outputs=outputs)
 
 
+@register_model("microsoft/model/distillation/mmdnn/bletchley/v1")
+class MMDNNBletchleyForDistillEmbedding(GenericModel):
+    def __init__(
+        self,
+        config_type: str,
+        num_text_layers: Optional[int] = 6,
+        gradient_checkpointing: Optional[bool] = False,
+    ):
+        super().__init__()
+        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
+        self.text_encoder = BletchleyTextEncoder(
+            text_config,
+            add_projection_layer=False,
+        )
+
+        text_config.num_hidden_layers = num_text_layers
+        self.new_text_encoder = BletchleyTextEncoder(
+            text_config,
+            add_projection_layer=False,
+        )
+
+        self.init_weights()
+
+        for p in self.text_encoder.parameters():
+            p.requires_grad = False
+
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/distillation/mmdnn/bletchley/v1")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/distillation/mmdnn/bletchley/v1")
+        config_type = config.getoption("config_type", "0.3B")
+        num_text_layers = config.getoption("num_text_layers", 6)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+
+        inst = cls(
+            config_type=config_type,
+            num_text_layers=num_text_layers,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(
+                pretrained_weight_path,
+                replace_keys={"query_encoder.": "text_encoder."},
+            )
+        return inst
+
+
+    @autocast()
+    def forward(
+        self,
+        input_ids: torch.Tensor = None,
+        attention_mask: torch.Tensor = None,
+    ):
+        text_outputs = self.text_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        text_embeds = text_outputs[:, 0]
+        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+
+        new_text_outputs = self.new_text_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        new_text_embeds = new_text_outputs[:, 0]
+        new_text_embeds = new_text_embeds / new_text_embeds.norm(dim=-1, keepdim=True)
+        loss = (
+            nn.MSELoss(reduction="none")(new_text_embeds, text_embeds)
+            .sum(dim=-1)
+            .mean()
+        )
+        return LossOutputs(loss=loss)
+
+
 @register_model("microsoft/model/classification/mmdnn/bletchley/v1/v2")
 class MMDNNBletchleyForClassificationV2(GenericModel):
     def __init__(
