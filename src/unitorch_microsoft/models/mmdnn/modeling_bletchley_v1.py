@@ -119,7 +119,7 @@ class MMDNNBletchleyForClassification(GenericModel):
 
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
-        
+
         if freeze_image_model:
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
@@ -127,7 +127,6 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
             for p in self.final_visual_projection.parameters():
                 p.requires_grad = False
-
 
     @classmethod
     @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v1")
