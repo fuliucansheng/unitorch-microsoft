@@ -90,4 +90,5 @@ class TribertForClassification(GenericModel):
             doc_count,
             ads_count,
         )
+        logits += 8.8673
         return ClassificationOutputs(outputs=logits.unsqueeze(-1))
