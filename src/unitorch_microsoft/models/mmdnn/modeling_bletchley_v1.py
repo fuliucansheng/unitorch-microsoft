@@ -39,7 +39,7 @@ class MMDNNBletchleyForClassification(GenericModel):
     def __init__(
         self,
         config_type: str,
-        num_text_layers: Optional[int] = 6,
+        num_query_layers: Optional[int] = 6,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -62,7 +62,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         self.padding_idx = padding_idx
         self.text_embed_dim = text_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
-        text_config.num_hidden_layers = num_text_layers
+        text_config.num_hidden_layers = num_query_layers
 
         self.output_text_embed = output_text_embed
         self.output_image_embed = output_image_embed
@@ -133,7 +133,7 @@ class MMDNNBletchleyForClassification(GenericModel):
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v1")
         config_type = config.getoption("config_type", "0.3B")
-        num_text_layers = config.getoption("num_text_layers", 6)
+        num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -151,7 +151,7 @@ class MMDNNBletchleyForClassification(GenericModel):
 
         inst = cls(
             config_type=config_type,
-            num_text_layers=num_text_layers,
+            num_query_layers=num_query_layers,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
@@ -299,7 +299,7 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
     def __init__(
         self,
         config_type: str,
-        num_text_layers: Optional[int] = 6,
+        num_query_layers: Optional[int] = 6,
         gradient_checkpointing: Optional[bool] = False,
     ):
         super().__init__()
@@ -309,7 +309,7 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
             add_projection_layer=False,
         )
 
-        text_config.num_hidden_layers = num_text_layers
+        text_config.num_hidden_layers = num_query_layers
         self.new_text_encoder = BletchleyTextEncoder(
             text_config,
             add_projection_layer=False,
@@ -326,12 +326,12 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/distillation/mmdnn/bletchley/v1")
         config_type = config.getoption("config_type", "0.3B")
-        num_text_layers = config.getoption("num_text_layers", 6)
+        num_query_layers = config.getoption("num_query_layers", 6)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
 
         inst = cls(
             config_type=config_type,
-            num_text_layers=num_text_layers,
+            num_query_layers=num_query_layers,
             gradient_checkpointing=gradient_checkpointing,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
@@ -376,6 +376,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         self,
         query_config_type: str,
         offer_config_type: str,
+        num_query_layers: Optional[int] = 6,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -407,6 +408,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         self.query_embed_dim = query_config.hidden_size
         self.offer_embed_dim = offer_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
+        query_config.num_hidden_layers = num_query_layers
 
         self.output_query_embed = output_query_embed
         self.output_offer_embed = output_offer_embed
@@ -473,7 +475,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.3B")
-
+        num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -492,6 +494,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         inst = cls(
             query_config_type=query_config_type,
             offer_config_type=offer_config_type,
+            num_query_layers=num_query_layers,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
@@ -682,6 +685,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         self,
         query_config_type: str,
         offer_config_type: str,
+        num_query_layers: Optional[int] = 6,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -708,6 +712,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         self.projection_dim = projection_dim
         self.query_embed_dim = query_config.hidden_size
         self.offer_embed_dim = offer_config.hidden_size
+        query_config.num_hidden_layers = num_query_layers
 
         self.output_query_embed = output_query_embed
         self.output_offer_embed = output_offer_embed
@@ -765,6 +770,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.3B")
+        num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -782,6 +788,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         inst = cls(
             query_config_type=query_config_type,
             offer_config_type=offer_config_type,
+            num_query_layers=num_query_layers,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
