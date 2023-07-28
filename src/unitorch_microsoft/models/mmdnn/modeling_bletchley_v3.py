@@ -36,7 +36,8 @@ from unitorch_microsoft.models.bletchley.modeling_v3 import (
 class MMDNNBletchleyForClassification(GenericModel):
     def __init__(
         self,
-        config_type: str,
+        query_config_type: str,
+        offer_config_type: str,
         projection_dim: Optional[int] = 288,
         num_ice: Optional[int] = 3181,
         num_seller: Optional[int] = 15020,
@@ -59,12 +60,12 @@ class MMDNNBletchleyForClassification(GenericModel):
         self.output_final_image_embed = output_final_image_embed
 
         self.text_encoder = BletchleyTextEncoder(
-            config_type,
+            query_config_type,
             add_projection_layer=False,
             gradient_checkpointing=gradient_checkpointing,
         )
         self.image_encoder = BletchleyImageEncoder(
-            config_type,
+            offer_config_type,
             add_projection_layer=False,
             gradient_checkpointing=gradient_checkpointing,
         )
@@ -117,8 +118,8 @@ class MMDNNBletchleyForClassification(GenericModel):
     @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v3")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v3")
-        config_type = config.getoption("config_type", "0.8B")
-
+        query_config_type = config.getoption("query_config_type", "0.8B")
+        offer_config_type = config.getoption("offer_config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 288)
         num_ice = config.getoption("num_ice", 3181)
         num_seller = config.getoption("num_seller", 15020)
@@ -134,7 +135,8 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_final_image_embed = config.getoption("output_final_image_embed", False)
 
         inst = cls(
-            config_type=config_type,
+            query_config_type=query_config_type,
+            offer_config_type=offer_config_type,
             projection_dim=projection_dim,
             num_ice=num_ice,
             num_seller=num_seller,
