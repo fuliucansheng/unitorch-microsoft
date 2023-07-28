@@ -26,8 +26,8 @@ from unitorch.cli.models.visualbert import pretrained_visualbert_infos
 from unitorch_microsoft import cached_path
 
 
-@register_model("microsoft/vpr/pretrain/visualbert")
-class VisualBertForPretrain(GenericModel):
+@register_model("microsoft/vpr/pretrain/visualbert/v2")
+class VisualBertForPretrainV2(GenericModel):
     def __init__(
         self,
         config_path: str,
@@ -44,10 +44,9 @@ class VisualBertForPretrain(GenericModel):
         self.image_embed_dim = image_embed_dim
         self.image_conv = nn.Linear(image_embed_dim, self.config.hidden_size)
         self.query_bert = VisualBertModel(self.config, add_pooling_layer=False)
-        self.offer_bert = VisualBertModel(self.config, add_pooling_layer=False)
         self.projection_dim = projection_dim
         self.query_embed_dim = self.config.hidden_size
-        self.offer_embed_dim = self.config.hidden_size
+        self.offer_embed_dim = image_embed_dim
         self.use_all_gather = use_all_gather
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
         self.offer_projection = nn.Linear(
@@ -64,14 +63,13 @@ class VisualBertForPretrain(GenericModel):
         for _key in _keys:
             _value = state_dict.pop(_key)
             state_dict["query_bert" + _key[11:]] = _value
-            state_dict["offer_bert" + _key[11:]] = _value
 
         super().from_pretrained(state_dict=state_dict)
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/pretrain/visualbert")
+    @add_default_section_for_init("microsoft/vpr/pretrain/visualbert/v2")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/vpr/pretrain/visualbert")
+        config.set_default_section("microsoft/vpr/pretrain/visualbert/v2")
         pretrained_name = config.getoption("pretrained_name", "default-visualbert")
         config_path = config.getoption("config_path", None)
 
@@ -123,19 +121,13 @@ class VisualBertForPretrain(GenericModel):
     def forward(
         self,
         query_input_ids: torch.Tensor,
-        offer_input_ids: torch.Tensor,
         query_attention_mask: torch.Tensor,
         query_token_type_ids: torch.Tensor,
         query_position_ids: Optional[torch.Tensor] = None,
         query_image_embeds: Optional[torch.Tensor] = None,
         query_image_attention_mask: Optional[torch.Tensor] = None,
         query_image_token_type_ids: Optional[torch.Tensor] = None,
-        offer_attention_mask: Optional[torch.Tensor] = None,
-        offer_token_type_ids: Optional[torch.Tensor] = None,
-        offer_position_ids: Optional[torch.Tensor] = None,
         offer_image_embeds: Optional[torch.Tensor] = None,
-        offer_image_attention_mask: Optional[torch.Tensor] = None,
-        offer_image_token_type_ids: Optional[torch.Tensor] = None,
     ):
         query_image_embeds = self.image_conv(query_image_embeds)
         query_outputs = self.query_bert(
@@ -149,17 +141,8 @@ class VisualBertForPretrain(GenericModel):
         )
         query_embeds = self.query_projection(query_outputs[0][:, 0])
 
-        offer_image_embeds = self.image_conv(offer_image_embeds)
-        offer_outputs = self.offer_bert(
-            offer_input_ids,
-            attention_mask=offer_attention_mask,
-            token_type_ids=offer_token_type_ids,
-            position_ids=offer_position_ids,
-            visual_embeds=offer_image_embeds,
-            visual_attention_mask=offer_image_attention_mask,
-            visual_token_type_ids=offer_image_token_type_ids,
-        )
-        offer_embeds = self.offer_projection(offer_outputs[0][:, 0])
+        offer_image_embeds = offer_image_embeds[:, 0]
+        offer_embeds = self.offer_projection(offer_image_embeds)
 
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
@@ -175,8 +158,8 @@ class VisualBertForPretrain(GenericModel):
         return LossOutputs(loss=loss)
 
 
-@register_model("microsoft/vpr/classification/visualbert")
-class VisualBertForClassification(GenericModel):
+@register_model("microsoft/vpr/classification/visualbert/v2")
+class VisualBertForClassificationV2(GenericModel):
     def __init__(
         self,
         config_path: str,
@@ -198,10 +181,9 @@ class VisualBertForClassification(GenericModel):
 
         self.image_conv = nn.Linear(image_embed_dim, self.config.hidden_size)
         self.query_bert = VisualBertModel(self.config, add_pooling_layer=False)
-        self.offer_bert = VisualBertModel(self.config, add_pooling_layer=False)
         self.projection_dim = projection_dim
         self.query_embed_dim = self.config.hidden_size
-        self.offer_embed_dim = self.config.hidden_size
+        self.offer_embed_dim = image_embed_dim
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
         self.offer_projection = nn.Linear(
             self.offer_embed_dim,
@@ -219,8 +201,6 @@ class VisualBertForClassification(GenericModel):
             for p in self.query_bert.parameters():
                 p.requires_grad = False
 
-            for p in self.offer_bert.parameters():
-                p.requires_grad = False
 
     def from_pretrained(self, weight_path):
         weight_path = cached_path(weight_path)
@@ -229,14 +209,13 @@ class VisualBertForClassification(GenericModel):
         for _key in _keys:
             _value = state_dict.pop(_key)
             state_dict["query_bert" + _key[11:]] = _value
-            state_dict["offer_bert" + _key[11:]] = _value
 
         super().from_pretrained(state_dict=state_dict)
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/classification/visualbert")
+    @add_default_section_for_init("microsoft/vpr/classification/visualbert/v2")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/vpr/classification/visualbert")
+        config.set_default_section("microsoft/vpr/classification/visualbert/v2")
         pretrained_name = config.getoption("pretrained_name", "default-visualbert")
         config_path = config.getoption("config_path", None)
 
@@ -286,19 +265,13 @@ class VisualBertForClassification(GenericModel):
     def forward(
         self,
         query_input_ids: Optional[torch.Tensor] = None,
-        offer_input_ids: Optional[torch.Tensor] = None,
         query_attention_mask: Optional[torch.Tensor] = None,
         query_token_type_ids: Optional[torch.Tensor] = None,
         query_position_ids: Optional[torch.Tensor] = None,
         query_image_embeds: Optional[torch.Tensor] = None,
         query_image_attention_mask: Optional[torch.Tensor] = None,
         query_image_token_type_ids: Optional[torch.Tensor] = None,
-        offer_attention_mask: Optional[torch.Tensor] = None,
-        offer_token_type_ids: Optional[torch.Tensor] = None,
-        offer_position_ids: Optional[torch.Tensor] = None,
         offer_image_embeds: Optional[torch.Tensor] = None,
-        offer_image_attention_mask: Optional[torch.Tensor] = None,
-        offer_image_token_type_ids: Optional[torch.Tensor] = None,
     ):
         if self.output_query_embed:
             query_image_embeds = self.image_conv(query_image_embeds)
@@ -317,17 +290,7 @@ class VisualBertForClassification(GenericModel):
             return EmbeddingOutputs(embedding=query_embeds)
 
         if self.output_offer_embed:
-            offer_image_embeds = self.image_conv(offer_image_embeds)
-            offer_outputs = self.offer_bert(
-                offer_input_ids,
-                attention_mask=offer_attention_mask,
-                token_type_ids=offer_token_type_ids,
-                position_ids=offer_position_ids,
-                visual_embeds=offer_image_embeds,
-                visual_attention_mask=offer_image_attention_mask,
-                visual_token_type_ids=offer_image_token_type_ids,
-            )
-            offer_embeds = self.offer_projection(offer_outputs[0][:, 0])
+            offer_embeds = self.offer_projection(offer_image_embeds)
             offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
 
             return EmbeddingOutputs(embedding=offer_embeds)
@@ -345,17 +308,8 @@ class VisualBertForClassification(GenericModel):
         query_embeds = self.query_projection(query_outputs[0][:, 0])
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
 
-        offer_image_embeds = self.image_conv(offer_image_embeds)
-        offer_outputs = self.offer_bert(
-            offer_input_ids,
-            attention_mask=offer_attention_mask,
-            token_type_ids=offer_token_type_ids,
-            position_ids=offer_position_ids,
-            visual_embeds=offer_image_embeds,
-            visual_attention_mask=offer_image_attention_mask,
-            visual_token_type_ids=offer_image_token_type_ids,
-        )
-        offer_embeds = self.offer_projection(offer_outputs[0][:, 0])
+        offer_image_embeds = offer_image_embeds[:, 0]
+        offer_embeds = self.offer_projection(offer_image_embeds)
         offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
 
         scores = torch.sum(query_embeds * offer_embeds, dim=-1, keepdim=True)
