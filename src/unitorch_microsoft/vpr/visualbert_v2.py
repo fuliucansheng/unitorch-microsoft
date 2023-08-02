@@ -201,7 +201,6 @@ class VisualBertForClassificationV2(GenericModel):
             for p in self.query_bert.parameters():
                 p.requires_grad = False
 
-
     def from_pretrained(self, weight_path):
         weight_path = cached_path(weight_path)
         state_dict = torch.load(weight_path, map_location="cpu")
@@ -290,6 +289,7 @@ class VisualBertForClassificationV2(GenericModel):
             return EmbeddingOutputs(embedding=query_embeds)
 
         if self.output_offer_embed:
+            offer_image_embeds = offer_image_embeds[:, 0]
             offer_embeds = self.offer_projection(offer_image_embeds)
             offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
 
