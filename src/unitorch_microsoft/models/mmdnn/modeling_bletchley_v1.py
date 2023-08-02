@@ -320,7 +320,6 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
         for p in self.text_encoder.parameters():
             p.requires_grad = False
 
-
     @classmethod
     @add_default_section_for_init("microsoft/model/distillation/mmdnn/bletchley/v1")
     def from_core_configure(cls, config, **kwargs):
@@ -341,7 +340,6 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
                 replace_keys={"query_encoder.": "text_encoder."},
             )
         return inst
-
 
     @autocast()
     def forward(

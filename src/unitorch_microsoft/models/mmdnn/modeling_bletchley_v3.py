@@ -285,7 +285,6 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
         config_type: str,
         new_config_type: str,
         gradient_checkpointing: Optional[bool] = False,
-
     ):
         super().__init__()
         self.text_encoder = BletchleyTextEncoder(
@@ -304,7 +303,6 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
 
         for p in self.text_encoder.parameters():
             p.requires_grad = False
-
 
     @classmethod
     @add_default_section_for_init("microsoft/model/distillation/mmdnn/bletchley/v3")
@@ -327,7 +325,6 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
             )
 
         return inst
-
 
     @autocast()
     def forward(
@@ -354,7 +351,7 @@ class MMDNNBletchleyForDistillEmbedding(GenericModel):
             .mean()
         )
         return LossOutputs(loss=loss)
-    
+
 
 @register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2")
 class MMDNNBletchleyForClassificationV2(GenericModel):
