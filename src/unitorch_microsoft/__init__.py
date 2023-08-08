@@ -6,6 +6,7 @@ import logging
 import pkg_resources
 import importlib
 import importlib.metadata as importlib_metadata
+import torch
 import unitorch
 import unitorch.cli
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
@@ -54,6 +55,37 @@ def cached_path(
         use_auth_token=use_auth_token,
         local_files_only=local_files_only,
     )
+
+@replace(unitorch.models.peft.PeftCheckpointMixin)
+class PeftCheckpointMixinV2(unitorch.models.peft.PeftCheckpointMixin):
+    checkpoint_name = "pytorch_model.bin"
+
+    modules_to_save_checkpoints = ["lora"]
+
+
+    def save_checkpoint(
+        self,
+        ckpt_dir: str,
+        weight_name: str = None,
+        **kwargs,
+    ):
+        """
+        Save the model's current state as a checkpoint.
+
+        Args:
+            ckpt_dir (str): Directory path to save the checkpoint.
+            weight_name (str): Name of the weight file.
+
+        Returns:
+            None
+        """
+        if weight_name is None:
+            weight_name = self.checkpoint_name
+        state_dict = self.state_dict()
+        state_dict = {k: v for k, v in state_dict.items() if any(m in k for m in self.modules_to_save_checkpoints)}
+        weight_path = os.path.join(ckpt_dir, weight_name)
+        torch.save(state_dict, weight_path)
+        logging.info(f"{type(self).__name__} model save checkpoint to {weight_path}")
 
 
 if logger.getEffectiveLevel() <= logging.DEBUG:

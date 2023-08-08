@@ -14,7 +14,9 @@ from transformers.models.blip_2.modeling_blip_2 import (
     Blip2VisionModel,
     Blip2QFormerModel,
 )
-from unitorch.models.peft import PeftModelForSequenceClassification
+from unitorch.models import GenericModel, GenericOutputs, QuantizationConfig, QuantizationMixin
+from unitorch.models.quantization import quantize_model
+from unitorch.models.peft import PeftModelForSequenceClassification, GenericPeftModel
 from unitorch.models.minigpt4.modeling import MiniGPT4Blip2LlamaModel
 from unitorch.cli import (
     cached_path,
@@ -25,8 +27,6 @@ from unitorch.cli import (
 from unitorch.cli.models import generation_model_decorator
 from unitorch.cli.models import ClassificationOutputs, GenerationOutputs, LossOutputs
 from unitorch.cli.models.minigpt4 import pretrained_minigpt4_infos
-from unitorch.models.peft import PeftCheckpointMixin
-from unitorch.models import GenericModel, GenericOutputs
 
 
 class MiniGPT4Blip2LlamaLoraClassificationModel(nn.Module):
@@ -40,6 +40,7 @@ class MiniGPT4Blip2LlamaLoraClassificationModel(nn.Module):
         blip2_config: Blip2Config,
         llama_config: LlamaConfig,
         peft_config: LoraConfig,
+        quant_config: QuantizationConfig = None,
     ):
         """
         Initializes a MiniGPT4Blip2LlamaModel instance.
@@ -65,9 +66,15 @@ class MiniGPT4Blip2LlamaLoraClassificationModel(nn.Module):
         self.language_projection = nn.Linear(
             self.blip2_config.qformer_config.hidden_size, self.llama_config.hidden_size
         )
+        model = LlamaModel(self.llama_config)
+        self.quant_config = quant_config
+        if self.quant_config is not None:
+            ignore_modules = peft_config.target_modules + ["lm_head"]
+            model = quantize_model(model, self.quant_config, ignore_modules=ignore_modules)
+
         self.peft_config = peft_config
         self.model = PeftModelForSequenceClassification(
-            LlamaModel(self.llama_config),
+            model,
             self.peft_config,
         )
 
@@ -169,6 +176,7 @@ class MiniGPT4Blip2LlamaLoraGenerationModel(nn.Module):
         blip2_config: Blip2Config,
         llama_config: LlamaConfig,
         peft_config: LoraConfig,
+        quant_config: QuantizationConfig = None,
     ):
         """
         Initializes a MiniGPT4Blip2LlamaModel instance.
@@ -194,9 +202,15 @@ class MiniGPT4Blip2LlamaLoraGenerationModel(nn.Module):
         self.language_projection = nn.Linear(
             self.blip2_config.qformer_config.hidden_size, self.llama_config.hidden_size
         )
+        model = LlamaForCausalLM(self.llama_config)
+        self.quant_config = quant_config
+        if self.quant_config is not None:
+            ignore_modules = peft_config.target_modules + ["lm_head"]
+            model = quantize_model(model, self.quant_config, ignore_modules=ignore_modules)
+
         self.peft_config = peft_config
         self.llama = PeftModelForCausalLM(
-            LlamaForCausalLM(self.llama_config),
+            model,
             self.peft_config,
         )
 
@@ -375,7 +389,7 @@ class MiniGPT4Blip2LlamaLoraGenerationModel(nn.Module):
 
 
 @register_model("microsoft/model/classification/peft/lora/minigpt4")
-class MiniGPT4Blip2LlamaLoraForClassification(GenericModel, PeftCheckpointMixin):
+class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
     prefix_keys_in_state_dict = {
         "^qformer.": "peft_model.",
         "^query_tokens": "peft_model.",
@@ -383,11 +397,13 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericModel, PeftCheckpointMixin)
         "^language_projection.": "peft_model.",
         "^model\.": "peft_model.model.base_model.",
     }
+    modules_to_save_checkpoints = ["lora", "classifier"]
 
     def __init__(
         self,
         blip2_config_path: str,
         llama_config_path: str,
+        quant_config_path: Optional[str] = None,
         pad_token_id: Optional[int] = 0,
         lora_r: Optional[int] = 16,
         lora_alpha: Optional[int] = 32,
@@ -410,10 +426,15 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericModel, PeftCheckpointMixin)
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
         )
+        if quant_config_path is not None:
+            self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
+        else:
+            self.quant_config = None
         self.peft_model = MiniGPT4Blip2LlamaLoraClassificationModel(
             self.blip2_config,
             self.llama_config,
             self.peft_config,
+            quant_config=self.quant_config,
         )
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.classifier = nn.Linear(self.llama_config.hidden_size, num_classes)
@@ -453,6 +474,10 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericModel, PeftCheckpointMixin)
         )
         llama_config_path = cached_path(llama_config_path)
 
+        quant_config_path = config.getoption("quant_config_path", None)
+        if quant_config_path is not None:
+            quant_config_path = cached_path(quant_config_path)
+
         lora_r = config.getoption("lora_r", 16)
         lora_alpha = config.getoption("lora_alpha", 32)
         lora_dropout = config.getoption("lora_dropout", 0.05)
@@ -465,6 +490,7 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericModel, PeftCheckpointMixin)
         inst = cls(
             blip2_config_path,
             llama_config_path,
+            quant_config_path=quant_config_path,
             gradient_checkpointing=gradient_checkpointing,
             lora_r=lora_r,
             lora_alpha=lora_alpha,
@@ -536,7 +562,7 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericModel, PeftCheckpointMixin)
 @register_model(
     "microsoft/model/generation/peft/lora/minigpt4", generation_model_decorator
 )
-class MiniGPT4Blip2LlamaLoraForGeneration(GenericModel, PeftCheckpointMixin):
+class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
     """
     MiniGPT4Blip2LlamaForGeneration is a class for generating sequences using the MiniGPT4 model with Blip2 and Llama.
     It inherits from the _MiniGPT4Blip2LlamaForGeneration class.
@@ -555,6 +581,7 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericModel, PeftCheckpointMixin):
         self,
         blip2_config_path: str,
         llama_config_path: str,
+        quant_config_path: Optional[str] = None,
         pad_token_id: Optional[int] = 0,
         freeze_vision_model: Optional[bool] = True,
         freeze_qformer_model: Optional[bool] = True,
@@ -588,11 +615,15 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericModel, PeftCheckpointMixin):
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
         )
-
+        if quant_config_path is not None:
+            self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
+        else:
+            self.quant_config = None
         self.peft_model = MiniGPT4Blip2LlamaLoraGenerationModel(
             self.blip2_config,
             self.llama_config,
             self.peft_config,
+            quant_config=self.quant_config,
         )
         self.init_weights()
 
@@ -638,6 +669,10 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericModel, PeftCheckpointMixin):
         )
         llama_config_path = cached_path(llama_config_path)
 
+        quant_config_path = config.getoption("quant_config_path", None)
+        if quant_config_path is not None:
+            quant_config_path = cached_path(quant_config_path)
+
         lora_r = config.getoption("lora_r", 16)
         lora_alpha = config.getoption("lora_alpha", 32)
         lora_dropout = config.getoption("lora_dropout", 0.05)
@@ -651,6 +686,7 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericModel, PeftCheckpointMixin):
         inst = cls(
             blip2_config_path,
             llama_config_path,
+            quant_config_path=quant_config_path,
             freeze_vision_model=freeze_vision_model,
             freeze_qformer_model=freeze_qformer_model,
             gradient_checkpointing=gradient_checkpointing,
