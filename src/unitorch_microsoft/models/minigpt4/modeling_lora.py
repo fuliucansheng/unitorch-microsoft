@@ -397,7 +397,7 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         "^language_projection.": "peft_model.",
         "^model\.": "peft_model.model.base_model.",
     }
-    modules_to_save_checkpoints = ["lora", "classifier"]
+    modules_to_save_checkpoints = ["vision_model", "query_tokens", "qformer", "language_projection", "lora", "classifier"]
 
     def __init__(
         self,
@@ -405,6 +405,8 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         llama_config_path: str,
         quant_config_path: Optional[str] = None,
         pad_token_id: Optional[int] = 0,
+        freeze_vision_model: Optional[bool] = True,
+        freeze_qformer_model: Optional[bool] = True,
         lora_r: Optional[int] = 16,
         lora_alpha: Optional[int] = 32,
         lora_dropout: Optional[float] = 0.05,
@@ -439,6 +441,14 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.classifier = nn.Linear(self.llama_config.hidden_size, num_classes)
         self.init_weights()
+
+        if freeze_vision_model:
+            for param in self.peft_model.vision_model.parameters():
+                param.requires_grad = False
+
+        if freeze_qformer_model:
+            for param in self.peft_model.qformer.parameters():
+                param.requires_grad = False
 
     @classmethod
     @add_default_section_for_init("microsoft/model/classification/peft/lora/minigpt4")
@@ -484,6 +494,8 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         fan_in_fan_out = config.getoption("fan_in_fan_out", True)
         target_modules = config.getoption("target_modules", ["q_proj", "v_proj"])
 
+        freeze_vision_model = config.getoption("freeze_vision_model", True)
+        freeze_qformer_model = config.getoption("freeze_qformer_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         num_classes = config.getoption("num_classes", 1)
 
@@ -491,6 +503,8 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
             blip2_config_path,
             llama_config_path,
             quant_config_path=quant_config_path,
+            freeze_vision_model=freeze_vision_model,
+            freeze_qformer_model=freeze_qformer_model,
             gradient_checkpointing=gradient_checkpointing,
             lora_r=lora_r,
             lora_alpha=lora_alpha,
@@ -576,6 +590,7 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
         "^model\.": "peft_model.llama.base_model.model.",
         "^lm_head.": "peft_model.llama.base_model.model.",
     }
+    modules_to_save_checkpoints = ["vision_model", "query_tokens", "qformer", "language_projection", "lora"]
 
     def __init__(
         self,
