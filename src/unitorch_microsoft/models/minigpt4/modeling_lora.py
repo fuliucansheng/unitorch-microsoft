@@ -14,7 +14,12 @@ from transformers.models.blip_2.modeling_blip_2 import (
     Blip2VisionModel,
     Blip2QFormerModel,
 )
-from unitorch.models import GenericModel, GenericOutputs, QuantizationConfig, QuantizationMixin
+from unitorch.models import (
+    GenericModel,
+    GenericOutputs,
+    QuantizationConfig,
+    QuantizationMixin,
+)
 from unitorch.models.quantization import quantize_model
 from unitorch.models.peft import PeftModelForSequenceClassification, GenericPeftModel
 from unitorch.models.minigpt4.modeling import MiniGPT4Blip2LlamaModel
@@ -70,7 +75,9 @@ class MiniGPT4Blip2LlamaLoraClassificationModel(nn.Module):
         self.quant_config = quant_config
         if self.quant_config is not None:
             ignore_modules = peft_config.target_modules + ["lm_head"]
-            model = quantize_model(model, self.quant_config, ignore_modules=ignore_modules)
+            model = quantize_model(
+                model, self.quant_config, ignore_modules=ignore_modules
+            )
 
         self.peft_config = peft_config
         self.model = PeftModelForSequenceClassification(
@@ -206,7 +213,9 @@ class MiniGPT4Blip2LlamaLoraGenerationModel(nn.Module):
         self.quant_config = quant_config
         if self.quant_config is not None:
             ignore_modules = peft_config.target_modules + ["lm_head"]
-            model = quantize_model(model, self.quant_config, ignore_modules=ignore_modules)
+            model = quantize_model(
+                model, self.quant_config, ignore_modules=ignore_modules
+            )
 
         self.peft_config = peft_config
         self.llama = PeftModelForCausalLM(
@@ -397,7 +406,14 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         "^language_projection.": "peft_model.",
         "^model\.": "peft_model.model.base_model.",
     }
-    modules_to_save_checkpoints = ["vision_model", "query_tokens", "qformer", "language_projection", "lora", "classifier"]
+    modules_to_save_checkpoints = [
+        "vision_model",
+        "query_tokens",
+        "qformer",
+        "language_projection",
+        "lora",
+        "classifier",
+    ]
 
     def __init__(
         self,
@@ -590,7 +606,13 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
         "^model\.": "peft_model.llama.base_model.model.",
         "^lm_head.": "peft_model.llama.base_model.model.",
     }
-    modules_to_save_checkpoints = ["vision_model", "query_tokens", "qformer", "language_projection", "lora"]
+    modules_to_save_checkpoints = [
+        "vision_model",
+        "query_tokens",
+        "qformer",
+        "language_projection",
+        "lora",
+    ]
 
     def __init__(
         self,
