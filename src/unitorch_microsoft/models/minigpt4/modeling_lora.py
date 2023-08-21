@@ -556,7 +556,6 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
 
         return inst
 
-    @autocast()
     def forward(
         self,
         pixel_values: torch.Tensor,
@@ -760,7 +759,6 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
 
         return inst
 
-    @autocast()
     def forward(
         self,
         pixel_values: torch.Tensor,
@@ -805,7 +803,6 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
 
     @add_default_section_for_function("microsoft/model/generation/peft/lora/minigpt4")
     @torch.no_grad()
-    @autocast()
     def generate(
         self,
         pixel_values: torch.Tensor,

@@ -102,7 +102,7 @@ class AzureChatGPTScript(GenericScript):
 
         return result
 
-    def run(self):
+    def launch(self):
         self.config.set_default_section("microsoft/msan/pa_title/chatgpt")
         data_file = self.config.getoption("data_file", None)
         names = self.config.getoption("names", None)

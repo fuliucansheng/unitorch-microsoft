@@ -23,7 +23,7 @@ class DV3QUScript(GenericScript):
     def __init__(self, config: CoreConfigureParser):
         self.config = config
 
-    def run(self, **kwargs):
+    def launch(self, **kwargs):
         config = self.config
         config.set_default_section("microsoft/script/chatgpt/adsplus/relevance/dv3qu")
         data_file = config.getoption("data_file", None)
