@@ -15,6 +15,7 @@ from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
+
 @register_script("microsoft/script/chatgpt/dv3")
 class DV3Script(GenericScript):
     def __init__(self, config: CoreConfigureParser):
@@ -27,7 +28,9 @@ class DV3Script(GenericScript):
         prompt_file = config.getoption("prompt_file", None)
         prompt_text = config.getoption("prompt_text", None)
         output_file = config.getoption("output_file", "./output.txt")
-        assert data_file is not None and (prompt_file is not None or prompt_text is not None)
+        assert data_file is not None and (
+            prompt_file is not None or prompt_text is not None
+        )
 
         if prompt_file is not None:
             prompt_file = cached_path(prompt_file)
@@ -110,5 +113,3 @@ class DV3Script(GenericScript):
             )
             start_index += len(_data)
             logging.info(f"partition {i} processed finish.")
-
-

@@ -30,7 +30,9 @@ class GPTVScript(GenericScript):
         prompt_file = config.getoption("prompt_file", None)
         prompt_text = config.getoption("prompt_text", None)
         output_file = config.getoption("output_file", "./output.txt")
-        assert data_file is not None and (prompt_file is not None or prompt_text is not None)
+        assert data_file is not None and (
+            prompt_file is not None or prompt_text is not None
+        )
 
         if prompt_file is not None:
             prompt_file = cached_path(prompt_file)
@@ -82,6 +84,7 @@ class GPTVScript(GenericScript):
 
         if isinstance(images, str):
             images = re.split(r"[,;]", images)
+
         def processing(row):
             transcript = [
                 {
@@ -98,12 +101,13 @@ class GPTVScript(GenericScript):
                 return base64.b64decode(image)
 
             if isinstance(images, list):
-                transcript += [{
-                    "type":
-                    "image",
-                    "data":
-                    base64.b64encode(read_image(row[image])).decode()
-                } for image in images]
+                transcript += [
+                    {
+                        "type": "image",
+                        "data": base64.b64encode(read_image(row[image])).decode(),
+                    }
+                    for image in images
+                ]
 
             res = {
                 "transcript": transcript,
@@ -122,8 +126,7 @@ class GPTVScript(GenericScript):
 
         for i, _data in enumerate(data):
             if index_col == "__index__":
-                _data["__index__"] = range(start_index,
-                                           start_index + len(_data))
+                _data["__index__"] = range(start_index, start_index + len(_data))
             assert index_col in _data.columns
             _data.fillna("", inplace=True)
             _data["jsonl"] = _data.apply(processing, axis=1)
