@@ -11,6 +11,7 @@ import logging
 import hashlib
 import numpy as np
 import pandas as pd
+from transformers.utils import is_remote_url
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
@@ -28,12 +29,16 @@ class DV3Script(GenericScript):
         prompt_file = config.getoption("prompt_file", None)
         prompt_text = config.getoption("prompt_text", None)
         output_file = config.getoption("output_file", "./output.txt")
-        assert data_file is not None and (
-            prompt_file is not None or prompt_text is not None
-        )
+        assert data_file is not None and os.path.exists(data_file)
+        assert prompt_file is not None or prompt_text is not None
 
         if prompt_file is not None:
-            prompt_file = cached_path(prompt_file)
+            if is_remote_url(prompt_file):
+                prompt_file = cached_path(prompt_file)
+            elif os.path.exists(prompt_file):
+                prompt_file = cached_path(prompt_file)
+            else:
+                prompt_file = None
 
         names = config.getoption("names", None)
         index_col = config.getoption("index_col", None)
@@ -42,8 +47,13 @@ class DV3Script(GenericScript):
         temperature = config.getoption("temperature", 0)
         top_p = config.getoption("top_p", 1)
         freq = config.getoption("freq", 20)
-        escapechar = config.getoption("escapechar", "\\")
+        input_escapechar = config.getoption("input_escapechar", None)
+        output_escapechar = config.getoption("output_escapechar", "\\")
+        output_header = config.getoption("output_header", False)
         replace_items = config.getoption("replace_items", {"#endl#": "\n"})
+
+        if isinstance(names, str) and names.strip() == "*":
+            names = None
 
         if names is None:
             data = pd.read_csv(
@@ -55,6 +65,7 @@ class DV3Script(GenericScript):
                 header="infer",
                 iterator=True,
                 low_memory=True,
+                escapechar=input_escapechar,
             )
         else:
             if isinstance(names, str):
@@ -69,6 +80,7 @@ class DV3Script(GenericScript):
                 header=None,
                 iterator=True,
                 low_memory=True,
+                escapechar=input_escapechar,
             )
 
         if prompt_file is not None:
@@ -106,10 +118,10 @@ class DV3Script(GenericScript):
                 output_file,
                 sep="\t",
                 index=False,
-                header=None,
+                header=output_header,
                 mode="a",
                 quoting=3,
-                escapechar=escapechar,
+                escapechar=output_escapechar,
             )
             start_index += len(_data)
             logging.info(f"partition {i} processed finish.")

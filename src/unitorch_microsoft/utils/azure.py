@@ -69,4 +69,3 @@ class BlobFile:
 
     def exists(self):
         return self.blob.exists()
-

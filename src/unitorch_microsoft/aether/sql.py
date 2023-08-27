@@ -41,10 +41,11 @@ class SqlScript(GenericScript):
         input_escapechar = config.getoption("input_escapechar", None)
         output_escapechar = config.getoption("output_escapechar", "\\")
 
-        save_header = config.getoption("save_header", False)
+        output_header = config.getoption("output_header", False)
 
         def get_input_table(input_file, names):
-            names = None if names.strip() == "*" else names
+            if isinstance(names, str) and names.strip() == "*":
+                names = None
             if isinstance(names, str):
                 names = re.split(r"[,;]", names)
                 names = [n.strip() for n in names]
@@ -95,8 +96,8 @@ class SqlScript(GenericScript):
             if sql.count("select") == 0:
                 logging.warning(f"Skip the SQL: `{sql}`. It's not a Select Statement.")
                 return
-            logging.info(f"Running SQL: {sql}")
-            pattern = r"(\w+)\s*=\s*(select .+?)\s*(?:where|group by|order by|$)"
+            logging.info(f"Running SQL: `{sql}`")
+            pattern = r"(\w+)\s*=\s*(select.*?);"
             match = re.match(pattern, sql)
             if match:
                 table = match.group(1)
@@ -104,6 +105,8 @@ class SqlScript(GenericScript):
             else:
                 table = "__default__"
                 sql = sql
+
+            logging.info(f"Running Processed SQL: `{sql}`")
 
             result = pd.read_sql(sql, db)
 
@@ -115,9 +118,12 @@ class SqlScript(GenericScript):
             sqls = sqlparse.split(action)
             result = None
             for sql in sqls:
-                result = run_sql(sql)
-                if result is not None:
-                    logging.info(f"Result Info: {result.columns} -- {result.shape}")
+                __result__ = run_sql(sql)
+                if __result__ is not None:
+                    result = __result__
+                    logging.info(
+                        f"Result Info: {list(result.columns)} -- {result.shape}"
+                    )
             return result
 
         output = None
@@ -132,14 +138,16 @@ class SqlScript(GenericScript):
 
         for action in [action1, action2, action3, action4, action_output1]:
             if action is not None:
-                output = run_action(action)
+                __output__ = run_action(action)
+                if __output__ is not None:
+                    output = __output__
 
         if output is not None:
             output.to_csv(
                 output1_file,
                 sep="\t",
                 index=False,
-                header=save_header,
+                header=output_header,
                 quoting=3,
                 escapechar=output_escapechar,
             )
@@ -153,14 +161,16 @@ class SqlScript(GenericScript):
 
         for action in [action5, action6, action_output2]:
             if action is not None:
-                output = run_action(action)
+                __output__ = run_action(action)
+                if __output__ is not None:
+                    output = __output__
 
         if output is not None:
             output.to_csv(
                 output2_file,
                 sep="\t",
                 index=False,
-                header=save_header,
+                header=output_header,
                 quoting=3,
                 escapechar=output_escapechar,
             )
@@ -170,16 +180,17 @@ class SqlScript(GenericScript):
         output3_file = config.getoption("output3_file", "./output3.txt")
 
         if action_output3 is not None:
-            output = run_action(action_output3)
+            __output__ = run_action(action_output3)
+            if __output__ is not None:
+                output = __output__
 
         if output is not None:
             output.to_csv(
                 output3_file,
                 sep="\t",
                 index=False,
-                header=save_header,
+                header=output_header,
                 quoting=3,
                 escapechar=output_escapechar,
             )
             logging.info(f"Processed Output3 finish. shape is {output.shape}")
-

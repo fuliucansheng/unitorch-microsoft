@@ -327,5 +327,3 @@ for x in ort_session.get_inputs():
     print(x)
 for x in ort_session.get_outputs():
     print(x)
-
-
