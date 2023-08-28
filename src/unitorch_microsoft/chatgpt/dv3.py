@@ -48,7 +48,7 @@ class DV3Script(GenericScript):
         top_p = config.getoption("top_p", 1)
         freq = config.getoption("freq", 20)
         input_escapechar = config.getoption("input_escapechar", None)
-        output_escapechar = config.getoption("output_escapechar", "\\")
+        output_escapechar = config.getoption("output_escapechar", None)
         output_header = config.getoption("output_header", False)
         replace_items = config.getoption("replace_items", {"#endl#": "\n"})
 

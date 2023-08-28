@@ -31,7 +31,7 @@ class ParserScript(GenericScript):
         chunksize = config.getoption("chunksize", 1000)
         freq = config.getoption("freq", 20)
         input_escapechar = config.getoption("input_escapechar", None)
-        output_escapechar = config.getoption("output_escapechar", "\\")
+        output_escapechar = config.getoption("output_escapechar", None)
         result_tags = config.getoption("result_tags", None)
         result_sep = config.getoption("result_sep", ";")
         output_header = config.getoption("output_header", False)
