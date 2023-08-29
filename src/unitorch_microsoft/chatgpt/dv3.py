@@ -84,7 +84,7 @@ class DV3Script(GenericScript):
             )
 
         if prompt_file is not None:
-            prompt = open(prompt_file, "r").read()
+            prompt = open(prompt_file, "r", encoding="utf-8").read()
         else:
             prompt = prompt_text
 
