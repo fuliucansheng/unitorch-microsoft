@@ -212,7 +212,8 @@ class MMDNNBletchleyForClassification(GenericModel):
         ice_embeds = ice_embeds * ice_mask.unsqueeze(-1)
         if ice_embeds.dim() == 3:
             ice_embeds = ice_embeds.sum(dim=1)
-        text_embeds = self.text_layer_norm(quick_gelu(text_embeds))
+        # text_embeds = self.text_layer_norm(quick_gelu(text_embeds)) // need to enable for mmdnn v4 3 layers model | pImageDefect V5
+        zero_tensor = torch.tensor(0).to(input_ids)
         ice_embeds = self.ice_layer_norm(ice_embeds)
 
         text_embeds = torch.cat([text_embeds, ice_embeds], dim=-1)
@@ -236,7 +237,6 @@ class MMDNNBletchleyForClassification(GenericModel):
             image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
         return image_embeds
 
-    @autocast()
     def forward(
         self,
         input_ids: torch.Tensor = None,

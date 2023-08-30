@@ -196,7 +196,6 @@ class MMDNNBletchleyForClassification(GenericModel):
         ice_embeds = ice_embeds * ice_mask.unsqueeze(-1)
         if ice_embeds.dim() == 3:
             ice_embeds = ice_embeds.sum(dim=1)
-        text_embeds = self.text_layer_norm(quick_gelu(text_embeds))
         ice_embeds = self.ice_layer_norm(ice_embeds)
 
         text_embeds = torch.cat([text_embeds, ice_embeds], dim=-1)
