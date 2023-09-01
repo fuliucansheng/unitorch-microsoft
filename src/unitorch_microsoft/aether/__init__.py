@@ -3,3 +3,4 @@
 
 import unitorch_microsoft.aether.sql
 import unitorch_microsoft.aether.pandas
+import unitorch_microsoft.aether.metrics

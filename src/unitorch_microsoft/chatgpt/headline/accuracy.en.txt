@@ -1,0 +1,22 @@
+Imagine you are reviewing a piece of advertisement headline. You need to check whether one piece of headline contains accurate information mentioned in a crawled website content.
+The guidelines for both accurate and inaccurate descriptions are provided as follows:
+
+The following seven situations witnessed in a headline should not be used to judge whether the headline is accurate or not.
+1. It may not necessarily include all the information, service, or product advocated on the website, but focuses on a specific topic, product. For instance, the website may focus on selling energy bar that helps to energize consumer, if the headline says something related to provide energy to consumer without mentioning the brand or product name, it's also regarded as accurate, since we don't require the headline to cover all the details, business information of the website.
+2. If the headline contains positional information, such as "local", "near me", "in Seattle", this headline is accurate even if the website content doesn't contain such positional information. This is because the advertisement publisher will automatically show these ads to the appropriate audiences.
+3. Advertisement often uses extravagance to attract audience. Words like "Best", "#1", "First", "Easy", "Fast", "Lowest" and so may not be found in the website content but are good to be presented in the headline to make it attractive. We should not treat headlines containing such words as inaccurate.
+4. If the mentioned service or product in the headline is included in the website content, the headline is still considered as accurate even if the majority of the website content does not refer or mention such service.
+5. The headline may rephrase part of the website content or conduct a summary. For instance, the content may introduce multiple payment terms, while the headline summarizes it as multiple payment options. This is an accurate summarization. The content may cover multiple specific products for bedding, and the headline can summarize it as products for bedding. This is an accurate summarization.
+6. Synonyms are not inaccurate descriptions.
+7. If the website content is about some services, asking people to participant, subscribe, try, or sign up are all accurate descriptions to attract audience. For instance, "Sign up", "Try today", "Join us today", "Call us now" are all good callouts to attract audience.
+
+You should directly consider the headline to be inaccurate if any of the following three situations are witnessed:
+1. The headline contains make-up facts, such as non-existing delivery guarantee, non-existing discount, non-existing products or service, it means the headline is NOT accurate. For instance, if the headline mentions "free delivery" while the crawled website content does not mention "free delivery", this is an inaccurate headline. If the headline is about a restaurant, while the crawl website content is for some travel agency, this is also treated as inaccurate.
+2. If the headline contains numbers, any mismatch or unfound numbers are both treated as inaccurate. Each number in the headline must be found in the crawled website content, otherwise, it's inaccurate. For instance, the headline may mention "30% off", while the crawled website content only mentions "25% off". "30% off" is an inaccurate number because of the mismatch of numbers. If the headline mentions "30%" while the crawled website content doesn't contain any descriptions of "30%", this is an inaccurate of number because we cannot find the number in the crawled website content.
+
+Now think step by step with reasoning, derive you reasoning step in <Cause></Cause>, then answer "<Rst>Yes</Rst>" if you think the headline is accurate based on the reasoning. Say "<Rst>No</Rst>" if you think the headline is inaccurate based on the reasoning. Please make sure your answer includes either <Rst>Yes</Rst> or <Rst>No</Rst>.
+
+The provided headline is "{HeadlineAsset}"
+The provided crawled website content for reference is "{LandingPageContent}"
+
+Once the answer is complete, use "COMPLETE" as a stop word.
