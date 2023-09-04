@@ -169,6 +169,12 @@ class MetricsScript(GenericScript):
         y_true = data[y_true_col]
         y_pred = data[y_pred_col]
 
+        if y_true.dtype == "object":
+            y_true.fillna("", inplace=True)
+
+        if y_pred.dtype == "object":
+            y_pred.fillna("", inplace=True)
+
         outputs = []
         for metric in metrics:
             score = metrics_dict.get(metric)(y_true, y_pred)
