@@ -5,11 +5,12 @@
 from unitorch.cli import cached_path
 from transformers import BertTokenizer
 
+
 def get_bert_tokenizer(
     vocab_path,
-    do_lower_case = True,
-    do_basic_tokenize = True,
-    special_input_ids = dict(),
+    do_lower_case=True,
+    do_basic_tokenize=True,
+    special_input_ids=dict(),
 ):
     tokenizer = BertTokenizer(
         vocab_path,
@@ -23,8 +24,11 @@ def get_bert_tokenizer(
         tokenizer.add_tokens(token, special_tokens=True)
     return tokenizer
 
-vocab_path = cached_path("https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt")
-tokenizer = get_bert_tokenizer(vocab_path = vocab_path)
+
+vocab_path = cached_path(
+    "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt"
+)
+tokenizer = get_bert_tokenizer(vocab_path=vocab_path)
 tokens = tokenizer.tokenize("clothing shoes jewelry women clothing coats jackets vests")
 tokens = [tokenizer.cls_token] + tokens + [tokenizer.sep_token]
 print(tokens)
@@ -56,14 +60,15 @@ from transformers.models.visual_bert.modeling_visual_bert import (
     VisualBertModel,
 )
 
+
 class VisualBertV2ForQuery(nn.Module):
     def __init__(
         self,
         config_path,
-        image_embed_dim = 100,
-        projection_dim = 100,
-        gradient_checkpointing = False,
-        weight_path = None
+        image_embed_dim=100,
+        projection_dim=100,
+        gradient_checkpointing=False,
+        weight_path=None,
     ):
         super().__init__()
         self.config = VisualBertConfig.from_json_file(config_path)
@@ -78,7 +83,7 @@ class VisualBertV2ForQuery(nn.Module):
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
 
         self.from_checkpoint(weight_path)
-    
+
     def from_checkpoint(self, weight_path):
         state_dict = torch.load(weight_path, map_location="cpu")
         self.load_state_dict(state_dict, strict=False)
@@ -105,8 +110,8 @@ class VisualBertV2ForQuery(nn.Module):
         )
         query_embeds = self.query_projection(query_outputs[0][:, 0])
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
-        
-        return query_embeds.view(1,100), query_embeds[:, 0].view(1).squeeze()
+
+        return query_embeds.view(1, 100), query_embeds[:, 0].view(1).squeeze()
 
 
 model_file = "/disk/lixin/ckpt/visualbert/pytorch_model.bin"
@@ -124,12 +129,14 @@ img_embed_list = list(map(float, img_embed.split(" ")))
 image_embeds = torch.tensor(img_embed_list).unsqueeze(0)
 
 torch.set_printoptions(profile="full")
-torch.onnx.export(model, (query, image_embeds), 
-    f = './visualbertv2.onnx',
-    input_names = ['query', 'AVEV9Str'],
-    output_names = ['qvec', 'dummy_score'],
-    export_params = True,
-    dynamic_axes = {'query' : {0: 'querylen'}},
+torch.onnx.export(
+    model,
+    (query, image_embeds),
+    f="./visualbertv2.onnx",
+    input_names=["query", "AVEV9Str"],
+    output_names=["qvec", "dummy_score"],
+    export_params=True,
+    dynamic_axes={"query": {0: "querylen"}},
     do_constant_folding=True,
     verbose=False,
     opset_version=13,
@@ -151,7 +158,7 @@ outputs = ort_session.run(
     None,
     {"query": query.cpu().numpy(), "AVEV9Str": image_embeds.cpu().numpy()},
 )
-print('onnx output: ', outputs)
+print("onnx output: ", outputs)
 embedding, dummy_score = model(query, image_embeds)
 print(embedding)
 print(dummy_score)
@@ -171,7 +178,7 @@ outputs = ort_session.run(
     None,
     {"query": query.cpu().numpy(), "AVEV9Str": image_embeds.cpu().numpy()},
 )
-print('onnx output: ', outputs)
+print("onnx output: ", outputs)
 embedding, dummy_score = model(query, image_embeds)
 print(embedding)
 print(dummy_score)

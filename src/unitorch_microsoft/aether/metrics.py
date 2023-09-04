@@ -13,7 +13,16 @@ import numpy as np
 import pandas as pd
 from functools import partial
 from transformers import BertTokenizer
-from unitorch.score import auc, accuracy_score, recall_score, f1_score, precision_recall_curve, ndcg_score, matthews_corrcoef, pearsonr
+from unitorch.score import (
+    auc,
+    accuracy_score,
+    recall_score,
+    f1_score,
+    precision_recall_curve,
+    ndcg_score,
+    matthews_corrcoef,
+    pearsonr,
+)
 from unitorch.score import bleu_score, rouge1_score, rouge2_score, rougel_score
 from unitorch.score import map50_score, map_score
 from unitorch.cli import CoreConfigureParser, GenericScript
@@ -41,96 +50,72 @@ class WhiteSpaceTokenizer:
 
 
 metrics_dict = {
-    "accuracy":
-    accuracy_score,
-    "recall":
-    recall_score,
-    "f1":
-    f1_score,
-    "auc":
-    auc,
-    "prauc":
-    prauc_score,
-    "ndcg":
-    ndcg_score,
-    "mattcorr":
-    matthews_corrcoef,
-    "pearsonr":
-    pearsonr,
-    "base-bleu":
-    partial(
+    "accuracy": accuracy_score,
+    "recall": recall_score,
+    "f1": f1_score,
+    "auc": auc,
+    "prauc": prauc_score,
+    "ndcg": ndcg_score,
+    "mattcorr": matthews_corrcoef,
+    "pearsonr": pearsonr,
+    "base-bleu": partial(
         rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=bleu_score,
     ),
-    "base-rouge1":
-    partial(
+    "base-rouge1": partial(
         rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=rouge1_score,
     ),
-    "base-rouge2":
-    partial(
+    "base-rouge2": partial(
         rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=rouge2_score,
     ),
-    "base-rougel":
-    partial(
+    "base-rougel": partial(
         rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=rougel_score,
     ),
-    "bert-bleu":
-    partial(
+    "bert-bleu": partial(
         rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=bleu_score,
     ),
-    "bert-rouge1":
-    partial(
+    "bert-rouge1": partial(
         rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=rouge1_score,
     ),
-    "bert-rouge2":
-    partial(
+    "bert-rouge2": partial(
         rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=rouge2_score,
     ),
-    "bert-rougel":
-    partial(
+    "bert-rougel": partial(
         rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=rougel_score,
     ),
-    "mbert-bleu":
-    partial(
+    "mbert-bleu": partial(
         rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained(
-            "bert-base-multilingual-cased"),
+        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=bleu_score,
     ),
-    "mbert-rouge1":
-    partial(
+    "mbert-rouge1": partial(
         rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained(
-            "bert-base-multilingual-cased"),
+        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=rouge1_score,
     ),
-    "mbert-rouge2":
-    partial(
+    "mbert-rouge2": partial(
         rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained(
-            "bert-base-multilingual-cased"),
+        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=rouge2_score,
     ),
-    "mbert-rougel":
-    partial(
+    "mbert-rougel": partial(
         rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained(
-            "bert-base-multilingual-cased"),
+        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=rougel_score,
     ),
 }

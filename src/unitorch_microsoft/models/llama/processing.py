@@ -74,16 +74,19 @@ class LlamaProcessor(_LlamaProcessor):
         suffix_tokens = self.tokenizer.tokenize(str(suffix_text))
         assert len(suffix_tokens) < max_seq_length
 
-        tokens = [self.bos_token] + self.tokenizer.tokenize(str(text))[
-            1 - (max_seq_length - len(suffix_tokens)) :
-        ] + suffix_tokens
+        tokens = (
+            [self.bos_token]
+            + self.tokenizer.tokenize(str(text))[
+                1 - (max_seq_length - len(suffix_tokens)) :
+            ]
+            + suffix_tokens
+        )
         padding = [self.pad_token] * (max_seq_length - len(tokens))
         tokens = padding + tokens
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
 
         assert len(input_ids) == max_seq_length
         return TensorsInputs(input_ids=torch.tensor(input_ids, dtype=torch.long))
-    
 
     @register_process("microsoft/process/llama/generation/labels")
     def _generation_labels(
@@ -99,7 +102,6 @@ class LlamaProcessor(_LlamaProcessor):
             refs=outputs.input_ids,
             masks=outputs.attention_mask,
         )
-    
 
     @register_process("microsoft/process/llama/generation")
     def _generation(
@@ -122,9 +124,13 @@ class LlamaProcessor(_LlamaProcessor):
         suffix_tokens = self.tokenizer.tokenize(str(suffix_text))
         assert len(suffix_tokens) < max_seq_length
 
-        tokens = [self.bos_token] + self.tokenizer.tokenize(str(text))[
-            1 - (max_seq_length - len(suffix_tokens)) :
-        ] + suffix_tokens
+        tokens = (
+            [self.bos_token]
+            + self.tokenizer.tokenize(str(text))[
+                1 - (max_seq_length - len(suffix_tokens)) :
+            ]
+            + suffix_tokens
+        )
         tokens_pair = self.tokenizer.tokenize(str(text_pair))[
             : max_gen_seq_length - 1
         ] + [self.eos_token]
@@ -150,10 +156,10 @@ class LlamaProcessor(_LlamaProcessor):
 
         return TensorsInputs(
             input_ids=torch.tensor(input_ids, dtype=torch.long),
-            attention_mask=torch.tensor(attention_mask, dtype=torch.long)
+            attention_mask=torch.tensor(attention_mask, dtype=torch.long),
         ), GenerationTargets(
             refs=torch.tensor(input_ids_label, dtype=torch.long),
-            masks=torch.tensor(attention_mask_label, dtype=torch.long)
+            masks=torch.tensor(attention_mask_label, dtype=torch.long),
         )
 
     @register_process("microsoft/postprocess/llama/detokenize")

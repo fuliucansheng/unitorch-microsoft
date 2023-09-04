@@ -29,5 +29,5 @@ def convert_weight_to_ranker_string(
         sh = value.shape
     assert sh[0] == num_row
     assert sh[1] == num_col
-    ret = '; '.join([' '.join(map(lambda x: str(float(x)), v)) for v in value])
+    ret = "; ".join([" ".join(map(lambda x: str(float(x)), v)) for v in value])
     return ret
