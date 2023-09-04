@@ -103,12 +103,25 @@ class PandasScript(GenericScript):
             function2,
             function3,
             function4,
+        ]:
+            exec(action.replace('\\n', '\n'))
+            globals().update(locals())
+            logging.info(
+                f"Global Function: `{action}`"
+            )
+
+
+        for action in [
             global_action1,
             global_action2,
             global_action3,
             global_action4,
         ]:
             exec(action)
+            globals().update(locals())
+            logging.info(
+                f"Global Action: `{action}`"
+            )
 
         action1 = config.getoption("action1", "#")
         action2 = config.getoption("action2", "#")
@@ -122,6 +135,7 @@ class PandasScript(GenericScript):
             if action is not None:
                 __output_name__ = get_action_output_name(action)
                 exec(action)
+                globals().update(locals())
                 __output__ = locals().get(__output_name__, None)
                 if __output__ is not None:
                     output = __output__
@@ -150,6 +164,7 @@ class PandasScript(GenericScript):
             if action is not None:
                 __output_name__ = get_action_output_name(action)
                 exec(action)
+                globals().update(locals())
                 __output__ = locals().get(__output_name__, None)
                 if __output__ is not None:
                     output = __output__
@@ -174,6 +189,7 @@ class PandasScript(GenericScript):
         if action_output3 is not None:
             __output_name__ = get_action_output_name(action_output3)
             exec(action_output3)
+            globals().update(locals())
             __output__ = locals().get(__output_name__, None)
             if __output_name__ is not None and __output__ is not None:
                 output = __output__
