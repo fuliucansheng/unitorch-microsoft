@@ -75,9 +75,9 @@ class LlamaProcessor(_LlamaProcessor):
         assert len(suffix_tokens) < max_seq_length
 
         tokens = (
-            [self.bos_token]
+            [self.bos_token] 
             + self.tokenizer.tokenize(str(text))[
-                1 - (max_seq_length - len(suffix_tokens)) :
+                : max_seq_length - len(suffix_tokens) - 1
             ]
             + suffix_tokens
         )
@@ -127,7 +127,7 @@ class LlamaProcessor(_LlamaProcessor):
         tokens = (
             [self.bos_token]
             + self.tokenizer.tokenize(str(text))[
-                1 - (max_seq_length - len(suffix_tokens)) :
+                : max_seq_length - len(suffix_tokens) - 1
             ]
             + suffix_tokens
         )
