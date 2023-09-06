@@ -30,16 +30,16 @@ class GPTVScript(GenericScript):
         prompt_file = config.getoption("prompt_file", None)
         prompt_text = config.getoption("prompt_text", None)
         output_file = config.getoption("output_file", "./output.txt")
+        if prompt_file.strip() == "":
+            prompt_file = None
         assert data_file is not None and os.path.exists(data_file)
         assert prompt_file is not None or prompt_text is not None
 
         if prompt_file is not None:
             if is_remote_url(prompt_file):
                 prompt_file = cached_path(prompt_file)
-            elif os.path.exists(prompt_file):
-                prompt_file = cached_path(prompt_file)
             else:
-                prompt_file = None
+                prompt_file = cached_path(prompt_file)
 
         names = config.getoption("names", None)
         index_col = config.getoption("index_col", None)
