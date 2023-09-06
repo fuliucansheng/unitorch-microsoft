@@ -1,6 +1,7 @@
 include requirements.txt
 global-include *.md
 global-include *.ini
+global-include *.txt
 global-include *.json
 global-include *.model
 global-include *.md
