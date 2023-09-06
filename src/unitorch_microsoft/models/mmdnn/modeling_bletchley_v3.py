@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
-from unitorch.modules.classifier import mlplayer
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -46,7 +45,9 @@ class MMDNNBletchleyForClassification(GenericModel):
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
         freeze_base_model: Optional[bool] = True,
+        freeze_image_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
+        enable_quantization: Optional[bool] = False,
         output_text_embed: Optional[bool] = False,
         output_image_embed: Optional[bool] = False,
         output_final_text_embed: Optional[bool] = False,
@@ -106,11 +107,27 @@ class MMDNNBletchleyForClassification(GenericModel):
 
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
+        if enable_quantization:
+            for __model__ in [
+                self.text_encoder,
+                self.text_layer_norm,
+                self.ice_embedding,
+                self.ice_layer_norm,
+                self.final_text_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
 
         if freeze_base_model:
             for p in self.text_encoder.parameters():
                 p.requires_grad = False
 
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+        if freeze_image_model:
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
 
@@ -128,7 +145,9 @@ class MMDNNBletchleyForClassification(GenericModel):
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_image_model = config.getoption("freeze_image_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        enable_quantization = config.getoption("enable_quantization", False)
         output_text_embed = config.getoption("output_text_embed", False)
         output_image_embed = config.getoption("output_image_embed", False)
         output_final_text_embed = config.getoption("output_final_text_embed", False)
@@ -145,7 +164,9 @@ class MMDNNBletchleyForClassification(GenericModel):
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
             freeze_base_model=freeze_base_model,
+            freeze_image_model=freeze_image_model,
             gradient_checkpointing=gradient_checkpointing,
+            enable_quantization=enable_quantization,
             output_text_embed=output_text_embed,
             output_image_embed=output_image_embed,
             output_final_text_embed=output_final_text_embed,
@@ -278,7 +299,7 @@ class MMDNNBletchleyForClassification(GenericModel):
 
 
 @register_model("microsoft/model/distillation/mmdnn/bletchley/v3")
-class MMDNNBletchleyForDistillEmbedding(GenericModel):
+class MMDNNBletchleyForDistillation(GenericModel):
     def __init__(
         self,
         config_type: str,
@@ -366,7 +387,9 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
         freeze_base_model: Optional[bool] = True,
+        freeze_offer_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
+        enable_quantization: Optional[bool] = False,
         output_query_embed: Optional[bool] = False,
         output_offer_embed: Optional[bool] = False,
         output_image_embed: Optional[bool] = False,
@@ -430,10 +453,30 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
 
+        if enable_quantization:
+            for __model__ in [
+                self.query_encoder,
+                self.query_layer_norm,
+                self.ice_embedding,
+                self.ice_layer_norm,
+                self.final_query_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
+
         if freeze_base_model:
             for p in self.query_encoder.parameters():
                 p.requires_grad = False
 
+            for p in self.offer_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+        if freeze_offer_model:
             for p in self.offer_encoder.parameters():
                 p.requires_grad = False
 
@@ -459,7 +502,9 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_offer_model = config.getoption("freeze_offer_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        enable_quantization = config.getoption("enable_quantization", False)
         output_query_embed = config.getoption("output_query_embed", False)
         output_offer_embed = config.getoption("output_offer_embed", False)
         output_image_embed = config.getoption("output_image_embed", False)
@@ -477,7 +522,9 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
             freeze_base_model=freeze_base_model,
+            freeze_offer_model=freeze_offer_model,
             gradient_checkpointing=gradient_checkpointing,
+            enable_quantization=enable_quantization,
             output_query_embed=output_query_embed,
             output_offer_embed=output_offer_embed,
             output_image_embed=output_image_embed,
@@ -667,7 +714,9 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
         freeze_base_model: Optional[bool] = True,
+        freeze_offer_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
+        enable_quantization: Optional[bool] = False,
         output_query_embed: Optional[bool] = False,
         output_offer_embed: Optional[bool] = False,
         output_final_query_embed: Optional[bool] = False,
@@ -721,10 +770,27 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
 
+        if enable_quantization:
+            for __model__ in [
+                self.query_encoder,
+                self.query_layer_norm,
+                self.ice_embedding,
+                self.ice_layer_norm,
+                self.final_query_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
+
         if freeze_base_model:
             for p in self.query_encoder.parameters():
                 p.requires_grad = False
 
+            for p in self.offer_encoder.parameters():
+                p.requires_grad = False
+
+        if freeze_offer_model:
             for p in self.offer_encoder.parameters():
                 p.requires_grad = False
 
@@ -746,7 +812,9 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_offer_model = config.getoption("freeze_offer_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        enable_quantization = config.getoption("enable_quantization", False)
         output_query_embed = config.getoption("output_query_embed", False)
         output_offer_embed = config.getoption("output_offer_embed", False)
         output_final_query_embed = config.getoption("output_final_query_embed", False)
@@ -763,7 +831,9 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
             freeze_base_model=freeze_base_model,
+            freeze_offer_model=freeze_offer_model,
             gradient_checkpointing=gradient_checkpointing,
+            enable_quantization=enable_quantization,
             output_query_embed=output_query_embed,
             output_offer_embed=output_offer_embed,
             output_final_query_embed=output_final_query_embed,
