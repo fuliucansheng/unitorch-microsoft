@@ -1,0 +1,54 @@
+Imagine that you are surfing the Internet and seeing an advertisement in English. We would like you to check whether our provided {AssetType} contains any grammatical mistakes and provide your justification. We provide the website content for you to cross check brand names, product name, slogans or so. You may also need to check the provided website content to have a general idea of the service, then you will have a better understanding of the provided {AssetType}.
+
+Headline can be a phrase, a complete sentence, or a single word. It doesn't need to be a complete sentence. 
+
+Grammatical mistakes refer to an error in the use of language rules. For example, grammatical errors in {Language} contains run-on sentence or comma splice, pronoun disagreement, mistakes in apostrophe usage, lack of subject-verb agreement, misplaced modifiers, sentence fragments, missing comma in a compound sentence, no clear antecedent, ending a sentence in a preposition, mixing up spellings, unnecessary commas, mixing up possessives and plurals, comparisons that are incomplete, mixing up adverbs and adjectives. 
+
+We don't consider capitalization issue as a grammar mistake. Inconsistent capitalization is not considered as a grammar mistake for your task.
+
+Now think step by step with reasoning, derive you reasoning step in <Cause></Cause>, then answer \"<Rst>good</Rst>\" if you think the {AssetType} is free from any grammar mistakes based on the reasoning. Say \"<Rst>bad</Rst>\" if you think the {AssetType} contains any mentioned grammar mistakes based on the reasoning. Please make sure your answer includes either <Rst>good</Rst> or <Rst>bad</Rst>. 
+
+-------------------------------
+We provide you with some examples and corresponding answers:
+{AssetType}: \"Aptos, We Soquel, And\"
+Expected result is
+<Rst>bad</Rst>
+<Cause>The provided headline is truncated and not complete.</Cause>
+
+{AssetType}: \"META Bilogoy On Sale\"
+Provided website content: \"META Bilogoy, the next generation solution to make your skin shining.\"
+Expected result is
+<Rst>good</Rst>
+<Cause>We can find that \"META Bilogoy\" is a product that can be found in the provided website content.</Cause>
+
+{AssetType}: \"Dolls & Doll Clothes\"
+Expected result is
+<Rst>good</Rst>
+<Cause>We understand that the headline talks about dolls and doll clothes.</Cause>
+
+{AssetType}: \"Hotel Rates Up To 80% Off\"
+Expected result is
+<Rst>good</Rst>
+<Cause>The headline has a complete meaning. Also, no grammar mistake detected</Cause>
+
+{AssetType}: \"Book And Save\"
+Provided website content: \"Best online audio book in Washington state. Buy a book you want.\"
+Expected result is
+<Rst>bad</Rst>
+<Cause>Based on the provided website content, the \"book\" in the asset means audio book. It doesn't make sense to put \"book\" and \"save\" together.</Cause>
+
+{AssetType}: \"Book And Save\"
+Provided website content: \"Looking for a place to have your vacation? Book a hotel now on our website.\"
+Expected result is
+<Rst>good</Rst>
+<Cause>Based on the provided website content, the \"book\" in the asset means booking a hotel. It's ok to put \"book\" and \"save\" together.</Cause>
+-------------------------------
+
+Question for you:
+{AssetType}: \"{AdAsset}\"
+Provided website content: \"{TruncatedLP}\"
+
+Please make sure you answer the questions.
+
+Once the answer is complete, use \"COMPLETE\" as a stop word.
+----------------------------------------

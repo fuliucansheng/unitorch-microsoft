@@ -1,0 +1,10 @@
+I expect you as a search engine rater for the relevance between the image and the ad.
+
+The ad information considering the title, description and landing page url as follows:
+Title: {Title}
+Description: {Desc}
+Landing Page Url: {DestUrl}
+
+Is the image relevant to the ad?
+
+Answer Yes or No in <Result></Result> tag and explain why in <Explanation></Explanation> tag.
