@@ -35,6 +35,7 @@ class ParserScript(GenericScript):
         result_tags = config.getoption("result_tags", None)
         result_sep = config.getoption("result_sep", ";")
         output_header = config.getoption("output_header", False)
+        output_tokens = config.getoption("output_tokens", True)
         replace_items = config.getoption(
             "replace_items", {"\n": " ", "\t": " ", "\r": " "}
         )
@@ -85,7 +86,9 @@ class ParserScript(GenericScript):
                     lambda ans: result_sep.join(pattern.findall(ans))
                 )
                 _columns.append(f"result_{tag}")
-            _columns += ["prompt_tokens", "completion_tokens", "total_tokens"]
+
+            if output_tokens:
+                _columns += ["prompt_tokens", "completion_tokens", "total_tokens"]
 
             _data[_columns].to_csv(
                 output_file,

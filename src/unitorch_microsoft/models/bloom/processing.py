@@ -60,17 +60,26 @@ class BloomProcessor(_BloomProcessor):
             "tokenizer_file": tokenizer_file,
         }
 
+    def _instrution_tokenize(self, instruction, encode, max_seq_length):
+        tokens1 = self.tokenizer.tokenize(instruction.format(""))
+        tokens2 = self.tokenizer.tokenize(str(encode))
+        encode = instruction.format(
+            "".join(tokens2[: max_seq_length - len(tokens1) - 2])
+        )
+        return self.tokenizer.tokenize(encode)[:max_seq_length]
+
     @register_process("microsoft/process/bloom/generation/inputs")
     def _generation_inputs(
         self,
-        text: str,
+        instruction: str,
+        encode: str,
         max_seq_length: Optional[int] = None,
     ):
         max_seq_length = pop_value(
             max_seq_length,
             self.max_seq_length,
         )
-        tokens = self.tokenizer.tokenize(str(text))[:max_seq_length]
+        tokens = self._instrution_tokenize(instruction, encode, max_seq_length)
         padding = [self.pad_token] * (max_seq_length - len(tokens))
         tokens = padding + tokens
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
@@ -81,11 +90,11 @@ class BloomProcessor(_BloomProcessor):
     @register_process("microsoft/process/bloom/generation/labels")
     def _generation_labels(
         self,
-        text: str,
+        decode: str,
         max_gen_seq_length: Optional[int] = None,
     ):
         outputs = super().generation_labels(
-            text=text,
+            text=decode,
             max_gen_seq_length=max_gen_seq_length,
         )
         return GenerationTargets(
@@ -96,8 +105,9 @@ class BloomProcessor(_BloomProcessor):
     @register_process("microsoft/process/bloom/generation")
     def _generation(
         self,
-        text: str,
-        text_pair: Optional[str] = None,
+        instruction: str,
+        encode: str,
+        decode: str,
         max_seq_length: Optional[int] = None,
         max_gen_seq_length: Optional[int] = None,
     ):
@@ -110,10 +120,10 @@ class BloomProcessor(_BloomProcessor):
             self.max_gen_seq_length,
         )
 
-        tokens = self.tokenizer.tokenize(str(text))[:max_seq_length]
-        tokens_pair = self.tokenizer.tokenize(str(text_pair))[
-            : max_gen_seq_length - 1
-        ] + [self.eos_token]
+        tokens = self._instrution_tokenize(instruction, encode, max_seq_length)
+        tokens_pair = self.tokenizer.tokenize(str(decode))[: max_gen_seq_length - 1] + [
+            self.eos_token
+        ]
         padding_a = [self.pad_token] * (max_seq_length - len(tokens))
         padding_b = [self.pad_token] * (max_gen_seq_length - len(tokens_pair))
         attention_mask = (

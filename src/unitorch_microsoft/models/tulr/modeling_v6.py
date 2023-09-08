@@ -48,7 +48,6 @@ class TULRV6Config(PretrainedConfig):
     to control the model outputs. Read the documentation from  :class:`~transformers.PretrainedConfig`
     for more information.
 
-
     Args:
         vocab_size (:obj:`int`, optional, defaults to 500002):
             Vocabulary size of the TULRv5 model. Defines the different tokens that

@@ -163,7 +163,6 @@ embedding, dummy_score = model(query, image_embeds)
 print(embedding)
 print(dummy_score)
 
-
 # %%
 import torch
 import onnxruntime as ort
@@ -182,7 +181,6 @@ print("onnx output: ", outputs)
 embedding, dummy_score = model(query, image_embeds)
 print(embedding)
 print(dummy_score)
-
 
 # %%
 for x in ort_session.get_inputs():

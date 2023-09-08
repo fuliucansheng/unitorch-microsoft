@@ -60,26 +60,28 @@ class LlamaProcessor(_LlamaProcessor):
             "vocab_path": vocab_path,
         }
 
+    def _instrution_tokenize(self, instruction, encode, max_seq_length):
+        tokens1 = self.tokenizer.tokenize(instruction.format(""))
+        tokens2 = self.tokenizer.tokenize(str(encode))
+        encode = instruction.format(
+            "".join(tokens2[: max_seq_length - len(tokens1) - 2])
+        )
+        return self.tokenizer.tokenize(encode)[:max_seq_length]
+
     @register_process("microsoft/process/llama/generation/inputs")
     def _generation_inputs(
         self,
-        text: str,
-        suffix_text: Optional[str] = None,
+        instruction: str,
+        encode: str,
         max_seq_length: Optional[int] = None,
     ):
         max_seq_length = pop_value(
             max_seq_length,
             self.max_seq_length,
         )
-        suffix_tokens = self.tokenizer.tokenize(str(suffix_text))
-        assert len(suffix_tokens) < max_seq_length
 
-        tokens = (
-            [self.bos_token] 
-            + self.tokenizer.tokenize(str(text))[
-                : max_seq_length - len(suffix_tokens) - 1
-            ]
-            + suffix_tokens
+        tokens = [self.bos_token] + self._instrution_tokenize(
+            instruction, encode, max_seq_length - 1
         )
         padding = [self.pad_token] * (max_seq_length - len(tokens))
         tokens = padding + tokens
@@ -91,11 +93,11 @@ class LlamaProcessor(_LlamaProcessor):
     @register_process("microsoft/process/llama/generation/labels")
     def _generation_labels(
         self,
-        text: str,
+        decode: str,
         max_gen_seq_length: Optional[int] = None,
     ):
         outputs = super().generation_labels(
-            text=text,
+            text=decode,
             max_gen_seq_length=max_gen_seq_length,
         )
         return GenerationTargets(
@@ -106,9 +108,9 @@ class LlamaProcessor(_LlamaProcessor):
     @register_process("microsoft/process/llama/generation")
     def _generation(
         self,
-        text: str,
-        text_pair: Optional[str] = None,
-        suffix_text: Optional[str] = None,
+        instruction: str,
+        encode: str,
+        decode: str,
         max_seq_length: Optional[int] = None,
         max_gen_seq_length: Optional[int] = None,
     ):
@@ -121,19 +123,12 @@ class LlamaProcessor(_LlamaProcessor):
             self.max_gen_seq_length,
         )
 
-        suffix_tokens = self.tokenizer.tokenize(str(suffix_text))
-        assert len(suffix_tokens) < max_seq_length
-
-        tokens = (
-            [self.bos_token]
-            + self.tokenizer.tokenize(str(text))[
-                : max_seq_length - len(suffix_tokens) - 1
-            ]
-            + suffix_tokens
+        tokens = [self.bos_token] + self._instrution_tokenize(
+            instruction, encode, max_seq_length - 1
         )
-        tokens_pair = self.tokenizer.tokenize(str(text_pair))[
-            : max_gen_seq_length - 1
-        ] + [self.eos_token]
+        tokens_pair = self.tokenizer.tokenize(str(decode))[: max_gen_seq_length - 1] + [
+            self.eos_token
+        ]
         padding_a = [self.pad_token] * (max_seq_length - len(tokens))
         padding_b = [self.pad_token] * (max_gen_seq_length - len(tokens_pair))
         attention_mask = (
@@ -178,7 +173,7 @@ class LlamaProcessor(_LlamaProcessor):
             decoded = list(map(cleanup_string, decoded))
         else:
             raise ValueError(
-                f"Unsupported type for minigpt4 detokenize: {type(decoded[0])}"
+                f"Unsupported type for llama detokenize: {type(decoded[0])}"
             )
         results["decoded"] = decoded
         return WriterOutputs(results)

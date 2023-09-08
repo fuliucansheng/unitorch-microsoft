@@ -104,12 +104,9 @@ class PandasScript(GenericScript):
             function3,
             function4,
         ]:
-            exec(action.replace('\\n', '\n'))
+            exec(action.replace("\\n", "\n"))
             globals().update(locals())
-            logging.info(
-                f"Global Function: `{action}`"
-            )
-
+            logging.info(f"Global Function: `{action}`")
 
         for action in [
             global_action1,
@@ -119,9 +116,7 @@ class PandasScript(GenericScript):
         ]:
             exec(action)
             globals().update(locals())
-            logging.info(
-                f"Global Action: `{action}`"
-            )
+            logging.info(f"Global Action: `{action}`")
 
         action1 = config.getoption("action1", "#")
         action2 = config.getoption("action2", "#")
