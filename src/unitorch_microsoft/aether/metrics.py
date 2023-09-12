@@ -36,7 +36,7 @@ def prauc_score(y_true, y_pred):
 
 
 def rouge_bleu_score(y_true, y_pred, tokenizer, score_fn):
-    y_true = [tokenizer.tokenize(text) for text in y_true]
+    y_true = [[tokenizer.tokenize(text)] for text in y_true]
     y_pred = [tokenizer.tokenize(text) for text in y_pred]
     return score_fn(y_true, y_pred)
 
