@@ -86,12 +86,13 @@ class ParserScript(GenericScript):
                 _data["answer"] = _data["answer"].map(lambda ans: ans.replace(k, v))
 
             _columns = ["index", "model", "answer"]
-            for tag in result_tags:
-                pattern = re.compile(r"<{0}>(.*?)</{0}>".format(tag), re.DOTALL)
-                _data[f"result_{tag}"] = _data.answer.map(
-                    lambda ans: result_sep.join(pattern.findall(ans))
-                )
-                _columns.append(f"result_{tag}")
+            if result_tags is not None:
+                for tag in result_tags:
+                    pattern = re.compile(r"<{0}>(.*?)</{0}>".format(tag), re.DOTALL)
+                    _data[f"result_{tag}"] = _data.answer.map(
+                        lambda ans: result_sep.join(pattern.findall(ans))
+                    )
+                    _columns.append(f"result_{tag}")
 
             if output_tokens:
                 _columns += ["prompt_tokens", "completion_tokens", "total_tokens"]

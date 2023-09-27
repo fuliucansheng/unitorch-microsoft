@@ -1,19 +1,29 @@
-Imagine that you are surfing the Internet and seeing an advertisement in English. We would like you to check whether our provided {AssetType} contains any grammatical mistakes and provide your justification. We provide the website content for you to cross check brand names, product name, slogans or so. You may also need to check the provided website content to have a general idea of the service, then you will have a better understanding of the provided {AssetType}.
+Imagine you are a professional advertisement quality labeler. We ask you to review a piece of advertisement {AssetType} in {Language}. We would like you to check whether our provided {AssetType} contains any grammatical mistakes and provide your justification. We provide the website content for you to cross check brand names, product name, slogans or so. You may also need to check the provided website content to have a general idea of the service, then you will have a better understanding of the provided {AssetType}. Please do not check grammar mistakes in the provided website content. Check only the {AssetType}.
 
-Headline can be a phrase, a complete sentence, or a single word. It doesn't need to be a complete sentence. 
-
-Grammatical mistakes refer to an error in the use of language rules. For example, grammatical errors in {Language} contains run-on sentence or comma splice, pronoun disagreement, mistakes in apostrophe usage, lack of subject-verb agreement, misplaced modifiers, sentence fragments, missing comma in a compound sentence, no clear antecedent, ending a sentence in a preposition, mixing up spellings, unnecessary commas, mixing up possessives and plurals, comparisons that are incomplete, mixing up adverbs and adjectives. 
-
-We don't consider capitalization issue as a grammar mistake. Inconsistent capitalization is not considered as a grammar mistake for your task.
+Here are the guidelines you must follow:
+1. Headline can be a phrase, a complete sentence, or even a single word. It doesn't need to be a complete sentence. 
+2. Grammatical mistakes refer to an error in the use of language rules. For example, grammatical errors in {Language} contains run-on sentence or comma splice, pronoun disagreement, mistakes in apostrophe usage, lack of subject-verb agreement, misplaced modifiers, sentence fragments, missing comma in a compound sentence, no clear antecedent, ending a sentence in a preposition, mixing up spellings, unnecessary commas, mixing up possessives and plurals, comparisons that are incomplete, mixing up adverbs and adjectives. 
+3. The provided {AssetType} can be written in either American English or British English. Please accept both as valid.
+4. It's a convention to use \"&\" and \"+\" as short hands to represent \"and\".
+5. Using abbreviations are acceptable if it's properly formatted. For instance, \"strength\" can be shortened as \"str.\", \"Company\" can be shortened as \"Co.\", \"with\" can be shortened as \"w\" or \"w/\".
+6. Do not check whether the provided {AssetType} matches the website content or is accurate based on the website content. The only task we want you to do is to check the grammar.
+7. Do not judge whether the provided {AssetType} is attractive, informative. vague, meaningful. Do not check whether the {AssetType} may mislead or confuse customers, since this is not a grammatical mistake. The only task we want you to do is to check the grammar.
+8. Mismatch of years is not a grammatical mistake. It only means the {AssetType} is out-of-date.
 
 Now think step by step with reasoning, derive you reasoning step in <Cause></Cause>, then answer \"<Rst>good</Rst>\" if you think the {AssetType} is free from any grammar mistakes based on the reasoning. Say \"<Rst>bad</Rst>\" if you think the {AssetType} contains any mentioned grammar mistakes based on the reasoning. Please make sure your answer includes either <Rst>good</Rst> or <Rst>bad</Rst>. 
 
 -------------------------------
 We provide you with some examples and corresponding answers:
+
+{AssetType}: \"Let'S Join Together\"
+Expected result is
+<Rst>good</Rst>
+<Cause>The apostrophe \"S\" in \"Let'S\" should be in lower case, but we don't treat the capitalization of words except proper noun as a grammatical mistake. It's a syntax mistake not considered in this task.</Cause>
+
 {AssetType}: \"Aptos, We Soquel, And\"
 Expected result is
 <Rst>bad</Rst>
-<Cause>The provided headline is truncated and not complete.</Cause>
+<Cause>The provided headline is truncated and not complete</Cause>
 
 {AssetType}: \"META Bilogoy On Sale\"
 Provided website content: \"META Bilogoy, the next generation solution to make your skin shining.\"
@@ -42,13 +52,34 @@ Provided website content: \"Looking for a place to have your vacation? Book a ho
 Expected result is
 <Rst>good</Rst>
 <Cause>Based on the provided website content, the \"book\" in the asset means booking a hotel. It's ok to put \"book\" and \"save\" together.</Cause>
+
+{AssetType}: \"Buy Now Now\"
+Expected result is
+<Rst>bad</Rst>
+<Cause>The {AssetType} has a repetition of word \"now\".</Cause>
+
+{AssetType}: \"Add Colour To Your Life\"
+Expected result is
+<Rst>good</Rst>
+<Cause>\"Colour\" follows the spelling in British English. It's also accepted.</Cause>
+
+{AssetType}: \"Made In Usa\"
+<Rst>bad</Rst>
+<Cause>\"Usa\" should be \"USA\". It's a proper noun and must be capitalized correctly.</Cause>
+
+{AssetType}: \"Concert In 2022\"
+Provided website content: \"Buying tickets for concerts in Seattle in 2023.\"
+Expected result is
+<Rst>good</Rst>
+<Cause>There is a mismatch of years between {AssetType} and website content. Since we only want to check grammar, mismatch of information is not our task. So the answer is good.</Cause>
 -------------------------------
 
 Question for you:
 {AssetType}: \"{AdAsset}\"
-Provided website content: \"{TruncatedLP}\"
+Provided website content: \"{Src}\"
 
-Please make sure you answer the questions.
+Please make sure you answer all questions following the format.
 
 Once the answer is complete, use \"COMPLETE\" as a stop word.
+
 ----------------------------------------
