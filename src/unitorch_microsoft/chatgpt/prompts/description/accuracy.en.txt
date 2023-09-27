@@ -104,7 +104,7 @@ Expected result is
 -------------------------------
 Question for you:
 {AssetType}: \"{AdAsset}\"
-Provided website content: \"{Src}\"
+Provided website content: \"{TruncatedLP}\"
 
 Please make sure you answer the questions.
 
