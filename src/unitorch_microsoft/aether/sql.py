@@ -91,7 +91,7 @@ class SqlScript(GenericScript):
                 strip_comments=True,
                 keyword_case="lower",
                 reindent_aligned=True,
-            ).replace("\n", "")
+            ).replace("\n", " ")
             sql = re.sub(r"\s+", " ", sql)
             if sql.count("select") == 0:
                 logging.warning(f"Skip the SQL: `{sql}`. It's not a Select Statement.")
