@@ -989,6 +989,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
 
         return ClassificationOutputs(outputs=outputs)
 
+
 @register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2")
 class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
     def __init__(

@@ -1,4 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
+import unitorch_microsoft.models.bloom.modeling
 import unitorch_microsoft.models.bloom.processing

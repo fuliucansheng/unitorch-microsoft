@@ -22,6 +22,18 @@ VERSION = "0.0.0.1"
 
 logger = logging.getLogger()
 
+# auto_gptq
+_auto_gptq_available = importlib.util.find_spec("auto_gptq") is not None
+try:
+    _auto_gptq_version = importlib_metadata.version("auto_gptq")
+    logging.debug(f"Successfully imported auto_gptq version {_auto_gptq_version}")
+except importlib_metadata.PackageNotFoundError:
+    _auto_gptq_available = False
+
+
+def is_auto_gptq_available():
+    return _auto_gptq_available
+
 
 @replace(unitorch.cli.cached_path)
 def cached_path(

@@ -60,9 +60,7 @@ class ParserScript(GenericScript):
             _data["response"] = _data.response.map(lambda r: json.loads(r))
             null_respone = _data[_data.response.map(lambda r: r["response"] is None)]
             if len(null_respone) > 0:
-                logging.warning(
-                    f"partition {i} has {len(null_respone)} null response."
-                )
+                logging.warning(f"partition {i} has {len(null_respone)} null response.")
             _data = _data[_data.response.map(lambda r: r["response"] is not None)]
             _data["index"] = _data.response.map(
                 lambda r: r["request_metadata"]["ConversationId"]
