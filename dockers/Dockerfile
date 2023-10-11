@@ -1,9 +1,10 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu18.04
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
 LABEL maintainer="decu@microsoft"
 LABEL repository="unitorch-microsoft"
 
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
-RUN apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1
+ENV TZ=Asia/Kolkata \
+    DEBIAN_FRONTEND=noninteractive
+
 RUN apt update && \
     apt install -y bash \
                    build-essential \
@@ -18,16 +19,16 @@ RUN apt update && \
                    libopenmpi-dev \
                    libgl1-mesa-glx \
                    gfortran libopenblas-dev liblapack-dev \
-                   python3.8-dev python3-pip && \
+                   python3-dev python3-pip && \
     rm -rf /var/lib/apt/lists
 
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1 \
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
     && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools && \
     python -m pip install --no-cache-dir mkl ninja
 
-RUN python -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+RUN python -m pip install --no-cache-dir torch torchvision torchaudio
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen
