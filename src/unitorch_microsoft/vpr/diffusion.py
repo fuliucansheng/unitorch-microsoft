@@ -59,12 +59,12 @@ class StableForArgusGeneration(GenericModel):
         self,
         config_path: str,
         text_config_path: str,
-        vae_config_path: str,
+        # vae_config_path: str,
         scheduler_config_path: str,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
-        freeze_vae_encoder: Optional[bool] = False,
-        freeze_text_encoder: Optional[bool] = True,
+        # freeze_vae_encoder: Optional[bool] = False,
+        freeze_text_encoder: Optional[bool] = False,
         seed: Optional[int] = 1123,
     ):
         super().__init__()
@@ -78,8 +78,8 @@ class StableForArgusGeneration(GenericModel):
         text_config = DistilBertConfig.from_json_file(text_config_path)
         self.text = DistilBertModel(text_config)
 
-        vae_config_dict = json.load(open(vae_config_path))
-        self.vae = AutoencoderKL.from_config(vae_config_dict)
+        # vae_config_dict = json.load(open(vae_config_path))
+        # self.vae = AutoencoderKL.from_config(vae_config_dict)
 
         scheduler_config_dict = json.load(open(scheduler_config_path))
         scheduler_class_name = scheduler_config_dict.get("_class_name", "DDPMScheduler")
@@ -89,12 +89,12 @@ class StableForArgusGeneration(GenericModel):
         scheduler_config_dict["num_train_timesteps"] = num_train_timesteps
         self.scheduler = scheduler_class.from_config(scheduler_config_dict)
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        # self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.num_channels_latents = self.unet.config.in_channels
 
-        if freeze_vae_encoder:
-            for param in self.vae.parameters():
-                param.requires_grad = False
+        # if freeze_vae_encoder:
+        #     for param in self.vae.parameters():
+        #         param.requires_grad = False
 
         if freeze_text_encoder:
             for param in self.text.parameters():
@@ -123,12 +123,12 @@ class StableForArgusGeneration(GenericModel):
         )
         text_config_path = cached_path(text_config_path)
 
-        vae_config_path = config.getoption("vae_config_path", None)
-        vae_config_path = pop_value(
-            vae_config_path,
-            nested_dict_value(pretrain_infos, "vae", "config"),
-        )
-        vae_config_path = cached_path(vae_config_path)
+        # vae_config_path = config.getoption("vae_config_path", None)
+        # vae_config_path = pop_value(
+        #     vae_config_path,
+        #     nested_dict_value(pretrain_infos, "vae", "config"),
+        # )
+        # vae_config_path = cached_path(vae_config_path)
 
         scheduler_config_path = config.getoption("scheduler_config_path", None)
         scheduler_config_path = pop_value(
@@ -139,18 +139,18 @@ class StableForArgusGeneration(GenericModel):
 
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
-        freeze_vae_encoder = config.getoption("freeze_vae_encoder", False)
-        freeze_text_encoder = config.getoption("freeze_text_encoder", True)
+        # freeze_vae_encoder = config.getoption("freeze_vae_encoder", False)
+        freeze_text_encoder = config.getoption("freeze_text_encoder", False)
         seed = config.getoption("seed", 1123)
 
         inst = cls(
             config_path=config_path,
             text_config_path=text_config_path,
-            vae_config_path=vae_config_path,
+            # vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
-            freeze_vae_encoder=freeze_vae_encoder,
+            # freeze_vae_encoder=freeze_vae_encoder,
             freeze_text_encoder=freeze_text_encoder,
             seed=seed,
         )
@@ -161,7 +161,7 @@ class StableForArgusGeneration(GenericModel):
             weight_path = [
                 cached_path(nested_dict_value(pretrain_infos, "unet", "weight")),
                 cached_path(nested_dict_value(pretrain_infos, "text", "weight")),
-                cached_path(nested_dict_value(pretrain_infos, "vae", "weight")),
+                # cached_path(nested_dict_value(pretrain_infos, "vae", "weight")),
             ]
 
         inst.from_pretrained(weight_path)
@@ -176,8 +176,9 @@ class StableForArgusGeneration(GenericModel):
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
     ):
-        latents = self.vae.encode(argus_embeds).latent_dist.sample()
-        latents = latents * self.vae.config.scaling_factor
+        # latents = self.vae.encode(argus_embeds).latent_dist.sample()
+        # latents = latents * self.vae.config.scaling_factor
+        latents = argus_embeds
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.size(0)
 
@@ -222,8 +223,8 @@ class StableForArgusGeneration(GenericModel):
         shape = (
             input_ids.size(0),
             self.num_channels_latents,
-            height // self.vae_scale_factor,
-            width // self.vae_scale_factor,
+            height,# // self.vae_scale_factor,
+            width,# // self.vae_scale_factor,
         )
         latents = randn_tensor(
             shape,
@@ -243,8 +244,9 @@ class StableForArgusGeneration(GenericModel):
                 return_dict=False,
             )[0]
             latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
-        latents = 1 / self.vae.config.scaling_factor * latents
-        argus_embeds = self.vae.decode(latents).sample
+        # latents = 1 / self.vae.config.scaling_factor * latents
+        # argus_embeds = self.vae.decode(latents).sample
+        argus_embeds = latents
         return EmbeddingOutputs(
             embedding=argus_embeds.reshape(argus_embeds.size(0), -1),
         )
