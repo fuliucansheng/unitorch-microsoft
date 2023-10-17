@@ -9,6 +9,7 @@ from unitorch.cli import GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import CoreConfigureParser
 
+
 @register_script("microsoft/script/tools/model_soups")
 class ModelSoupsScript(GenericScript):
     def __init__(self, config: CoreConfigureParser):

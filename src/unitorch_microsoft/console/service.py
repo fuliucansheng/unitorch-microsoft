@@ -1,4 +1,4 @@
-# Copyright (c) FULIUCANSHENG.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
 import os
@@ -13,7 +13,6 @@ import importlib
 import unitorch.cli
 import unitorch.cli.services
 from pathlib import Path
-from unitorch.utils import ActiveGPUJob
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import (
     import_library,
@@ -134,18 +133,13 @@ def service(service_action: str, service_path_or_dir: str, **kwargs):
             import_library(library)
 
     daemon_mode = config.getdefault("core/cli", "daemon_mode", True)
-    gpu_mode = config.getdefault("core/cli", "gpu_mode", False)
     service_name = config.getdefault("core/cli", "service_name", None)
     assert service_name is not None
     main_service_cls = registered_service.get(service_name)
     if main_service_cls is None:
         raise ValueError(f"service {service_name} not found")
 
-    if gpu_mode:
-        with ActiveGPUJob() as _:
-            service_inst = main_service_cls["obj"](config)
-    else:
-        service_inst = main_service_cls["obj"](config)
+    service_inst = main_service_cls["obj"](config)
 
     hexsha = config.hexsha(6)
     service_name = service_name + f"@{hexsha}"

@@ -1,4 +1,4 @@
-# Copyright (c) FULIUCANSHENG.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
 import os

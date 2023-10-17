@@ -1,4 +1,4 @@
-# Copyright (c) FULIUCANSHENG.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
 import torch
@@ -6,7 +6,7 @@ import json
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 from transformers.utils import is_remote_url
-from transformers import BloomModel, BloomConfig, BloomForCausalLM
+from transformers import BloomModel, BloomConfig
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
 from unitorch.cli import (
@@ -19,6 +19,7 @@ from unitorch.cli.models import generation_model_decorator
 from unitorch.cli.models import ClassificationOutputs, GenerationOutputs, LossOutputs
 from unitorch.cli.models.bloom import pretrained_bloom_infos
 from unitorch_microsoft import is_auto_gptq_available
+from unitorch_microsoft.models.bloom.modeling_utils import BloomForCausalLM
 
 
 @register_model("microsoft/model/generation/bloom/gptq", generation_model_decorator)
@@ -154,6 +155,7 @@ class BloomGPTQForGeneration(GenericModel):
             GenerationOutputs: The generation outputs.
         """
         input_seq_length = input_ids.size(1)
+        self.model.model.num_beams = num_beams
         outputs = self.model.generate(
             input_ids=input_ids,
             max_length=max_gen_seq_length + input_seq_length,

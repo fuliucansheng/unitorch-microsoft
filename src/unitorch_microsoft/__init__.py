@@ -18,6 +18,7 @@ from transformers.utils import is_remote_url
 from unitorch.cli import cached_path as _cached_path
 import unitorch_microsoft.score
 import unitorch_microsoft.models
+import unitorch_microsoft.modules
 import unitorch_microsoft.scripts
 import unitorch_microsoft.services
 
@@ -36,6 +37,7 @@ except importlib_metadata.PackageNotFoundError:
 
 def is_auto_gptq_available():
     return _auto_gptq_available
+
 
 @replace(unitorch.cli.CoreConfigureParser)
 class CoreConfigureParser(configparser.ConfigParser):

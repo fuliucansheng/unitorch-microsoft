@@ -223,8 +223,8 @@ class StableForArgusGeneration(GenericModel):
         shape = (
             input_ids.size(0),
             self.num_channels_latents,
-            height,# // self.vae_scale_factor,
-            width,# // self.vae_scale_factor,
+            height,  # // self.vae_scale_factor,
+            width,  # // self.vae_scale_factor,
         )
         latents = randn_tensor(
             shape,
