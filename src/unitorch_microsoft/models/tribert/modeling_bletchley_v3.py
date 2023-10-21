@@ -32,7 +32,7 @@ from unitorch_microsoft.models.bletchley.modeling_v3 import (
 )
 
 
-@register_model("microsoft/model/classification/tribert/bletchley/v3")
+@register_model("microsoft/model/classification/twinbert/bletchley/v3")
 class TwinBertBletchleyForClassification(GenericModel):
     def __init__(
         self,
@@ -104,11 +104,11 @@ class TwinBertBletchleyForClassification(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/model/classification/tribert/bletchley/v3"
+        "microsoft/model/classification/twinbert/bletchley/v3"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/model/classification/tribert/bletchley/v3"
+            "microsoft/model/classification/twinbert/bletchley/v3"
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
@@ -138,12 +138,15 @@ class TwinBertBletchleyForClassification(GenericModel):
             inst.from_pretrained(pretrained_weight_path)
 
         return inst
-    
+
     def from_pretrained(self, weight_path):
         if not os.path.exists(weight_path):
             return
         state_dict = torch.load(weight_path, map_location="cpu")
-        state_dict = {key.replace("offer_encoder", "doc_encoder"): value for key, value in state_dict.items()}
+        state_dict = {
+            key.replace("offer_encoder", "doc_encoder"): value
+            for key, value in state_dict.items()
+        }
         _keys = [key for key in state_dict.keys() if key.startswith("text_encoder")]
         for _key in _keys:
             _value = state_dict.pop(_key)
@@ -172,7 +175,6 @@ class TwinBertBletchleyForClassification(GenericModel):
         doc_embeds = self.doc_layer_norm(quick_gelu(doc_embeds))
         return doc_embeds
 
-
     def forward(
         self,
         query_input_ids: torch.Tensor = None,
@@ -195,7 +197,7 @@ class TwinBertBletchleyForClassification(GenericModel):
             )
 
             return EmbeddingOutputs(embedding=doc_embeds)
-        
+
         query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
         doc_embeds = self.get_doc_embedding(doc_input_ids, doc_attention_mask)
 
