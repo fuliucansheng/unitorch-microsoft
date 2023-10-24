@@ -39,7 +39,7 @@ class TwinBertBletchleyForClassification(GenericModel):
         query_config_type: str,
         doc_config_type: str,
         projection_dim: Optional[int] = 128,
-        hidden_dropout_prob: Optional[float] = 0.1,
+        hidden_dropout_prob: Optional[float] = 0.0,
         freeze_base_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
         enable_quantization: Optional[bool] = False,
@@ -114,7 +114,7 @@ class TwinBertBletchleyForClassification(GenericModel):
         doc_config_type = config.getoption("doc_config_type", "0.8B")
 
         projection_dim = config.getoption("projection_dim", 128)
-        hidden_dropout_prob = config.getoption("hidden_dropout_prob", 0.1)
+        hidden_dropout_prob = config.getoption("hidden_dropout_prob", 0.0)
         freeze_base_model = config.getoption("freeze_base_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         enable_quantization = config.getoption("enable_quantization", False)

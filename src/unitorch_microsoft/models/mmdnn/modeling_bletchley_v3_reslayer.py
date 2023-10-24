@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
+from unitorch.modules.classifier import reslayer
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -31,7 +32,7 @@ from unitorch_microsoft.models.bletchley.modeling_v3 import (
 )
 
 
-@register_model("microsoft/model/classification/mmdnn/bletchley/v3")
+@register_model("microsoft/model/classification/mmdnn/bletchley/v3/reslayer")
 class MMDNNBletchleyForClassification(GenericModel):
     def __init__(
         self,
@@ -44,6 +45,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         padding_idx: Optional[int] = -1,
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
+        hidden_dropout_prob: Optional[float] = 0.0,
         freeze_base_model: Optional[bool] = True,
         freeze_image_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
@@ -103,6 +105,16 @@ class MMDNNBletchleyForClassification(GenericModel):
             output_hidden_dim,
         )
 
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+        self.reslayer = reslayer(
+            output_hidden_dim,
+            output_hidden_dim // 2,
+            output_hidden_dim,
+        )
+
+        self.linear = nn.Linear(output_hidden_dim, 1)
+
         self.classifier = nn.Linear(1, 1)
 
         self.init_weights()
@@ -132,9 +144,13 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v3")
+    @add_default_section_for_init(
+        "microsoft/model/classification/mmdnn/bletchley/v3/reslayer"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v3")
+        config.set_default_section(
+            "microsoft/model/classification/mmdnn/bletchley/v3/reslayer"
+        )
         query_config_type = config.getoption("query_config_type", "0.8B")
         offer_config_type = config.getoption("offer_config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 288)
@@ -144,6 +160,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         padding_idx = config.getoption("padding_idx", -1)
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
+        hidden_dropout_prob = config.getoption("hidden_dropout_prob", 0.0)
         freeze_base_model = config.getoption("freeze_base_model", True)
         freeze_image_model = config.getoption("freeze_image_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
@@ -163,6 +180,7 @@ class MMDNNBletchleyForClassification(GenericModel):
             padding_idx=padding_idx,
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
+            hidden_dropout_prob=hidden_dropout_prob,
             freeze_base_model=freeze_base_model,
             freeze_image_model=freeze_image_model,
             gradient_checkpointing=gradient_checkpointing,
@@ -268,6 +286,7 @@ class MMDNNBletchleyForClassification(GenericModel):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 ice_ids=ice_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=text_embeds)
 
@@ -276,6 +295,7 @@ class MMDNNBletchleyForClassification(GenericModel):
                 images=images,
                 seller_ids=seller_ids,
                 brand_ids=brand_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=image_embeds)
 
@@ -283,22 +303,27 @@ class MMDNNBletchleyForClassification(GenericModel):
             input_ids=input_ids,
             attention_mask=attention_mask,
             ice_ids=ice_ids,
+            do_norm=False,
         )
         image_embeds = self.get_final_image_embedding(
             images=images,
             seller_ids=seller_ids,
             brand_ids=brand_ids,
+            do_norm=False,
         )
 
-        scores = torch.sum(text_embeds * image_embeds, dim=-1, keepdim=True)
+        mix_embeds = text_embeds * image_embeds
+        mix_embeds = self.dropout(mix_embeds)
+        mix_embeds = self.reslayer(mix_embeds)
+        outputs = self.linear(mix_embeds)
 
-        outputs = self.classifier(scores)
+        outputs = self.classifier(outputs)
         outputs = torch.sigmoid(outputs)
 
         return ClassificationOutputs(outputs=outputs)
 
 
-@register_model("microsoft/model/distillation/mmdnn/bletchley/v3")
+@register_model("microsoft/model/distillation/mmdnn/bletchley/v3/reslayer")
 class MMDNNBletchleyForDistillation(GenericModel):
     def __init__(
         self,
@@ -325,9 +350,13 @@ class MMDNNBletchleyForDistillation(GenericModel):
             p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/distillation/mmdnn/bletchley/v3")
+    @add_default_section_for_init(
+        "microsoft/model/distillation/mmdnn/bletchley/v3/reslayer"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/distillation/mmdnn/bletchley/v3")
+        config.set_default_section(
+            "microsoft/model/distillation/mmdnn/bletchley/v3/reslayer"
+        )
         config_type = config.getoption("config_type", "0.8B")
         new_config_type = config.getoption("new_config_type", "0.8B")
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
@@ -373,7 +402,7 @@ class MMDNNBletchleyForDistillation(GenericModel):
         return LossOutputs(loss=loss)
 
 
-@register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2")
+@register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2/reslayer")
 class MMDNNBletchleyForClassificationV2(GenericModel):
     def __init__(
         self,
@@ -386,6 +415,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         padding_idx: Optional[int] = -1,
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
+        hidden_dropout_prob: Optional[float] = 0.0,
         freeze_base_model: Optional[bool] = True,
         freeze_offer_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
@@ -447,6 +477,15 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
             projection_dim + projection_dim,
             output_hidden_dim,
         )
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+        self.reslayer = reslayer(
+            output_hidden_dim,
+            output_hidden_dim // 2,
+            output_hidden_dim,
+        )
+
+        self.linear = nn.Linear(output_hidden_dim, 1)
 
         self.classifier = nn.Linear(1, 1)
 
@@ -485,11 +524,11 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/model/classification/mmdnn/bletchley/v3/v2"
+        "microsoft/model/classification/mmdnn/bletchley/v3/v2/reslayer"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/model/classification/mmdnn/bletchley/v3/v2"
+            "microsoft/model/classification/mmdnn/bletchley/v3/v2/reslayer"
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.8B")
@@ -501,6 +540,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         padding_idx = config.getoption("padding_idx", -1)
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
+        hidden_dropout_prob = config.getoption("hidden_dropout_prob", 0.0)
         freeze_base_model = config.getoption("freeze_base_model", True)
         freeze_offer_model = config.getoption("freeze_offer_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
@@ -521,6 +561,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
             padding_idx=padding_idx,
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
+            hidden_dropout_prob=hidden_dropout_prob,
             freeze_base_model=freeze_base_model,
             freeze_offer_model=freeze_offer_model,
             gradient_checkpointing=gradient_checkpointing,
@@ -666,6 +707,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
                 input_ids=query_input_ids,
                 attention_mask=query_attention_mask,
                 ice_ids=ice_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=query_embeds)
 
@@ -676,6 +718,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
                 images=images,
                 seller_ids=seller_ids,
                 brand_ids=brand_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=offer_embeds)
 
@@ -683,6 +726,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
             input_ids=query_input_ids,
             attention_mask=query_attention_mask,
             ice_ids=ice_ids,
+            do_norm=False,
         )
         offer_embeds = self.get_final_offer_embedding(
             input_ids=offer_input_ids,
@@ -690,17 +734,21 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
             images=images,
             seller_ids=seller_ids,
             brand_ids=brand_ids,
+            do_norm=False,
         )
 
-        scores = torch.sum(query_embeds * offer_embeds, dim=-1, keepdim=True)
+        mix_embeds = query_embeds * offer_embeds
+        mix_embeds = self.dropout(mix_embeds)
+        mix_embeds = self.reslayer(mix_embeds)
+        outputs = self.linear(mix_embeds)
 
-        outputs = self.classifier(scores)
+        outputs = self.classifier(outputs)
         outputs = torch.sigmoid(outputs)
 
         return ClassificationOutputs(outputs=outputs)
 
 
-@register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2/text")
+@register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2/text/reslayer")
 class MMDNNBletchleyTextForClassificationV2(GenericModel):
     def __init__(
         self,
@@ -713,6 +761,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         padding_idx: Optional[int] = -1,
         hidden_dim: Optional[int] = 32,
         output_hidden_dim: Optional[int] = 64,
+        hidden_dropout_prob: Optional[float] = 0.0,
         freeze_base_model: Optional[bool] = True,
         freeze_offer_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
@@ -764,6 +813,15 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
             projection_dim + projection_dim,
             output_hidden_dim,
         )
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+        self.reslayer = reslayer(
+            output_hidden_dim,
+            output_hidden_dim // 2,
+            output_hidden_dim,
+        )
+
+        self.linear = nn.Linear(output_hidden_dim, 1)
 
         self.classifier = nn.Linear(1, 1)
 
@@ -796,11 +854,11 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/model/classification/mmdnn/bletchley/v3/v2/text"
+        "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/reslayer"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/model/classification/mmdnn/bletchley/v3/v2/text"
+            "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/reslayer"
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.3B")
@@ -811,6 +869,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         padding_idx = config.getoption("padding_idx", -1)
         hidden_dim = config.getoption("hidden_dim", 32)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
+        hidden_dropout_prob = config.getoption("hidden_dropout_prob", 0.0)
         freeze_base_model = config.getoption("freeze_base_model", True)
         freeze_offer_model = config.getoption("freeze_offer_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
@@ -830,6 +889,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
             padding_idx=padding_idx,
             hidden_dim=hidden_dim,
             output_hidden_dim=output_hidden_dim,
+            hidden_dropout_prob=hidden_dropout_prob,
             freeze_base_model=freeze_base_model,
             freeze_offer_model=freeze_offer_model,
             gradient_checkpointing=gradient_checkpointing,
@@ -958,6 +1018,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
                 input_ids=query_input_ids,
                 attention_mask=query_attention_mask,
                 ice_ids=ice_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=query_embeds)
 
@@ -967,6 +1028,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
                 attention_mask=offer_attention_mask,
                 seller_ids=seller_ids,
                 brand_ids=brand_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=offer_embeds)
 
@@ -974,23 +1036,28 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
             input_ids=query_input_ids,
             attention_mask=query_attention_mask,
             ice_ids=ice_ids,
+            do_norm=False,
         )
         offer_embeds = self.get_final_offer_embedding(
             input_ids=offer_input_ids,
             attention_mask=offer_attention_mask,
             seller_ids=seller_ids,
             brand_ids=brand_ids,
+            do_norm=False,
         )
 
-        scores = torch.sum(query_embeds * offer_embeds, dim=-1, keepdim=True)
+        mix_embeds = query_embeds * offer_embeds
+        mix_embeds = self.dropout(mix_embeds)
+        mix_embeds = self.reslayer(mix_embeds)
+        outputs = self.linear(mix_embeds)
 
-        outputs = self.classifier(scores)
+        outputs = self.classifier(outputs)
         outputs = torch.sigmoid(outputs)
 
         return ClassificationOutputs(outputs=outputs)
 
 
-@register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2")
+@register_model("microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2/reslayer")
 class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
     def __init__(
         self,
@@ -1004,6 +1071,7 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
         hidden_dim: Optional[int] = 32,
         offer_hidden_dim: Optional[int] = 64,
         output_hidden_dim: Optional[int] = 512,
+        hidden_dropout_prob: Optional[float] = 0.0,
         freeze_base_model: Optional[bool] = True,
         freeze_offer_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
@@ -1059,6 +1127,15 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
             projection_dim + projection_dim,
             output_hidden_dim,
         )
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+        self.reslayer = reslayer(
+            output_hidden_dim,
+            output_hidden_dim // 2,
+            output_hidden_dim,
+        )
+
+        self.linear = nn.Linear(output_hidden_dim, 1)
 
         self.classifier = nn.Linear(1, 1)
 
@@ -1091,11 +1168,11 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2"
+        "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2/reslayer"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2"
+            "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2/reslayer"
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.3B")
@@ -1256,6 +1333,7 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
                 input_ids=query_input_ids,
                 attention_mask=query_attention_mask,
                 ice_ids=ice_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=query_embeds)
 
@@ -1265,6 +1343,7 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
                 attention_mask=offer_attention_mask,
                 seller_ids=seller_ids,
                 brand_ids=brand_ids,
+                do_norm=False,
             )
             return EmbeddingOutputs(embedding=offer_embeds)
 
@@ -1272,17 +1351,22 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
             input_ids=query_input_ids,
             attention_mask=query_attention_mask,
             ice_ids=ice_ids,
+            do_norm=False,
         )
         offer_embeds = self.get_final_offer_embedding(
             input_ids=offer_input_ids,
             attention_mask=offer_attention_mask,
             seller_ids=seller_ids,
             brand_ids=brand_ids,
+            do_norm=False,
         )
 
-        scores = torch.sum(query_embeds * offer_embeds, dim=-1, keepdim=True)
+        mix_embeds = query_embeds * offer_embeds
+        mix_embeds = self.dropout(mix_embeds)
+        mix_embeds = self.reslayer(mix_embeds)
+        outputs = self.linear(mix_embeds)
 
-        outputs = self.classifier(scores)
+        outputs = self.classifier(outputs)
         outputs = torch.sigmoid(outputs)
 
         return ClassificationOutputs(outputs=outputs)

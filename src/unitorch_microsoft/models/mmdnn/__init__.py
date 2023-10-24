@@ -3,3 +3,4 @@
 
 import unitorch_microsoft.models.mmdnn.modeling_bletchley_v1
 import unitorch_microsoft.models.mmdnn.modeling_bletchley_v3
+import unitorch_microsoft.models.mmdnn.modeling_bletchley_v3_reslayer
