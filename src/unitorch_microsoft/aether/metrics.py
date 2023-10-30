@@ -14,7 +14,7 @@ import pandas as pd
 from functools import partial
 from transformers import BertTokenizer
 from unitorch.score import (
-    auc,
+    roc_auc_score,
     accuracy_score,
     recall_score,
     f1_score,
@@ -60,7 +60,7 @@ metrics_dict = {
     "accuracy": accuracy_score,
     "recall": recall_score,
     "f1": f1_score,
-    "auc": auc,
+    "auc": roc_auc_score,
     "prauc": prauc_score,
     "ndcg": ndcg_score,
     "mattcorr": matthews_corrcoef,
