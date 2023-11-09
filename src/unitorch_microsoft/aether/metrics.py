@@ -14,6 +14,7 @@ import pandas as pd
 from functools import partial
 from transformers import BertTokenizer
 from unitorch.score import (
+    auc,
     roc_auc_score,
     accuracy_score,
     recall_score,
