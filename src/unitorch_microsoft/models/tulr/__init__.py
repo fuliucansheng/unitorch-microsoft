@@ -26,3 +26,4 @@ pretrained_tulr_infos = {
 
 import unitorch_microsoft.models.tulr.modeling_v6
 import unitorch_microsoft.models.tulr.processing_v6
+from unitorch_microsoft.models.tulr.modeling_v6 import TULRV6Config, TULRV6Model
