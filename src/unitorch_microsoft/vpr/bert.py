@@ -27,6 +27,7 @@ from transformers.models.bert.modeling_bert import BertModel, BertConfig
 @register_model("microsoft/vpr/pretrain/bert")
 class BertForPretrain(GenericModel):
     replace_keys_in_state_dict = {"gamma": "weight", "beta": "bias"}
+
     def __init__(
         self,
         config_path: str,
@@ -69,11 +70,11 @@ class BertForPretrain(GenericModel):
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         use_clip_loss = config.getoption("use_clip_loss", True)
         inst = cls(
-            config_path=config_path, 
+            config_path=config_path,
             num_hidden_layers=num_hidden_layers,
-            gradient_checkpointing=gradient_checkpointing, 
+            gradient_checkpointing=gradient_checkpointing,
             use_clip_loss=use_clip_loss,
-            output_query_embed=output_query_embed
+            output_query_embed=output_query_embed,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         weight_path = pop_value(
@@ -100,7 +101,6 @@ class BertForPretrain(GenericModel):
         attention_mask: Optional[torch.Tensor] = None,
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
-        
     ):
         if self.output_query_embed:
             query_outputs = self.bert(
@@ -113,7 +113,7 @@ class BertForPretrain(GenericModel):
 
             query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=query_embeds)
-        
+
         query_outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -146,6 +146,7 @@ class BertForPretrain(GenericModel):
 @register_model("microsoft/vpr/classification/bert")
 class BertForClassification(GenericModel):
     replace_keys_in_state_dict = {"gamma": "weight", "beta": "bias"}
+
     def __init__(
         self,
         config_path: str,
@@ -183,10 +184,10 @@ class BertForClassification(GenericModel):
         config_path = cached_path(config_path)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         inst = cls(
-            config_path=config_path, 
+            config_path=config_path,
             num_hidden_layers=num_hidden_layers,
-            gradient_checkpointing=gradient_checkpointing, 
-            output_query_embed=output_query_embed
+            gradient_checkpointing=gradient_checkpointing,
+            output_query_embed=output_query_embed,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         weight_path = pop_value(
@@ -200,7 +201,6 @@ class BertForClassification(GenericModel):
 
         return inst
 
-
     @autocast()
     def forward(
         self,
@@ -209,7 +209,6 @@ class BertForClassification(GenericModel):
         attention_mask: Optional[torch.Tensor] = None,
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
-        
     ):
         if self.output_query_embed:
             query_outputs = self.bert(
@@ -222,7 +221,7 @@ class BertForClassification(GenericModel):
 
             query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=query_embeds)
-        
+
         query_outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from functools import partial
 from transformers import BertTokenizer
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from unitorch.score import (
     auc,
     roc_auc_score,
@@ -64,6 +65,8 @@ metrics_dict = {
     "auc": roc_auc_score,
     "prauc": prauc_score,
     "ndcg": ndcg_score,
+    "mae": mean_absolute_error,
+    "mse": mean_squared_error,
     "mattcorr": matthews_corrcoef,
     "pearsonr": pearsonr,
     "base-bleu": partial(
