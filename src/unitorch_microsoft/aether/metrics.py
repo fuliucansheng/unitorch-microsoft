@@ -4,6 +4,7 @@
 import os
 import io
 import re
+import ast
 import json
 import base64
 import zipfile
@@ -50,6 +51,42 @@ def msttr_score(y_true, y_pred, window_size=100):
     return _msttr_score(y_pred, window_size=window_size)
 
 
+def mae_score(y_true, y_pred):
+    def convert(x):
+        try:
+            return ast.literal_eval(x)
+        except:
+            return list(map(float, re.split(r"[,; ]", x)))
+
+    assert y_true.dtype == y_pred.dtype
+    if y_true.dtype == "object":
+        return np.mean(
+            [
+                mean_absolute_error(convert(yt), convert(yp))
+                for yt, yp in zip(y_true, y_pred)
+            ]
+        )
+    return mean_absolute_error(y_true, y_pred)
+
+
+def mse_score(y_true, y_pred):
+    def convert(x):
+        try:
+            return ast.literal_eval(x)
+        except:
+            return list(map(float, re.split(r"[,; ]", x)))
+
+    assert y_true.dtype == y_pred.dtype
+    if y_true.dtype == "object":
+        return np.mean(
+            [
+                mean_squared_error(convert(yt), convert(yp))
+                for yt, yp in zip(y_true, y_pred)
+            ]
+        )
+    return mean_squared_error(y_true, y_pred)
+
+
 class WhiteSpaceTokenizer:
     def __init__(self):
         pass
@@ -65,8 +102,8 @@ metrics_dict = {
     "auc": roc_auc_score,
     "prauc": prauc_score,
     "ndcg": ndcg_score,
-    "mae": mean_absolute_error,
-    "mse": mean_squared_error,
+    "mae": mae_score,
+    "mse": mse_score,
     "mattcorr": matthews_corrcoef,
     "pearsonr": pearsonr,
     "base-bleu": partial(
