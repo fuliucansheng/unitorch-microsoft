@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 import diffusers.schedulers as schedulers
-from transformers import DistilBertConfig, DistilBertModel
+from transformers import CLIPTextConfig, CLIPTextModel
 from diffusers.schedulers import SchedulerMixin
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.models.attention_processor import LoRAAttnProcessor, LoRAAttnProcessor2_0
@@ -26,7 +26,7 @@ from unitorch.cli import (
 )
 from unitorch.cli.models import diffusion_model_decorator
 from unitorch.cli.models import EmbeddingOutputs, LossOutputs
-from unitorch.cli.models.diffusers import pretrained_diffusers_infos
+from unitorch.cli.models.diffusers import pretrained_diffusers_infos, load_weight
 from unitorch_microsoft import cached_path
 
 
@@ -48,12 +48,12 @@ class StableForArgusGeneration(GenericModel):
         "^quant_conv.*": "vae.",
     }
 
-    replace_keys_in_state_dict = {
-        "\.query\.": ".to_q.",
-        "\.key\.": ".to_k.",
-        "\.value\.": ".to_v.",
-        "\.proj_attn\.": ".to_out.0.",
-    }
+    # replace_keys_in_state_dict = {
+    #     "\.query\.": ".to_q.",
+    #     "\.key\.": ".to_k.",
+    #     "\.value\.": ".to_v.",
+    #     "\.proj_attn\.": ".to_out.0.",
+    # }
 
     def __init__(
         self,
@@ -64,7 +64,7 @@ class StableForArgusGeneration(GenericModel):
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
         # freeze_vae_encoder: Optional[bool] = False,
-        freeze_text_encoder: Optional[bool] = False,
+        freeze_text_encoder: Optional[bool] = True,
         seed: Optional[int] = 1123,
     ):
         super().__init__()
@@ -75,8 +75,8 @@ class StableForArgusGeneration(GenericModel):
         config_dict = json.load(open(config_path))
         self.unet = UNet2DConditionModel.from_config(config_dict)
 
-        text_config = DistilBertConfig.from_json_file(text_config_path)
-        self.text = DistilBertModel(text_config)
+        text_config = CLIPTextConfig.from_json_file(text_config_path)
+        self.text = CLIPTextModel(text_config)
 
         # vae_config_dict = json.load(open(vae_config_path))
         # self.vae = AutoencoderKL.from_config(vae_config_dict)
@@ -106,7 +106,7 @@ class StableForArgusGeneration(GenericModel):
     @add_default_section_for_init("microsoft/vpr/diffusion/stable/argus")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/diffusion/stable/argus")
-        pretrained_name = config.getoption("pretrained_name", "stable-v2")
+        pretrained_name = config.getoption("pretrained_name", "stable-v1.5")
         pretrain_infos = nested_dict_value(pretrained_diffusers_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -140,7 +140,7 @@ class StableForArgusGeneration(GenericModel):
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
         # freeze_vae_encoder = config.getoption("freeze_vae_encoder", False)
-        freeze_text_encoder = config.getoption("freeze_text_encoder", False)
+        freeze_text_encoder = config.getoption("freeze_text_encoder", True)
         seed = config.getoption("seed", 1123)
 
         inst = cls(
@@ -157,14 +157,26 @@ class StableForArgusGeneration(GenericModel):
 
         weight_path = config.getoption("pretrained_weight_path", None)
 
+        state_dict = None
         if weight_path is None and pretrain_infos is not None:
-            weight_path = [
-                cached_path(nested_dict_value(pretrain_infos, "unet", "weight")),
-                cached_path(nested_dict_value(pretrain_infos, "text", "weight")),
-                # cached_path(nested_dict_value(pretrain_infos, "vae", "weight")),
+            state_dict = [
+                load_weight(
+                    nested_dict_value(pretrain_infos, "unet", "weight"),
+                    prefix_keys={"": "unet."},
+                    replace_keys={
+                        "\.query\.": ".to_q.",
+                        "\.key\.": ".to_k.",
+                        "\.value\.": ".to_v.",
+                        "\.proj_attn\.": ".to_out.0.",
+                    },
+                ),
+                load_weight(
+                    nested_dict_value(pretrain_infos, "text", "weight"),
+                    prefix_keys={"": "text."},
+                ),
             ]
 
-        inst.from_pretrained(weight_path)
+        inst.from_pretrained(weight_path, state_dict=state_dict)
         return inst
 
     @autocast()
@@ -173,7 +185,6 @@ class StableForArgusGeneration(GenericModel):
         argus_embeds: torch.Tensor,
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
-        token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
     ):
         # latents = self.vae.encode(argus_embeds).latent_dist.sample()
@@ -195,7 +206,8 @@ class StableForArgusGeneration(GenericModel):
             timesteps,
         )
 
-        encoder_hidden_states = self.text(input_ids, attention_mask)[0]
+        # encoder_hidden_states = self.text(input_ids, attention_mask)[0]
+        encoder_hidden_states = self.text(input_ids)[0]
         outputs = self.unet(
             noise_latents,
             timesteps,
@@ -211,7 +223,6 @@ class StableForArgusGeneration(GenericModel):
         self,
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
-        token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
         height: Optional[int] = 10,
         width: Optional[int] = 10,
