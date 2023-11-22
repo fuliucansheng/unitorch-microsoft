@@ -423,6 +423,8 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         pad_token_id: Optional[int] = 0,
         freeze_vision_model: Optional[bool] = True,
         freeze_qformer_model: Optional[bool] = True,
+        freeze_language_projection: Optional[bool] = True,
+        freeze_llama_model: Optional[bool] = True,
         lora_r: Optional[int] = 16,
         lora_alpha: Optional[int] = 32,
         lora_dropout: Optional[float] = 0.05,
@@ -464,6 +466,14 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
 
         if freeze_qformer_model:
             for param in self.peft_model.qformer.parameters():
+                param.requires_grad = False
+
+        if freeze_language_projection:
+            for param in self.peft_model.language_projection.parameters():
+                param.requires_grad = False
+        
+        if freeze_llama_model:
+            for param in self.peft_model.model.parameters():
                 param.requires_grad = False
 
     @classmethod
@@ -512,6 +522,10 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
 
         freeze_vision_model = config.getoption("freeze_vision_model", True)
         freeze_qformer_model = config.getoption("freeze_qformer_model", True)
+        freeze_language_projection = config.getoption(
+            "freeze_language_projection", True
+        )
+        freeze_llama_model = config.getoption("freeze_llama_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         num_classes = config.getoption("num_classes", 1)
 
@@ -521,6 +535,8 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
             quant_config_path=quant_config_path,
             freeze_vision_model=freeze_vision_model,
             freeze_qformer_model=freeze_qformer_model,
+            freeze_language_projection=freeze_language_projection,
+            freeze_llama_model=freeze_llama_model,
             gradient_checkpointing=gradient_checkpointing,
             lora_r=lora_r,
             lora_alpha=lora_alpha,
@@ -621,6 +637,8 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
         pad_token_id: Optional[int] = 0,
         freeze_vision_model: Optional[bool] = True,
         freeze_qformer_model: Optional[bool] = True,
+        freeze_language_projection: Optional[bool] = True,
+        freeze_llama_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
         lora_r: Optional[int] = 16,
         lora_alpha: Optional[int] = 32,
@@ -670,6 +688,14 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
         if freeze_qformer_model:
             for param in self.peft_model.qformer.parameters():
                 param.requires_grad = False
+        
+        if freeze_language_projection:
+            for param in self.peft_model.language_projection.parameters():
+                param.requires_grad = False
+
+        if freeze_llama_model:
+            for param in self.peft_model.llama.parameters():
+                param.requires_grad = False
 
     @classmethod
     @add_default_section_for_init("microsoft/model/generation/peft/lora/minigpt4")
@@ -717,6 +743,10 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
 
         freeze_vision_model = config.getoption("freeze_vision_model", True)
         freeze_qformer_model = config.getoption("freeze_qformer_model", True)
+        freeze_language_projection = config.getoption(
+            "freeze_language_projection", True
+        )
+        freeze_llama_model = config.getoption("freeze_llama_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
 
         inst = cls(
@@ -725,6 +755,8 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
             quant_config_path=quant_config_path,
             freeze_vision_model=freeze_vision_model,
             freeze_qformer_model=freeze_qformer_model,
+            freeze_language_projection=freeze_language_projection,
+            freeze_llama_model=freeze_llama_model,
             gradient_checkpointing=gradient_checkpointing,
             lora_r=lora_r,
             lora_alpha=lora_alpha,
