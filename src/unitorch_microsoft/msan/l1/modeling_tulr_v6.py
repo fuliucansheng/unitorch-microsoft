@@ -42,7 +42,7 @@ from unitorch_microsoft.models.tulr import (
 )
 
 
-@register_model("microsoft/msan/l1_ranking/model/classification/tulr/v6")
+@register_model("microsoft/msan/l1/model/classification/tulr/v6")
 class TULRV6ForClassification(GenericModel):
     def __init__(
         self,
@@ -60,11 +60,11 @@ class TULRV6ForClassification(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/msan/l1_ranking/model/classification/tulr/v6"
+        "microsoft/msan/l1/model/classification/tulr/v6"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/msan/l1_ranking/model/classification/tulr/v6"
+            "microsoft/msan/l1/model/classification/tulr/v6"
         )
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         config_path = config.getoption("config_path", None)
@@ -113,7 +113,7 @@ class TULRV6ForClassification(GenericModel):
         return ClassificationOutputs(outputs=logits)
 
 
-@register_model("microsoft/msan/l1_ranking/model/classification/tulr/v6/v2")
+@register_model("microsoft/msan/l1/model/classification/tulr/v6/v2")
 class TULRV6ForClassificationV2(GenericModel):
     def __init__(
         self,
@@ -132,11 +132,11 @@ class TULRV6ForClassificationV2(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/msan/l1_ranking/model/classification/tulr/v6/v2"
+        "microsoft/msan/l1/model/classification/tulr/v6/v2"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/msan/l1_ranking/model/classification/tulr/v6/v2"
+            "microsoft/msan/l1/model/classification/tulr/v6/v2"
         )
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         config_path = config.getoption("config_path", None)
@@ -193,7 +193,7 @@ class TULRV6ForClassificationV2(GenericModel):
         return ClassificationOutputs(outputs=logits)
 
 
-@register_model("microsoft/msan/l1_ranking/model/classification/tulr/v6/v3")
+@register_model("microsoft/msan/l1/model/classification/tulr/v6/v3")
 class TULRV6ForClassificationV3(GenericModel):
     def __init__(
         self,
@@ -229,11 +229,11 @@ class TULRV6ForClassificationV3(GenericModel):
 
     @classmethod
     @add_default_section_for_init(
-        "microsoft/msan/l1_ranking/model/classification/tulr/v6/v3"
+        "microsoft/msan/l1/model/classification/tulr/v6/v3"
     )
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section(
-            "microsoft/msan/l1_ranking/model/classification/tulr/v6/v3"
+            "microsoft/msan/l1/model/classification/tulr/v6/v3"
         )
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         config_path = config.getoption("config_path", None)

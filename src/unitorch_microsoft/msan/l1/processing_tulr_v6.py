@@ -50,9 +50,9 @@ class TULRV6Processor(HfTextClassificationProcessor):
         self.vocab_words = list(self.tokenizer.get_vocab().keys())
 
     @classmethod
-    @add_default_section_for_init("microsoft/msan/l1_ranking/process/tulr/v6")
+    @add_default_section_for_init("microsoft/msan/l1/process/tulr/v6")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/msan/l1_ranking/process/tulr/v6")
+        config.set_default_section("microsoft/msan/l1/process/tulr/v6")
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         vocab_path = config.getoption("vocab_path", None)
         vocab_path = pop_value(
@@ -65,7 +65,7 @@ class TULRV6Processor(HfTextClassificationProcessor):
             "vocab_path": vocab_path,
         }
 
-    @register_process("microsoft/msan/l1_ranking/process/tulr/v6/classification/v2")
+    @register_process("microsoft/msan/l1/process/tulr/v6/classification/v2")
     def _classification(
         self,
         text: Union[str, List[str]],
@@ -75,7 +75,7 @@ class TULRV6Processor(HfTextClassificationProcessor):
     ):
         if isinstance(text, str):
             text = [text]
-        max_num_text = pop_value(max_num_text, self.max_num_text)
+        max_num_text = int(pop_value(max_num_text, self.max_num_text))
         num_attention_mask = [1] * len(text[:max_num_text]) + [0] * (
             max_num_text - len(text[:max_num_text])
         )
