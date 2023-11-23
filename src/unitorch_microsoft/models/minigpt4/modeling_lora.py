@@ -471,7 +471,7 @@ class MiniGPT4Blip2LlamaLoraForClassification(GenericPeftModel):
         if freeze_language_projection:
             for param in self.peft_model.language_projection.parameters():
                 param.requires_grad = False
-        
+
         if freeze_llama_model:
             for param in self.peft_model.model.parameters():
                 param.requires_grad = False
@@ -688,7 +688,7 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
         if freeze_qformer_model:
             for param in self.peft_model.qformer.parameters():
                 param.requires_grad = False
-        
+
         if freeze_language_projection:
             for param in self.peft_model.language_projection.parameters():
                 param.requires_grad = False

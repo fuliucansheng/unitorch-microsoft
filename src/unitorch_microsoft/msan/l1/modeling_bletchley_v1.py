@@ -30,6 +30,7 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
 )
 from unitorch_microsoft import cached_path
 
+
 @register_model("microsoft/msan/l1/pretrain/bletchley/v1")
 class BletchleyForPretrain(GenericModel):
     def __init__(
@@ -50,9 +51,7 @@ class BletchleyForPretrain(GenericModel):
         self.user_encoder = BletchleyTextEncoder(
             text_config, add_projection_layer=False
         )
-        self.ads_encoder = BletchleyTextEncoder(
-            text_config, add_projection_layer=False
-        )
+        self.ads_encoder = BletchleyTextEncoder(text_config, add_projection_layer=False)
 
         self.use_all_gather = use_all_gather
         self.user_projection = nn.Linear(
@@ -119,7 +118,9 @@ class BletchleyForPretrain(GenericModel):
         ads_attention_mask,
     ):
         batch, num, seq_len = user_input_ids.shape
-        user_outputs = self.user_encoder(user_input_ids.view(-1, seq_len), user_attention_mask.view(-1, seq_len))
+        user_outputs = self.user_encoder(
+            user_input_ids.view(-1, seq_len), user_attention_mask.view(-1, seq_len)
+        )
         pooled_output = user_outputs[:, 0]
         attention_score = self.attn(pooled_output).view(batch, num)
         attention_score = attention_score + (1 - user_num_attention_mask) * -10000.0

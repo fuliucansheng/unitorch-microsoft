@@ -142,6 +142,7 @@ class BertForPretrain(GenericModel):
 
         return LossOutputs(loss=loss)
 
+
 @register_model("microsoft/vpr/pretrain/bert/v2")
 class BertForPretrainV2(GenericModel):
     replace_keys_in_state_dict = {"gamma": "weight", "beta": "bias"}

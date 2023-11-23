@@ -105,11 +105,9 @@ class BletchleyProcessor:
         num_attention_mask = [1] * len(text[:max_num_text]) + [0] * (
             max_num_text - len(text[:max_num_text])
         )
-        
+
         texts = text[:max_num_text] + [""] * (max_num_text - len(text[:max_num_text]))
-        outputs = [
-            self._tokenize(text, text_pair, max_seq_length) for text in texts
-        ]
+        outputs = [self._tokenize(text, text_pair, max_seq_length) for text in texts]
 
         inputs = dict(
             input_ids=torch.stack([output.input_ids for output in outputs]),
@@ -119,4 +117,3 @@ class BletchleyProcessor:
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
         return TensorsInputs(inputs)
-

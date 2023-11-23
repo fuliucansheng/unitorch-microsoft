@@ -33,7 +33,13 @@ def get_bletchley_text_config(
     config_type: str,
     gradient_checkpointing: Optional[bool] = False,
 ):
-    assert config_type in ["0.3B", "0.8B", "2.5B", None], "Invalid config passed"
+    assert config_type in [
+        "0.15B",
+        "0.3B",
+        "0.8B",
+        "2.5B",
+        None,
+    ], "Invalid config passed"
     config = XLMRobertaConfig.from_pretrained("xlm-roberta-large")
     config.num_hidden_layers = 12
     config.max_position_embeddings = 128
@@ -46,6 +52,14 @@ def get_bletchley_text_config(
         config.hidden_size = 768
         config.intermediate_size = config.hidden_size * 4
         config.num_hidden_layers = 6
+        config.num_attention_heads = 12
+        config.add_preln_encoder = False
+        config.global_vector_size = 768
+
+    if config_type == "0.15B":
+        config.hidden_size = 768
+        config.intermediate_size = config.hidden_size * 4
+        config.num_hidden_layers = 3
         config.num_attention_heads = 12
         config.add_preln_encoder = False
         config.global_vector_size = 768

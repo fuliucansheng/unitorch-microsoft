@@ -163,6 +163,7 @@ class MiniGPT4Blip2LlamaClassificationModel(nn.Module):
         )
         return outputs
 
+
 @register_model("microsoft/model/classification/minigpt4")
 class MiniGPT4Blip2LlamaForClassification(GenericPeftModel):
     prefix_keys_in_state_dict = {

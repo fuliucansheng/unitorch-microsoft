@@ -59,13 +59,9 @@ class TULRV6ForClassification(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init(
-        "microsoft/msan/l1/model/classification/tulr/v6"
-    )
+    @add_default_section_for_init("microsoft/msan/l1/model/classification/tulr/v6")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section(
-            "microsoft/msan/l1/model/classification/tulr/v6"
-        )
+        config.set_default_section("microsoft/msan/l1/model/classification/tulr/v6")
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         config_path = config.getoption("config_path", None)
 
@@ -131,13 +127,9 @@ class TULRV6ForClassificationV2(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init(
-        "microsoft/msan/l1/model/classification/tulr/v6/v2"
-    )
+    @add_default_section_for_init("microsoft/msan/l1/model/classification/tulr/v6/v2")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section(
-            "microsoft/msan/l1/model/classification/tulr/v6/v2"
-        )
+        config.set_default_section("microsoft/msan/l1/model/classification/tulr/v6/v2")
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         config_path = config.getoption("config_path", None)
 
@@ -228,13 +220,9 @@ class TULRV6ForClassificationV3(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init(
-        "microsoft/msan/l1/model/classification/tulr/v6/v3"
-    )
+    @add_default_section_for_init("microsoft/msan/l1/model/classification/tulr/v6/v3")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section(
-            "microsoft/msan/l1/model/classification/tulr/v6/v3"
-        )
+        config.set_default_section("microsoft/msan/l1/model/classification/tulr/v6/v3")
         pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
         config_path = config.getoption("config_path", None)
 
