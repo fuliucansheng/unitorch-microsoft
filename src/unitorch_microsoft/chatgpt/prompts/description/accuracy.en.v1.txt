@@ -104,7 +104,7 @@ Expected result is
 <|im_start|>user
 Given
 {AssetType}: \"{AdAsset}\"
-Provided website content: \"{TruncatedLPs}\"
+Provided website content: \"{TruncatedLP}\"
 
 What is your answer?
 <|im_end|>

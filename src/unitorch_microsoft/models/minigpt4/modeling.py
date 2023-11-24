@@ -20,7 +20,6 @@ from unitorch.models import (
     QuantizationMixin,
 )
 from unitorch.models.quantization import quantize_model
-from unitorch.models.peft import PeftModelForSequenceClassification, GenericPeftModel
 from unitorch.models.minigpt4.modeling import MiniGPT4Blip2LlamaModel
 from unitorch.cli import (
     cached_path,
@@ -165,7 +164,7 @@ class MiniGPT4Blip2LlamaClassificationModel(nn.Module):
 
 
 @register_model("microsoft/model/classification/minigpt4")
-class MiniGPT4Blip2LlamaForClassification(GenericPeftModel):
+class MiniGPT4Blip2LlamaForClassification(GenericModel):
     prefix_keys_in_state_dict = {
         "^qformer.": "base_model.",
         "^query_tokens": "base_model.",
