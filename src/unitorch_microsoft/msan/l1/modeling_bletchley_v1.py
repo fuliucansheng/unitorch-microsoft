@@ -390,9 +390,9 @@ class BletchleyForClassification(GenericModel):
         )
 
         click_scores = self.click_classifier(click_scores)
-        click_scores = torch.sigmoid(click_scores)
+        # click_scores = torch.sigmoid(click_scores)
         conv_scores = self.conv_classifier(conv_scores)
-        conv_scores = torch.sigmoid(conv_scores)
+        # conv_scores = torch.sigmoid(conv_scores)
 
         if task.dim() == 1:
             task = task.unsqueeze(-1)
