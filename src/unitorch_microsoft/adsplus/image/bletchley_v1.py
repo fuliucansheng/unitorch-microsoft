@@ -1,0 +1,170 @@
+# Copyright (c) MICROSOFT.
+# Licensed under the MIT License.
+
+import os
+import logging
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+import torch.nn.functional as F
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from torch.cuda.amp import autocast
+from transformers.activations import quick_gelu
+from unitorch.models import GenericModel
+from unitorch.models.clip.modeling import AllGather, _clip_loss
+from unitorch.cli.models import (
+    EmbeddingOutputs,
+    LossOutputs,
+    ClassificationOutputs,
+)
+from unitorch.cli import (
+    add_default_section_for_init,
+    add_default_section_for_function,
+    register_model,
+)
+from unitorch_microsoft.models.bletchley.modeling_v1 import (
+    get_bletchley_text_config,
+    get_bletchley_image_config,
+    BletchleyTextEncoder,
+    BletchleyImageEncoder,
+)
+
+@register_model("microsoft/adsplus/image/bletchley/v1")
+class BletchleyForGeneImageRelevance(GenericModel):
+    replace_keys_in_state_dict = {
+        "text_encoder.projection": "text_projection",
+        "image_encoder.projection": "image_projection",
+    }
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 64,
+        hidden_size: Optional[int] = 512,
+        num_text_layers: Optional[int] = 4,
+        freeze_base_model: Optional[bool] = False,
+        freeze_image_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+        output_text_embed: Optional[bool] = False,
+        output_image_embed: Optional[bool] = False,
+    ):
+        super().__init__()
+        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
+        text_config.num_hidden_layers = num_text_layers
+        image_config = get_bletchley_image_config(config_type, gradient_checkpointing)
+
+        self.output_text_embed = output_text_embed
+        self.output_image_embed = output_image_embed
+
+        self.text_embed_dim = text_config.hidden_size
+        self.image_embed_dim = image_config.hidden_size
+
+        self.text_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            image_config, add_projection_layer=False
+        )
+
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            projection_dim,
+        )  # text_encoder.projection.weight, text_encoder.projection.bias
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            projection_dim,
+        )  # image_encoder.projection.weight,  image_encoder.projection.bias
+
+        self.fc1 = nn.Linear(projection_dim, hidden_size)
+        self.max_fc = nn.Linear(hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, 1)
+        self.init_weights()
+        
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+        if freeze_image_model:
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+        
+    @classmethod
+    @add_default_section_for_init("microsoft/adsplus/image/bletchley/v1")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/adsplus/image/bletchley/v1")
+        config_type = config.getoption("config_type", "0.3B")
+
+        projection_dim = config.getoption("projection_dim", 64)
+        hidden_size = config.getoption("hidden_size", 512)
+        num_text_layers = config.getoption("num_text_layers", 4)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_image_model = config.getoption("freeze_image_model", True)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        output_text_embed = config.getoption("output_text_embed", False)
+        output_image_embed = config.getoption("output_image_embed", False)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            hidden_size=hidden_size,
+            num_text_layers=num_text_layers,
+            freeze_image_model=freeze_image_model,
+            freeze_base_model=freeze_base_model,
+            gradient_checkpointing=gradient_checkpointing,
+            output_text_embed=output_text_embed,
+            output_image_embed=output_image_embed,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        return inst
+
+    @autocast()
+    def forward(
+        self,
+        input_ids: torch.Tensor = None,
+        images: torch.Tensor = None,
+        attention_mask: torch.Tensor = None,
+    ):
+        if not self.training and self.output_image_embed:
+            image_outputs = self.image_encoder(
+                images=images,
+            )
+            image_embeds = image_outputs[:, 0]
+            image_embeds = self.image_projection(image_embeds)
+            return EmbeddingOutputs(embedding=image_embeds)
+
+        if not self.training and self.output_text_embed:
+            text_outputs = self.text_encoder(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+            )
+            text_embeds = text_outputs[:, 0]
+            text_embeds = self.text_projection(text_embeds)
+            return EmbeddingOutputs(embedding=text_embeds)
+
+        image_outputs = self.image_encoder(
+            images=images,
+        )
+        text_outputs = self.text_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+
+        image_embeds = image_outputs[:, 0]
+        image_embeds = self.image_projection(image_embeds)
+        text_embeds = text_outputs[:, 0]
+        text_embeds = self.text_projection(text_embeds)
+
+        text_embeds = self.fc1(torch.relu(text_embeds))
+        image_embeds = self.fc1(torch.relu(image_embeds))
+        outputs = torch.max(text_embeds, image_embeds)
+        outputs = torch.relu(self.max_fc(outputs)) + outputs
+        outputs = self.fc2(outputs)
+
+        return ClassificationOutputs(outputs=outputs)
