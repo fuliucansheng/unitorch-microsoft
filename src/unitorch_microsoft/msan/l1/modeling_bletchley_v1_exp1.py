@@ -92,7 +92,7 @@ class BletchleyForClassification(GenericModel):
         # self.click_market_layer_norm = nn.LayerNorm(self.projection_dim)
 
         self.user_click_final_projection = nn.Linear(
-            self.projection_dim * 5,
+            self.projection_dim * 3,
             self.projection_dim,
         )
         self.ads_click_final_projection = nn.Linear(
@@ -110,7 +110,7 @@ class BletchleyForClassification(GenericModel):
         # self.conv_market_layer_norm = nn.LayerNorm(self.projection_dim)
 
         self.user_conv_final_projection = nn.Linear(
-            self.projection_dim * 5,
+            self.projection_dim * 3,
             self.projection_dim,
         )
         self.ads_conv_final_projection = nn.Linear(
