@@ -45,6 +45,7 @@ class BletchleyForGeneImageRelevance(GenericModel):
         num_text_layers: Optional[int] = 4,
         freeze_base_model: Optional[bool] = False,
         freeze_image_model: Optional[bool] = True,
+        enable_quantization: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
         output_text_embed: Optional[bool] = False,
         output_image_embed: Optional[bool] = False,
@@ -80,6 +81,16 @@ class BletchleyForGeneImageRelevance(GenericModel):
         self.max_fc = nn.Linear(hidden_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, 1)
         self.init_weights()
+
+        if enable_quantization:
+            for __model__ in [
+                self.text_encoder,
+                self.text_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
         
         if freeze_base_model:
             for p in self.text_encoder.parameters():
@@ -103,6 +114,7 @@ class BletchleyForGeneImageRelevance(GenericModel):
         num_text_layers = config.getoption("num_text_layers", 4)
         freeze_base_model = config.getoption("freeze_base_model", True)
         freeze_image_model = config.getoption("freeze_image_model", True)
+        enable_quantization = config.getoption("enable_quantization", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         output_text_embed = config.getoption("output_text_embed", False)
         output_image_embed = config.getoption("output_image_embed", False)
@@ -114,6 +126,7 @@ class BletchleyForGeneImageRelevance(GenericModel):
             num_text_layers=num_text_layers,
             freeze_image_model=freeze_image_model,
             freeze_base_model=freeze_base_model,
+            enable_quantization=enable_quantization,
             gradient_checkpointing=gradient_checkpointing,
             output_text_embed=output_text_embed,
             output_image_embed=output_image_embed,
