@@ -281,6 +281,6 @@ class BletchleyForClassification(GenericModel):
         if task.dim() == 1:
             task = task.unsqueeze(-1)
 
-        outputs = (task == 0) * click_scores + (task == 1) * conv_scores
+        outputs = (task == 1) * click_scores + (task == 0) * conv_scores
 
         return ClassificationOutputs(outputs=outputs)
