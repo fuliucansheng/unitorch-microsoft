@@ -31,7 +31,7 @@ class BertForPretrain(GenericModel):
     def __init__(
         self,
         config_path: str,
-        num_hidden_layers: Optional[int] = 12,
+        num_hidden_layers: Optional[int] = 3,
         image_embed_dim: Optional[int] = 100,
         logit_scale_init_value: Optional[float] = 2.6592,
         gradient_checkpointing: Optional[bool] = False,
@@ -60,7 +60,7 @@ class BertForPretrain(GenericModel):
         config.set_default_section("microsoft/vpr/pretrain/bert")
         pretrained_name = config.getoption("pretrained_name", "default-bert")
         config_path = config.getoption("config_path", None)
-        num_hidden_layers = config.getoption("num_hidden_layers", 12)
+        num_hidden_layers = config.getoption("num_hidden_layers", 3)
         output_query_embed = config.getoption("output_query_embed", False)
         config_path = pop_value(
             config_path,
@@ -150,7 +150,7 @@ class BertForPretrainV2(GenericModel):
     def __init__(
         self,
         config_path: str,
-        num_hidden_layers: Optional[int] = 12,
+        num_hidden_layers: Optional[int] = 3,
         image_embed_dim: Optional[int] = 100,
         logit_scale_init_value: Optional[float] = 2.6592,
         gradient_checkpointing: Optional[bool] = False,
@@ -183,7 +183,7 @@ class BertForPretrainV2(GenericModel):
         config.set_default_section("microsoft/vpr/pretrain/bert/v2")
         pretrained_name = config.getoption("pretrained_name", "default-bert")
         config_path = config.getoption("config_path", None)
-        num_hidden_layers = config.getoption("num_hidden_layers", 12)
+        num_hidden_layers = config.getoption("num_hidden_layers", 3)
         output_query_embed = config.getoption("output_query_embed", False)
         config_path = pop_value(
             config_path,
@@ -274,8 +274,9 @@ class BertForClassification(GenericModel):
     def __init__(
         self,
         config_path: str,
-        num_hidden_layers: Optional[int] = 12,
+        num_hidden_layers: Optional[int] = 3,
         image_embed_dim: Optional[int] = 100,
+        freeze_base_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
         output_query_embed: Optional[bool] = False,
     ):
@@ -293,6 +294,10 @@ class BertForClassification(GenericModel):
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
 
+        if freeze_base_model:
+            for param in self.bert.parameters():
+                param.requires_grad = False
+
     @classmethod
     @add_default_section_for_init("microsoft/vpr/classification/bert")
     def from_core_configure(cls, config, **kwargs):
@@ -306,10 +311,12 @@ class BertForClassification(GenericModel):
             nested_dict_value(pretrained_bert_infos, pretrained_name, "config"),
         )
         config_path = cached_path(config_path)
+        freeze_base_model = config.getoption("freeze_base_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         inst = cls(
             config_path=config_path,
             num_hidden_layers=num_hidden_layers,
+            freeze_base_model=freeze_base_model,
             gradient_checkpointing=gradient_checkpointing,
             output_query_embed=output_query_embed,
         )
@@ -369,8 +376,9 @@ class BertForClassificationV2(GenericModel):
     def __init__(
         self,
         config_path: str,
-        num_hidden_layers: Optional[int] = 12,
+        num_hidden_layers: Optional[int] = 3,
         image_embed_dim: Optional[int] = 100,
+        freeze_base_model: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
         output_query_embed: Optional[bool] = False,
         output_image_embed: Optional[bool] = False,
@@ -394,6 +402,10 @@ class BertForClassificationV2(GenericModel):
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
 
+        if freeze_base_model:
+            for param in self.bert.parameters():
+                param.requires_grad = False
+
     @classmethod
     @add_default_section_for_init("microsoft/vpr/classification/bert/v2")
     def from_core_configure(cls, config, **kwargs):
@@ -408,10 +420,12 @@ class BertForClassificationV2(GenericModel):
             nested_dict_value(pretrained_bert_infos, pretrained_name, "config"),
         )
         config_path = cached_path(config_path)
+        freeze_base_model = config.getoption("freeze_base_model", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         inst = cls(
             config_path=config_path,
             num_hidden_layers=num_hidden_layers,
+            freeze_base_model=freeze_base_model,
             gradient_checkpointing=gradient_checkpointing,
             output_query_embed=output_query_embed,
             output_image_embed=output_image_embed,
