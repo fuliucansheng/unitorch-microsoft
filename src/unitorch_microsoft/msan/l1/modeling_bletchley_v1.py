@@ -156,7 +156,7 @@ class BletchleyForClassification(GenericModel):
         projection_dim: int = 32,
         num_tgs: Optional[int] = 50,
         num_demands: Optional[int] = 10,
-        num_markets: Optional[int] = 150,
+        num_markets: Optional[int] = 200,
         num_positions: Optional[int] = 13000,
         freeze_base_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
@@ -255,7 +255,7 @@ class BletchleyForClassification(GenericModel):
         projection_dim = config.getoption("projection_dim", 32)
         num_tgs = config.getoption("num_tgs", 50)
         num_demands = config.getoption("num_demands", 10)
-        num_markets = config.getoption("num_markets", 150)
+        num_markets = config.getoption("num_markets", 200)
         num_positions = config.getoption("num_positions", 13000)
         freeze_base_model = config.getoption("freeze_base_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
