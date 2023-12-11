@@ -88,7 +88,9 @@ class BletchleyForClassification(GenericModel):
         self.click_tg_layer_norm = nn.LayerNorm(self.projection_dim)
         self.click_demand_embedding = nn.Embedding(num_demands, self.projection_dim)
         self.click_demand_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.click_publisher_embedding = nn.Embedding(num_publisher, self.projection_dim)
+        self.click_publisher_embedding = nn.Embedding(
+            num_publisher, self.projection_dim
+        )
         self.click_publisher_layer_norm = nn.LayerNorm(self.projection_dim)
 
         self.user_click_final_projection = nn.Linear(
@@ -242,7 +244,7 @@ class BletchleyForClassification(GenericModel):
             [
                 user_conv_embeds,
                 # conv_pos_emb,
-                conv_publisher_emb,               
+                conv_publisher_emb,
                 conv_tg_emb,
                 conv_demand_emb,
             ],

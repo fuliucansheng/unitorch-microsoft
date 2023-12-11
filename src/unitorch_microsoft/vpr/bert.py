@@ -369,6 +369,7 @@ class BertForClassification(GenericModel):
 
         return ClassificationOutputs(outputs=outputs)
 
+
 @register_model("microsoft/vpr/classification/bert/v2")
 class BertForClassificationV2(GenericModel):
     replace_keys_in_state_dict = {"gamma": "weight", "beta": "bias"}

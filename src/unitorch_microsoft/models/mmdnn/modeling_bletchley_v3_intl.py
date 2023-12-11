@@ -117,9 +117,13 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v3/intl")
+    @add_default_section_for_init(
+        "microsoft/model/classification/mmdnn/bletchley/v3/intl"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v3/intl")
+        config.set_default_section(
+            "microsoft/model/classification/mmdnn/bletchley/v3/intl"
+        )
         query_config_type = config.getoption("query_config_type", "0.8B")
         offer_config_type = config.getoption("offer_config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 288)

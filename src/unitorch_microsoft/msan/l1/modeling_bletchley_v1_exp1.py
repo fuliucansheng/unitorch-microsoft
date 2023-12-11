@@ -134,7 +134,9 @@ class BletchleyForClassification(GenericModel):
     @classmethod
     @add_default_section_for_init("microsoft/msan/l1/classification/bletchley/v1/exp1/")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/msan/l1/classification/bletchley/v1/exp1/")
+        config.set_default_section(
+            "microsoft/msan/l1/classification/bletchley/v1/exp1/"
+        )
         config_type = config.getoption("config_type", "0.15B")
         projection_dim = config.getoption("projection_dim", 32)
         num_tgs = config.getoption("num_tgs", 50)

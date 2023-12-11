@@ -30,6 +30,7 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
     BletchleyImageEncoder,
 )
 
+
 @register_model("microsoft/adsplus/image/bletchley/v1")
 class BletchleyForGeneImageRelevance(GenericModel):
     replace_keys_in_state_dict = {
@@ -91,7 +92,7 @@ class BletchleyForGeneImageRelevance(GenericModel):
                     version=0
                 )
                 torch.quantization.prepare_qat(__model__, inplace=True)
-        
+
         if freeze_base_model:
             for p in self.text_encoder.parameters():
                 p.requires_grad = False
@@ -102,7 +103,7 @@ class BletchleyForGeneImageRelevance(GenericModel):
         if freeze_image_model:
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
-        
+
     @classmethod
     @add_default_section_for_init("microsoft/adsplus/image/bletchley/v1")
     def from_core_configure(cls, config, **kwargs):

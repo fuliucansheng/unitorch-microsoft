@@ -159,6 +159,12 @@ class BletchleyForClassification(GenericModel):
         num_markets: Optional[int] = 200,
         num_positions: Optional[int] = 13000,
         freeze_base_model: Optional[bool] = True,
+        enable_tgs_features: Optional[bool] = True,
+        enable_demands_features: Optional[bool] = True,
+        enable_markets_features: Optional[bool] = True,
+        enable_positions_features: Optional[bool] = True,
+        output_user_embeds: Optional[bool] = False,
+        output_ads_embeds: Optional[bool] = False,
         gradient_checkpointing: Optional[bool] = False,
     ):
         super().__init__()
@@ -167,6 +173,12 @@ class BletchleyForClassification(GenericModel):
 
         self.projection_dim = projection_dim
         self.text_embed_dim = text_config.hidden_size
+        self.enable_tgs_features = enable_tgs_features
+        self.enable_demands_features = enable_demands_features
+        self.enable_markets_features = enable_markets_features
+        self.enable_positions_features = enable_positions_features
+        self.output_user_embeds = output_user_embeds
+        self.output_ads_embeds = output_ads_embeds
 
         self.user_encoder = BletchleyTextEncoder(
             text_config, add_projection_layer=False
@@ -198,17 +210,47 @@ class BletchleyForClassification(GenericModel):
         )
         self.ads_conv_layer_norm = nn.LayerNorm(self.projection_dim)
 
-        self.click_position_embedding = nn.Embedding(num_positions, self.projection_dim)
-        self.click_position_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.click_tg_embedding = nn.Embedding(num_tgs, self.projection_dim)
-        self.click_tg_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.click_demand_embedding = nn.Embedding(num_demands, self.projection_dim)
-        self.click_demand_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.click_market_embedding = nn.Embedding(num_markets, self.projection_dim)
-        self.click_market_layer_norm = nn.LayerNorm(self.projection_dim)
+        if enable_tgs_features:
+            self.click_tg_embedding = nn.Embedding(num_tgs, self.projection_dim)
+            self.click_tg_layer_norm = nn.LayerNorm(self.projection_dim)
+            self.conv_tg_embedding = nn.Embedding(num_tgs, self.projection_dim)
+            self.conv_tg_layer_norm = nn.LayerNorm(self.projection_dim)
+
+        if enable_demands_features:
+            self.click_demand_embedding = nn.Embedding(num_demands, self.projection_dim)
+            self.click_demand_layer_norm = nn.LayerNorm(self.projection_dim)
+            self.conv_demand_embedding = nn.Embedding(num_demands, self.projection_dim)
+            self.conv_demand_layer_norm = nn.LayerNorm(self.projection_dim)
+
+        if enable_markets_features:
+            self.click_market_embedding = nn.Embedding(num_markets, self.projection_dim)
+            self.click_market_layer_norm = nn.LayerNorm(self.projection_dim)
+            self.conv_market_embedding = nn.Embedding(num_markets, self.projection_dim)
+            self.conv_market_layer_norm = nn.LayerNorm(self.projection_dim)
+
+        if enable_positions_features:
+            self.click_position_embedding = nn.Embedding(
+                num_positions, self.projection_dim
+            )
+            self.click_position_layer_norm = nn.LayerNorm(self.projection_dim)
+            self.conv_position_embedding = nn.Embedding(
+                num_positions, self.projection_dim
+            )
+            self.conv_position_layer_norm = nn.LayerNorm(self.projection_dim)
+
+        num_features = 1 + int(
+            sum(
+                [
+                    enable_tgs_features,
+                    enable_demands_features,
+                    enable_markets_features,
+                    enable_positions_features,
+                ]
+            )
+        )
 
         self.user_click_final_projection = nn.Linear(
-            self.projection_dim * 5,
+            self.projection_dim * num_features,
             self.projection_dim,
         )
         self.ads_click_final_projection = nn.Linear(
@@ -216,17 +258,8 @@ class BletchleyForClassification(GenericModel):
             self.projection_dim,
         )
 
-        self.conv_position_embedding = nn.Embedding(num_positions, self.projection_dim)
-        self.conv_position_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.conv_tg_embedding = nn.Embedding(num_tgs, self.projection_dim)
-        self.conv_tg_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.conv_demand_embedding = nn.Embedding(num_demands, self.projection_dim)
-        self.conv_demand_layer_norm = nn.LayerNorm(self.projection_dim)
-        self.conv_market_embedding = nn.Embedding(num_markets, self.projection_dim)
-        self.conv_market_layer_norm = nn.LayerNorm(self.projection_dim)
-
         self.user_conv_final_projection = nn.Linear(
-            self.projection_dim * 5,
+            self.projection_dim * num_features,
             self.projection_dim,
         )
         self.ads_conv_final_projection = nn.Linear(
@@ -258,6 +291,12 @@ class BletchleyForClassification(GenericModel):
         num_markets = config.getoption("num_markets", 200)
         num_positions = config.getoption("num_positions", 13000)
         freeze_base_model = config.getoption("freeze_base_model", True)
+        enable_tgs_features = config.getoption("enable_tgs_features", True)
+        enable_demands_features = config.getoption("enable_demands_features", True)
+        enable_markets_features = config.getoption("enable_markets_features", True)
+        enable_positions_features = config.getoption("enable_positions_features", True)
+        output_user_embeds = config.getoption("output_user_embeds", False)
+        output_ads_embeds = config.getoption("output_ads_embeds", False)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
 
         inst = cls(
@@ -268,6 +307,12 @@ class BletchleyForClassification(GenericModel):
             num_markets=num_markets,
             num_positions=num_positions,
             freeze_base_model=freeze_base_model,
+            enable_tgs_features=enable_tgs_features,
+            enable_demands_features=enable_demands_features,
+            enable_markets_features=enable_markets_features,
+            enable_positions_features=enable_positions_features,
+            output_user_embeds=output_user_embeds,
+            output_ads_embeds=output_ads_embeds,
             gradient_checkpointing=gradient_checkpointing,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
@@ -277,19 +322,16 @@ class BletchleyForClassification(GenericModel):
 
         return inst
 
-    @autocast()
-    def forward(
+    def get_user_embeds(
         self,
-        task,
         user_input_ids,
-        user_attention_mask,
-        user_num_attention_mask,
-        tg_ids,
-        demand_ids,
-        market_ids,
-        pos_ids,
-        ads_input_ids,
-        ads_attention_mask,
+        user_attention_mask=None,
+        user_num_attention_mask=None,
+        tg_ids=None,
+        demand_ids=None,
+        market_ids=None,
+        pos_ids=None,
+        do_norm=True,
     ):
         batch, num, seq_len = user_input_ids.shape
         user_outputs = self.user_encoder(
@@ -313,74 +355,143 @@ class BletchleyForClassification(GenericModel):
         ).squeeze(1)
         user_conv_embeds = self.user_conv_projection(user_conv_attn_outputs)
 
-        ads_outputs = self.ads_encoder(ads_input_ids, ads_attention_mask)
-        ads_click_embeds = self.ads_click_projection(ads_outputs[:, 0])
-        ads_conv_embeds = self.ads_conv_projection(ads_outputs[:, 0])
-
         user_click_embeds = self.user_click_layer_norm(quick_gelu(user_click_embeds))
-        ads_click_embeds = self.ads_click_layer_norm(quick_gelu(ads_click_embeds))
         user_conv_embeds = self.user_conv_layer_norm(quick_gelu(user_conv_embeds))
-        ads_conv_embeds = self.ads_conv_layer_norm(quick_gelu(ads_conv_embeds))
 
-        click_pos_emb = self.click_position_layer_norm(
-            self.click_position_embedding(pos_ids)
-        )
-        click_tg_emb = self.click_tg_layer_norm(self.click_tg_embedding(tg_ids))
-        click_demand_emb = self.click_demand_layer_norm(
-            self.click_demand_embedding(demand_ids)
-        )
-        click_market_emb = self.click_market_layer_norm(
-            self.click_market_embedding(market_ids)
-        )
+        click_emb, conv_emb = [user_click_embeds], [user_conv_embeds]
+        if self.enable_positions_features:
+            click_pos_emb = self.click_position_layer_norm(
+                self.click_position_embedding(pos_ids)
+            )
+            conv_pos_emb = self.conv_position_layer_norm(
+                self.conv_position_embedding(pos_ids)
+            )
+            click_emb.append(click_pos_emb)
+            conv_emb.append(conv_pos_emb)
 
-        conv_pos_emb = self.conv_position_layer_norm(
-            self.conv_position_embedding(pos_ids)
-        )
-        conv_tg_emb = self.conv_tg_layer_norm(self.conv_tg_embedding(tg_ids))
-        conv_demand_emb = self.conv_demand_layer_norm(
-            self.conv_demand_embedding(demand_ids)
-        )
-        conv_market_emb = self.conv_market_layer_norm(
-            self.conv_market_embedding(market_ids)
-        )
+        if self.enable_tgs_features:
+            click_tg_emb = self.click_tg_layer_norm(self.click_tg_embedding(tg_ids))
+            conv_tg_emb = self.conv_tg_layer_norm(self.conv_tg_embedding(tg_ids))
+            click_emb.append(click_tg_emb)
+            conv_emb.append(conv_tg_emb)
+
+        if self.enable_demands_features:
+            click_demand_emb = self.click_demand_layer_norm(
+                self.click_demand_embedding(demand_ids)
+            )
+            conv_demand_emb = self.conv_demand_layer_norm(
+                self.conv_demand_embedding(demand_ids)
+            )
+            click_emb.append(click_demand_emb)
+            conv_emb.append(conv_demand_emb)
+
+        if self.enable_markets_features:
+            click_market_emb = self.click_market_layer_norm(
+                self.click_market_embedding(market_ids)
+            )
+            conv_market_emb = self.conv_market_layer_norm(
+                self.conv_market_embedding(market_ids)
+            )
+            click_emb.append(click_market_emb)
+            conv_emb.append(conv_market_emb)
 
         user_click_embeds = torch.cat(
-            [
-                user_click_embeds,
-                click_pos_emb,
-                click_tg_emb,
-                click_demand_emb,
-                click_market_emb,
-            ],
+            click_emb,
             dim=-1,
         )
         user_conv_embeds = torch.cat(
-            [
-                user_conv_embeds,
-                conv_pos_emb,
-                conv_tg_emb,
-                conv_demand_emb,
-                conv_market_emb,
-            ],
+            conv_emb,
             dim=-1,
         )
         user_click_embeds = self.user_click_final_projection(user_click_embeds)
         user_conv_embeds = self.user_conv_final_projection(user_conv_embeds)
 
+        if do_norm:
+            user_click_embeds = user_click_embeds / user_click_embeds.norm(
+                dim=-1, keepdim=True
+            )
+            user_conv_embeds = user_conv_embeds / user_conv_embeds.norm(
+                dim=-1, keepdim=True
+            )
+        return user_click_embeds, user_conv_embeds
+
+    def get_ads_embeds(
+        self,
+        ads_input_ids=None,
+        ads_attention_mask=None,
+        do_norm=True,
+    ):
+        ads_outputs = self.ads_encoder(ads_input_ids, ads_attention_mask)
+        ads_click_embeds = self.ads_click_projection(ads_outputs[:, 0])
+        ads_conv_embeds = self.ads_conv_projection(ads_outputs[:, 0])
+
         ads_click_embeds = self.ads_click_final_projection(ads_click_embeds)
         ads_conv_embeds = self.ads_conv_final_projection(ads_conv_embeds)
 
-        user_click_embeds = user_click_embeds / user_click_embeds.norm(
-            dim=-1, keepdim=True
-        )
-        ads_click_embeds = ads_click_embeds / ads_click_embeds.norm(
-            dim=-1, keepdim=True
+        if do_norm:
+            ads_click_embeds = ads_click_embeds / ads_click_embeds.norm(
+                dim=-1, keepdim=True
+            )
+            ads_conv_embeds = ads_conv_embeds / ads_conv_embeds.norm(
+                dim=-1, keepdim=True
+            )
+
+        return ads_click_embeds, ads_conv_embeds
+
+    @autocast()
+    def forward(
+        self,
+        task=None,
+        user_input_ids=None,
+        user_attention_mask=None,
+        user_num_attention_mask=None,
+        tg_ids=None,
+        demand_ids=None,
+        market_ids=None,
+        pos_ids=None,
+        ads_input_ids=None,
+        ads_attention_mask=None,
+    ):
+        if self.output_user_embeds:
+            user_click_embeds, user_conv_embeds = self.get_user_embeds(
+                user_input_ids=user_input_ids,
+                user_attention_mask=user_attention_mask,
+                user_num_attention_mask=user_num_attention_mask,
+                tg_ids=tg_ids,
+                demand_ids=demand_ids,
+                market_ids=market_ids,
+                pos_ids=pos_ids,
+            )
+            return EmbeddingOutputs(
+                embedding=user_click_embeds,
+                embedding1=user_conv_embeds,
+            )
+
+        if self.output_ads_embeds:
+            ads_click_embeds, ads_conv_embeds = self.get_ads_embeds(
+                ads_input_ids=ads_input_ids,
+                ads_attention_mask=ads_attention_mask,
+            )
+
+            return EmbeddingOutputs(
+                embedding=ads_click_embeds,
+                embedding1=ads_conv_embeds,
+            )
+
+        user_click_embeds, user_conv_embeds = self.get_user_embeds(
+            user_input_ids=user_input_ids,
+            user_attention_mask=user_attention_mask,
+            user_num_attention_mask=user_num_attention_mask,
+            tg_ids=tg_ids,
+            demand_ids=demand_ids,
+            market_ids=market_ids,
+            pos_ids=pos_ids,
         )
 
-        user_conv_embeds = user_conv_embeds / user_conv_embeds.norm(
-            dim=-1, keepdim=True
+        ads_click_embeds, ads_conv_embeds = self.get_ads_embeds(
+            ads_input_ids=ads_input_ids,
+            ads_attention_mask=ads_attention_mask,
         )
-        ads_conv_embeds = ads_conv_embeds / ads_conv_embeds.norm(dim=-1, keepdim=True)
 
         click_scores = torch.sum(
             user_click_embeds * ads_click_embeds, dim=-1, keepdim=True
