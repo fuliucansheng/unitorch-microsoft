@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.cuda.amp import autocast
 
 from transformers.configuration_utils import PretrainedConfig
-from transformers.activations import SiLUActivation, gelu, gelu_new
+from transformers.activations import silu as SiLUActivation, gelu, gelu_new
 from transformers.modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPooling,
