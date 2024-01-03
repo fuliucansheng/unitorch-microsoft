@@ -21,7 +21,7 @@
 
 	"fp16": {
 		"enabled": true,
-		"loss_scale": 0
+		"min_loss_scale": 0.0001
 	},
 	"scheduler": {
 		"type": "WarmupLR",
