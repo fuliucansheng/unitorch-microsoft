@@ -322,16 +322,11 @@ class BletchleyForClassification(GenericModel):
 
         return inst
 
-    def get_user_embeds(
+    def get_user_base_embeds(
         self,
         user_input_ids,
         user_attention_mask=None,
         user_num_attention_mask=None,
-        tg_ids=None,
-        demand_ids=None,
-        market_ids=None,
-        pos_ids=None,
-        do_norm=True,
     ):
         batch, num, seq_len = user_input_ids.shape
         user_outputs = self.user_encoder(
@@ -357,6 +352,25 @@ class BletchleyForClassification(GenericModel):
 
         user_click_embeds = self.user_click_layer_norm(quick_gelu(user_click_embeds))
         user_conv_embeds = self.user_conv_layer_norm(quick_gelu(user_conv_embeds))
+
+        return user_click_embeds, user_conv_embeds
+
+    def get_user_embeds(
+        self,
+        user_input_ids,
+        user_attention_mask=None,
+        user_num_attention_mask=None,
+        tg_ids=None,
+        demand_ids=None,
+        market_ids=None,
+        pos_ids=None,
+        do_norm=True,
+    ):
+        user_click_embeds, user_conv_embeds = self.get_user_base_embeds(
+            user_input_ids=user_input_ids,
+            user_attention_mask=user_attention_mask,
+            user_num_attention_mask=user_num_attention_mask,
+        )
 
         click_emb, conv_emb = [user_click_embeds], [user_conv_embeds]
         if self.enable_positions_features:
@@ -453,14 +467,10 @@ class BletchleyForClassification(GenericModel):
         ads_attention_mask=None,
     ):
         if self.output_user_embeds:
-            user_click_embeds, user_conv_embeds = self.get_user_embeds(
+            user_click_embeds, user_conv_embeds = self.get_user_base_embeds(
                 user_input_ids=user_input_ids,
                 user_attention_mask=user_attention_mask,
                 user_num_attention_mask=user_num_attention_mask,
-                tg_ids=tg_ids,
-                demand_ids=demand_ids,
-                market_ids=market_ids,
-                pos_ids=pos_ids,
             )
             return EmbeddingOutputs(
                 embedding=user_click_embeds,
