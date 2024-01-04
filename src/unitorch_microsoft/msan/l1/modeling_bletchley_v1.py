@@ -468,7 +468,7 @@ class BletchleyForClassification(GenericModel):
         ads_input_ids=None,
         ads_attention_mask=None,
     ):
-        if self.output_user_embeds:
+        if not self.training and self.output_user_embeds:
             user_click_embeds, user_conv_embeds = self.get_user_base_embeds(
                 user_input_ids=user_input_ids,
                 user_attention_mask=user_attention_mask,
@@ -479,7 +479,7 @@ class BletchleyForClassification(GenericModel):
                 embedding1=user_conv_embeds,
             )
 
-        if self.output_ads_embeds:
+        if not self.training and self.output_ads_embeds:
             ads_click_embeds, ads_conv_embeds = self.get_ads_embeds(
                 ads_input_ids=ads_input_ids,
                 ads_attention_mask=ads_attention_mask,

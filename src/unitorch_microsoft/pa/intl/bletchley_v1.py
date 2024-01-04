@@ -127,7 +127,7 @@ class BletchleyForMatching(GenericModel):
             inst.from_pretrained(pretrained_weight_path)
 
         return inst
-    
+
     def from_pretrained(self, weight_path):
         if not os.path.exists(weight_path):
             return

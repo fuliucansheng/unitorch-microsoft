@@ -150,7 +150,7 @@ class BletchleyForMatching(GenericModel):
             image_embeds = self.image_projection(image_outputs[:, 0])
             image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=image_embeds)
-        
+
         if not self.training and self.output_query_embed:
             query_outputs = self.query_encoder(query_input_ids, query_attention_mask)
             query_embeds = self.text_projection(query_outputs[:, 0])
