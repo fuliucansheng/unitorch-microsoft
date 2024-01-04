@@ -438,6 +438,8 @@ class BletchleyForClassification(GenericModel):
         ads_outputs = self.ads_encoder(ads_input_ids, ads_attention_mask)
         ads_click_embeds = self.ads_click_projection(ads_outputs[:, 0])
         ads_conv_embeds = self.ads_conv_projection(ads_outputs[:, 0])
+        ads_click_embeds = self.ads_click_layer_norm(quick_gelu(ads_click_embeds))
+        ads_conv_embeds = self.ads_conv_layer_norm(quick_gelu(ads_conv_embeds))
 
         ads_click_embeds = self.ads_click_final_projection(ads_click_embeds)
         ads_conv_embeds = self.ads_conv_final_projection(ads_conv_embeds)
