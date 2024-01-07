@@ -199,14 +199,34 @@ def cached_path(
     )
 
 
+import unitorch_microsoft.models
+
 if logger.getEffectiveLevel() <= logging.DEBUG:
+    import unitorch_microsoft.adinsights
+    import unitorch_microsoft.adsplus
+    import unitorch_microsoft.aether
+    import unitorch_microsoft.chatgpt
+    import unitorch_microsoft.deepgen
     import unitorch_microsoft.models.bletchley
+    import unitorch_microsoft.models.bloom
     import unitorch_microsoft.models.culr
     import unitorch_microsoft.models.florence
+    import unitorch_microsoft.models.llama
+    import unitorch_microsoft.models.minigpt4
     import unitorch_microsoft.models.mmdnn
     import unitorch_microsoft.models.tnlr
+    import unitorch_microsoft.models.tribert
     import unitorch_microsoft.models.tulg
     import unitorch_microsoft.models.tulr
-    import unitorch_microsoft.adsplus.relevance
+    import unitorch_microsoft.modules
+    import unitorch_microsoft.msan
     import unitorch_microsoft.pa
+    import unitorch_microsoft.pa.intl
+    import unitorch_microsoft.pa.l2
+    import unitorch_microsoft.score
+    import unitorch_microsoft.scripts
+    import unitorch_microsoft.services
+    import unitorch_microsoft.tools
+    import unitorch_microsoft.utils
     import unitorch_microsoft.vpr
+    import unitorch_microsoft.webui

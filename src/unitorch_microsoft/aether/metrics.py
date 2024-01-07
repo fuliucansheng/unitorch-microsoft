@@ -31,7 +31,6 @@ from unitorch.score import map50_score, map_score
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.aether.msttr import msttr_score as _msttr_score
 
 
 def prauc_score(y_true, y_pred):
@@ -39,16 +38,12 @@ def prauc_score(y_true, y_pred):
     return auc(recall, precision)
 
 
-def rouge_bleu_msttr_score(y_true, y_pred, tokenizer, score_fn):
+def rouge_bleu_score(y_true, y_pred, tokenizer, score_fn):
     y_true = y_true.fillna("")
     y_pred = y_pred.fillna("")
     y_true = [[tokenizer.tokenize(text)] for text in y_true]
     y_pred = [tokenizer.tokenize(text) for text in y_pred]
     return score_fn(y_true, y_pred)
-
-
-def msttr_score(y_true, y_pred, window_size=100):
-    return _msttr_score(y_pred, window_size=window_size)
 
 
 def mae_score(y_true, y_pred):
@@ -107,79 +102,64 @@ metrics_dict = {
     "mattcorr": matthews_corrcoef,
     "pearsonr": pearsonr,
     "base-bleu": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=bleu_score,
     ),
     "base-rouge1": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=rouge1_score,
     ),
     "base-rouge2": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=rouge2_score,
     ),
     "base-rougel": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=WhiteSpaceTokenizer(),
         score_fn=rougel_score,
     ),
-    "base-msttr": partial(
-        rouge_bleu_msttr_score,
-        tokenizer=WhiteSpaceTokenizer(),
-        score_fn=msttr_score,
-    ),
     "bert-bleu": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=bleu_score,
     ),
     "bert-rouge1": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=rouge1_score,
     ),
     "bert-rouge2": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=rouge2_score,
     ),
     "bert-rougel": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
         score_fn=rougel_score,
     ),
-    "bert-msttr": partial(
-        rouge_bleu_msttr_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
-        score_fn=msttr_score,
-    ),
     "mbert-bleu": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=bleu_score,
     ),
     "mbert-rouge1": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=rouge1_score,
     ),
     "mbert-rouge2": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=rouge2_score,
     ),
     "mbert-rougel": partial(
-        rouge_bleu_msttr_score,
+        rouge_bleu_score,
         tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
         score_fn=rougel_score,
-    ),
-    "mbert-msttr": partial(
-        rouge_bleu_msttr_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
-        score_fn=msttr_score,
     ),
 }
 
