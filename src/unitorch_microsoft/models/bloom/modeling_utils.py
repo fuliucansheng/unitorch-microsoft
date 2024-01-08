@@ -16,6 +16,7 @@ from transformers.models.bloom.modeling_bloom import (
     LayerNorm,
     BloomMLP,
     PreTrainedModel,
+    _prepare_4d_causal_attention_mask,
 )
 
 
@@ -375,11 +376,13 @@ class BloomModel(transformers.models.bloom.modeling_bloom.BloomModel):
             attention_mask, self.num_heads, dtype=hidden_states.dtype
         )
 
-        causal_mask = self._prepare_attn_mask(
+        causal_mask = _prepare_4d_causal_attention_mask(
             attention_mask,
             input_shape=(batch_size, seq_length),
+            inputs_embeds=inputs_embeds,
             past_key_values_length=past_key_values_length,
         )
+        causal_mask = causal_mask.bool()
 
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
             if output_hidden_states:

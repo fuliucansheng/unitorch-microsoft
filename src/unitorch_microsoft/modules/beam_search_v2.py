@@ -99,6 +99,8 @@ class BeamSearchScorerV2(transformers.generation.beam_search.BeamSearchScorer):
         pad_token_id: Optional[int] = None,
         eos_token_id: Optional[Union[int, List[int]]] = None,
         beam_indices: Optional[torch.Tensor] = None,
+        group_index: Optional[int] = 0,
+        decoder_prompt_len: Optional[int] = 0,
     ) -> Tuple[torch.Tensor]:
         cur_len = input_ids.shape[-1]
         batch_size = len(self._beam_hyps)
@@ -207,6 +209,7 @@ class BeamSearchScorerV2(transformers.generation.beam_search.BeamSearchScorer):
         pad_token_id: Optional[int] = None,
         eos_token_id: Optional[Union[int, List[int]]] = None,
         beam_indices: Optional[torch.Tensor] = None,
+        decoder_prompt_len: Optional[int] = 0,
     ) -> Tuple[torch.Tensor]:
         batch_size = len(self._beam_hyps)
 
