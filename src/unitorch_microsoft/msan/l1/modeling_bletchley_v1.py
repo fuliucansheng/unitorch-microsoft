@@ -238,37 +238,32 @@ class BletchleyForClassification(GenericModel):
             )
             self.conv_position_layer_norm = nn.LayerNorm(self.projection_dim)
 
-        user_num_features = 1 + int(
+        num_features = 1 + int(
             sum(
                 [
                     enable_tgs_features,
+                    enable_demands_features,
                     enable_markets_features,
                     enable_positions_features,
                 ]
             )
         )
-        ad_num_features = 1 + int(
-            sum(
-                [
-                    enable_demands_features,
-                ]
-            )
-        )
+
         self.user_click_final_projection = nn.Linear(
-            self.projection_dim * user_num_features,
+            self.projection_dim * num_features,
             self.projection_dim,
         )
         self.ads_click_final_projection = nn.Linear(
-            self.projection_dim * ad_num_features,
+            self.projection_dim,
             self.projection_dim,
         )
 
         self.user_conv_final_projection = nn.Linear(
-            self.projection_dim * user_num_features,
+            self.projection_dim * num_features,
             self.projection_dim,
         )
         self.ads_conv_final_projection = nn.Linear(
-            self.projection_dim * ad_num_features,
+            self.projection_dim,
             self.projection_dim,
         )
 
@@ -366,6 +361,7 @@ class BletchleyForClassification(GenericModel):
         user_attention_mask=None,
         user_num_attention_mask=None,
         tg_ids=None,
+        demand_ids=None,
         market_ids=None,
         pos_ids=None,
         do_norm=True,
@@ -392,6 +388,16 @@ class BletchleyForClassification(GenericModel):
             conv_tg_emb = self.conv_tg_layer_norm(self.conv_tg_embedding(tg_ids))
             click_emb.append(click_tg_emb)
             conv_emb.append(conv_tg_emb)
+
+        if self.enable_demands_features:
+            click_demand_emb = self.click_demand_layer_norm(
+                self.click_demand_embedding(demand_ids)
+            )
+            conv_demand_emb = self.conv_demand_layer_norm(
+                self.conv_demand_embedding(demand_ids)
+            )
+            click_emb.append(click_demand_emb)
+            conv_emb.append(conv_demand_emb)
 
         if self.enable_markets_features:
             click_market_emb = self.click_market_layer_norm(
@@ -427,7 +433,6 @@ class BletchleyForClassification(GenericModel):
         self,
         ads_input_ids=None,
         ads_attention_mask=None,
-        demand_ids=None,
         do_norm=True,
     ):
         ads_outputs = self.ads_encoder(ads_input_ids, ads_attention_mask)
@@ -435,26 +440,7 @@ class BletchleyForClassification(GenericModel):
         ads_conv_embeds = self.ads_conv_projection(ads_outputs[:, 0])
         ads_click_embeds = self.ads_click_layer_norm(quick_gelu(ads_click_embeds))
         ads_conv_embeds = self.ads_conv_layer_norm(quick_gelu(ads_conv_embeds))
-        
-        click_emb, conv_emb = [ads_click_embeds], [ads_conv_embeds]
-        if self.enable_demands_features:
-            click_demand_emb = self.click_demand_layer_norm(
-                self.click_demand_embedding(demand_ids)
-            )
-            conv_demand_emb = self.conv_demand_layer_norm(
-                self.conv_demand_embedding(demand_ids)
-            )
-            click_emb.append(click_demand_emb)
-            conv_emb.append(conv_demand_emb)
-        
-        ads_click_embeds = torch.cat(
-            click_emb,
-            dim=-1,
-        )
-        ads_conv_embeds = torch.cat(
-            conv_emb,
-            dim=-1,
-        )        
+
         ads_click_embeds = self.ads_click_final_projection(ads_click_embeds)
         ads_conv_embeds = self.ads_conv_final_projection(ads_conv_embeds)
 
@@ -497,7 +483,6 @@ class BletchleyForClassification(GenericModel):
             ads_click_embeds, ads_conv_embeds = self.get_ads_embeds(
                 ads_input_ids=ads_input_ids,
                 ads_attention_mask=ads_attention_mask,
-                demand_ids=demand_ids,
             )
 
             return EmbeddingOutputs(
@@ -510,7 +495,7 @@ class BletchleyForClassification(GenericModel):
             user_attention_mask=user_attention_mask,
             user_num_attention_mask=user_num_attention_mask,
             tg_ids=tg_ids,
-            # demand_ids=demand_ids,
+            demand_ids=demand_ids,
             market_ids=market_ids,
             pos_ids=pos_ids,
         )
@@ -518,7 +503,6 @@ class BletchleyForClassification(GenericModel):
         ads_click_embeds, ads_conv_embeds = self.get_ads_embeds(
             ads_input_ids=ads_input_ids,
             ads_attention_mask=ads_attention_mask,
-            demand_ids=demand_ids,
         )
 
         click_scores = torch.sum(
