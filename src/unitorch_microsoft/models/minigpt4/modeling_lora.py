@@ -910,6 +910,8 @@ class MiniGPT4Blip2LlamaLoraForGeneration(GenericPeftModel):
             return_dict_in_generate=True,
             output_scores=True,
         )
+        if not hasattr(outputs, "sequences_scores"):
+            outputs.sequences_scores = torch.empty(0)
 
         sequences = outputs.sequences.reshape(
             -1, num_return_sequences, outputs.sequences.size(-1)
