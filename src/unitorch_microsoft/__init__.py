@@ -201,7 +201,9 @@ def cached_path(
 
 import unitorch_microsoft.models
 
-if logger.getEffectiveLevel() <= logging.DEBUG:
+UNITORCH_DEBUG = os.environ.get("UNITORCH_DEBUG", "INFO").upper()
+
+if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.adinsights
     import unitorch_microsoft.adsplus
     import unitorch_microsoft.aether
