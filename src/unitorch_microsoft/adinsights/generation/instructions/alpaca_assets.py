@@ -11,43 +11,10 @@ import logging
 import hashlib
 import numpy as np
 import pandas as pd
+from transformers.utils import is_remote_url
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
-
-prompt_v1 = """
-<|im_start|>system
-You are an AI assistant that helps people find information.
-<|im_end|>
-<|im_start|>user
-You are asked to come up with a set of {num_tasks} diverse task instructions. These task instructions will be given to a LLM model and we will evaluate the LLM model for completing the instructions.
-
-Here are the requirements:
-1. Try not to repeat the verb for each instruction to maximize diversity.
-2. The language used for the instruction also should be diverse. For example, you should combine questions with imperative instrucitons.
-3. The type of instructions should be diverse. The list should include diverse types of tasks like open-ended generation, classification, editing, etc.
-2. A LLM language model should be able to complete the instruction. For example, do not ask the assistant to create any visual or audio output. For another example, do not ask the assistant to wake you up at 5pm or set a reminder because it cannot perform any action.
-3. The instructions should be in English.
-4. The instructions should be 1 to 2 sentences long. Either an imperative sentence or a question is permitted.
-5. You should generate an appropriate input to the instruction. The input field should contain a specific example provided for the instruction. It should involve realistic data and should not contain simple placeholders. The input should provide substantial content to make the instruction challenging but should ideally not exceed 100 words.
-6. Not all instructions require input. For example, when a instruction asks about some general information, "what is the highest peak in the world", it is not necssary to provide a specific context. In this case, we simply put "<noinput>" in the input field.
-7. The output should be an appropriate response to the instruction and the input. Make sure the output is less than 100 words.
-
-List of {num_tasks} tasks:
-
-{content}
-
-Please generate the instructions for each task line by line in <result></result>. Use the following format:
-<result>
-    #1. <instruction 1>
-    #2. <instruction 2>
-    #3. <instruction 3>
-    #4. <instruction 4>
-</result>
-<|im_end|>
-<|im_start|>assistant
-"""
-
 
 @register_script("microsoft/script/adinsights/generation/instructions/alpaca/sahara/v1")
 class AlpacaSaharaV1Script(GenericScript):
@@ -61,7 +28,20 @@ class AlpacaSaharaV1Script(GenericScript):
         )
         input_file = config.getoption("input_file", None)
         names = config.getoption("names", "*")
+        prompt_file = config.getoption("prompt_file", None)
+        prompt_text = config.getoption("prompt_text", None)
         output_file = config.getoption("output_file", "./output.txt")
+
+        if prompt_file is not None and prompt_file.strip() == "":
+            prompt_file = None
+        
+        assert prompt_file is not None or prompt_text is not None
+
+        if prompt_file is not None:
+            if is_remote_url(prompt_file):
+                prompt_file = cached_path(prompt_file)
+            else:
+                prompt_file = cached_path(prompt_file)
 
         instruction_col = config.getoption("instruction_col", "instruction")
         input_col = config.getoption("input_col", "input")
@@ -72,9 +52,10 @@ class AlpacaSaharaV1Script(GenericScript):
         top_p = config.getoption("top_p", 1)
 
         input_escapechar = config.getoption("input_escapechar", None)
-        output_escapechar = config.getoption("output_escapechar", "\\")
+        output_escapechar = config.getoption("output_escapechar", None)
 
         output_header = config.getoption("output_header", False)
+        replace_items = config.getoption("replace_items", {"#endl#": "\n"})
 
         if isinstance(names, str) and names.strip() == "*":
             names = None
@@ -90,12 +71,19 @@ class AlpacaSaharaV1Script(GenericScript):
             escapechar=input_escapechar,
         )
 
+        if prompt_file is not None:
+            prompt_text = open(prompt_file, "r", encoding="utf-8").read()
+
+        for k, v in replace_items.items():
+            prompt_text = prompt_text.replace(k, v)
+
         def processing(prompt, _index):
             res = {
                 "prompt": prompt,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "top_p": top_p,
+                "stop": "<|im_end|>",
                 "_batch_request_metadata": {
                     "ConversationId": str(_index),
                 },
@@ -117,7 +105,7 @@ class AlpacaSaharaV1Script(GenericScript):
             )
             content = f"###\n{content}\n###\n"
             output.append(
-                [group, prompt_v1.format(num_tasks=len(chunk), content=content)]
+                [group, prompt_text.format(num_tasks=len(chunk), content=content)]
             )
 
         output = pd.DataFrame(output, columns=["groupnum", "prompt"])
@@ -134,41 +122,6 @@ class AlpacaSaharaV1Script(GenericScript):
             escapechar=output_escapechar,
         )
 
-
-prompt_v2 = """
-<|im_start|>system
-You are an AI assistant that helps people find information.
-<|im_end|>
-<|im_start|>user
-You are asked to come up with a set of {num_tasks} diverse task instructions. These task instructions will be given to a LLM model and we will evaluate the LLM model for completing the instructions.
-
-Here are the requirements:
-1. Try not to repeat the verb for each instruction to maximize diversity.
-2. The language used for the instruction also should be diverse. For example, you should combine questions with imperative instrucitons.
-3. The type of instructions should be diverse. The list should include diverse types of tasks like open-ended generation, classification, editing, etc.
-2. A LLM language model should be able to complete the instruction. For example, do not ask the assistant to create any visual or audio output. For another example, do not ask the assistant to wake you up at 5pm or set a reminder because it cannot perform any action.
-3. The instructions should be in English.
-4. The instructions should be 1 to 2 sentences long. Either an imperative sentence or a question is permitted.
-5. You should generate an appropriate input to the instruction. The input field should contain a specific example provided for the instruction. It should involve realistic data and should not contain simple placeholders. The input should provide substantial content to make the instruction challenging but should ideally not exceed 100 words.
-6. Not all instructions require input. For example, when a instruction asks about some general information, "what is the highest peak in the world", it is not necssary to provide a specific context. In this case, we simply put "<noinput>" in the input field.
-7. The output should be an appropriate response to the instruction and the input. Make sure the output is less than 100 words.
-
-List of {num_tasks} tasks:
-
-{content}
-
-Please generate the instructions for each task line by line in <result></result>. Use the following format:
-<result>
-    #1. <instruction 1>
-    #2. <instruction 2>
-    #3. <instruction 3>
-    #4. <instruction 4>
-</result>
-<|im_end|>
-<|im_start|>assistant
-"""
-
-
 @register_script("microsoft/script/adinsights/generation/instructions/alpaca/sahara/v2")
 class AlpacaSaharaV2Script(GenericScript):
     def __init__(self, config: CoreConfigureParser):
@@ -181,7 +134,20 @@ class AlpacaSaharaV2Script(GenericScript):
         )
         input_file = config.getoption("input_file", None)
         names = config.getoption("names", "*")
+        prompt_file = config.getoption("prompt_file", None)
+        prompt_text = config.getoption("prompt_text", None)
         output_file = config.getoption("output_file", "./output.txt")
+
+        if prompt_file is not None and prompt_file.strip() == "":
+            prompt_file = None
+        
+        assert prompt_file is not None or prompt_text is not None
+
+        if prompt_file is not None:
+            if is_remote_url(prompt_file):
+                prompt_file = cached_path(prompt_file)
+            else:
+                prompt_file = cached_path(prompt_file)
 
         instruction_col = config.getoption("instruction_col", "instruction")
         input_col = config.getoption("input_col", "input")
@@ -191,9 +157,10 @@ class AlpacaSaharaV2Script(GenericScript):
         top_p = config.getoption("top_p", 1)
 
         input_escapechar = config.getoption("input_escapechar", None)
-        output_escapechar = config.getoption("output_escapechar", "\\")
+        output_escapechar = config.getoption("output_escapechar", None)
 
         output_header = config.getoption("output_header", False)
+        replace_items = config.getoption("replace_items", {"#endl#": "\n"})
 
         if isinstance(names, str) and names.strip() == "*":
             names = None
@@ -209,12 +176,19 @@ class AlpacaSaharaV2Script(GenericScript):
             escapechar=input_escapechar,
         )
 
+        if prompt_file is not None:
+            prompt_text = open(prompt_file, "r", encoding="utf-8").read()
+
+        for k, v in replace_items.items():
+            prompt_text = prompt_text.replace(k, v)
+
         def processing(prompt, _index):
             res = {
                 "prompt": prompt,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "top_p": top_p,
+                "stop": "<|im_end|>",
                 "_batch_request_metadata": {
                     "ConversationId": str(_index),
                 },
@@ -231,7 +205,7 @@ class AlpacaSaharaV2Script(GenericScript):
                 ]
             )
             content = f"###\n{content}\n###\n"
-            return prompt_v2.format(num_tasks=len(assets), content=content)
+            return prompt_text.format(num_tasks=len(assets), content=content)
 
         output = input.copy()
         output["rownum"] = range(output.shape[0])
