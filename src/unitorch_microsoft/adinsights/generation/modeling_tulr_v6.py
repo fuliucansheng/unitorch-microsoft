@@ -65,7 +65,7 @@ class TULRV6ForClassification(GenericModel):
             self.position_embedding = nn.Embedding(num_positions, projection_dim)
             self.position_layer_norm = nn.LayerNorm(projection_dim)
             self.position = nn.Linear(projection_dim, num_classes)
-        
+
         if num_types is not None:
             self.type_embedding = nn.Embedding(num_types, projection_dim)
             self.type_layer_norm = nn.LayerNorm(projection_dim)

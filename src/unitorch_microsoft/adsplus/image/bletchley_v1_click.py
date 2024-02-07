@@ -123,7 +123,7 @@ class BletchleyForImageRanking(GenericModel):
             freeze_image_model=freeze_image_model,
             freeze_base_model=freeze_base_model,
             enable_quantization=enable_quantization,
-            gradient_checkpointing=gradient_checkpointing
+            gradient_checkpointing=gradient_checkpointing,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:

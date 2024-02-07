@@ -124,4 +124,5 @@ class DV3Script(GenericScript):
                 escapechar=output_escapechar,
             )
             start_index += len(_data)
-            logging.info(f"partition {i} processed finish.")
+            if (i + 1) % freq == 0:
+                logging.info(f"partition {i} processed finish.")
