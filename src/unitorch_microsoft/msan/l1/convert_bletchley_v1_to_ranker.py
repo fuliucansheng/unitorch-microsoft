@@ -295,7 +295,7 @@ dummy_tg = torch.tensor([0])
 dummy_demand = torch.tensor([0])
 
 weight_path = cached_path(
-    "https://unitorchblobfuse.blob.core.windows.net/shares/models/msan/pytorch_model.msan.l1.bletchley.v1.0.796.bin"
+    "https://unitorchazureblob.blob.core.windows.net/shares/models/msan/pytorch_model.msan.l1.bletchley.v1.0.796.bin"
 )
 
 click_model = ClickModel()
