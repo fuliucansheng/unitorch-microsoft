@@ -307,6 +307,270 @@ class MMDNNBletchleyForClassification(GenericModel):
         return ClassificationOutputs(outputs=outputs)
 
 
+@register_model("microsoft/model/classification/mmdnn/bletchley/v1/noice")
+class MMDNNBletchleyForClassificationNoIce(GenericModel):
+    def __init__(
+        self,
+        config_type: str,
+        num_query_layers: Optional[int] = 6,
+        projection_dim: Optional[int] = 288,
+        num_seller: Optional[int] = 15020,
+        num_brand: Optional[int] = 1000001,
+        padding_idx: Optional[int] = -1,
+        hidden_dim: Optional[int] = 32,
+        output_hidden_dim: Optional[int] = 64,
+        freeze_base_model: Optional[bool] = True,
+        freeze_image_model: Optional[bool] = True,
+        freeze_offer_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+        enable_quantization: Optional[bool] = False,
+        output_text_embed: Optional[bool] = False,
+        output_image_embed: Optional[bool] = False,
+        output_final_text_embed: Optional[bool] = False,
+        output_final_image_embed: Optional[bool] = False,
+    ):
+        super().__init__()
+        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
+        image_config = get_bletchley_image_config(config_type, gradient_checkpointing)
+
+        self.padding_idx = padding_idx
+        self.text_embed_dim = text_config.hidden_size
+        self.image_embed_dim = image_config.hidden_size
+        text_config.num_hidden_layers = num_query_layers
+
+        self.output_text_embed = output_text_embed
+        self.output_image_embed = output_image_embed
+        self.output_final_text_embed = output_final_text_embed
+        self.output_final_image_embed = output_final_image_embed
+
+        self.text_encoder = BletchleyTextEncoder(
+            text_config,
+            add_projection_layer=False,
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            image_config,
+            add_projection_layer=False,
+        )
+
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            projection_dim,
+            bias=False,
+        )
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            projection_dim,
+            bias=False,
+        )
+
+        self.text_layer_norm = nn.LayerNorm(projection_dim)
+        self.image_layer_norm = nn.LayerNorm(projection_dim)
+
+        self.seller_embedding = nn.Embedding(num_seller, hidden_dim)
+        self.seller_layer_norm = nn.LayerNorm(hidden_dim)
+        self.brand_embedding = nn.Embedding(num_brand, hidden_dim)
+        self.brand_layer_norm = nn.LayerNorm(hidden_dim)
+
+        self.final_visual_projection = nn.Linear(
+            projection_dim + hidden_dim * 2,
+            output_hidden_dim,
+        )
+        self.final_text_projection = nn.Linear(
+            projection_dim,
+            output_hidden_dim,
+        )
+
+        self.classifier = nn.Linear(1, 1)
+
+        self.init_weights()
+        self.classifier.weight.data.fill_(5.0)
+
+        if enable_quantization:
+            for __model__ in [
+                self.text_encoder,
+                self.text_layer_norm,
+                self.ice_embedding,
+                self.ice_layer_norm,
+                self.final_text_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
+
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+        if freeze_image_model:
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+            for p in self.image_projection.parameters():
+                p.requires_grad = False
+        
+        if freeze_offer_model:
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+            for p in self.image_projection.parameters():
+                p.requires_grad = False
+            for p in self.final_visual_projection.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v1/noice")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v1/noice")
+        config_type = config.getoption("config_type", "0.3B")
+        num_query_layers = config.getoption("num_query_layers", 6)
+        projection_dim = config.getoption("projection_dim", 288)
+        num_seller = config.getoption("num_seller", 15020)
+        num_brand = config.getoption("num_brand", 1000001)
+        padding_idx = config.getoption("padding_idx", -1)
+        hidden_dim = config.getoption("hidden_dim", 32)
+        output_hidden_dim = config.getoption("output_hidden_dim", 64)
+        freeze_base_model = config.getoption("freeze_base_model", False)
+        freeze_image_model = config.getoption("freeze_image_model", False)
+        freeze_offer_model = config.getoption("freeze_offer_model", False)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        enable_quantization = config.getoption("enable_quantization", False)
+        output_text_embed = config.getoption("output_text_embed", False)
+        output_image_embed = config.getoption("output_image_embed", False)
+        output_final_text_embed = config.getoption("output_final_text_embed", False)
+        output_final_image_embed = config.getoption("output_final_image_embed", False)
+
+        inst = cls(
+            config_type=config_type,
+            num_query_layers=num_query_layers,
+            projection_dim=projection_dim,
+            num_seller=num_seller,
+            num_brand=num_brand,
+            padding_idx=padding_idx,
+            hidden_dim=hidden_dim,
+            output_hidden_dim=output_hidden_dim,
+            freeze_base_model=freeze_base_model,
+            freeze_image_model=freeze_image_model,
+            freeze_offer_model=freeze_offer_model,
+            gradient_checkpointing=gradient_checkpointing,
+            enable_quantization=enable_quantization,
+            output_text_embed=output_text_embed,
+            output_image_embed=output_image_embed,
+            output_final_text_embed=output_final_text_embed,
+            output_final_image_embed=output_final_image_embed,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(
+                pretrained_weight_path,
+                replace_keys={"query_encoder.": "text_encoder."},
+            )
+
+        return inst
+
+    def get_text_embedding(self, input_ids, attention_mask):
+        text_outputs = self.text_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        text_embeds = text_outputs[:, 0]
+        text_embeds = self.text_projection(text_embeds)
+        text_embeds = self.text_layer_norm(quick_gelu(text_embeds))
+
+        return text_embeds
+
+    def get_image_embedding(self, images):
+        image_outputs = self.image_encoder(
+            images=images,
+        )
+        image_embeds = image_outputs[:, 0]
+        image_embeds = self.image_projection(image_embeds)
+        image_embeds = self.image_layer_norm(quick_gelu(image_embeds))
+
+        return image_embeds
+
+    def get_final_text_embedding(
+        self,
+        input_ids,
+        attention_mask,
+        do_norm=True,
+    ):
+        text_embeds = self.get_text_embedding(input_ids, attention_mask)
+        text_embeds = self.final_text_projection(quick_gelu(text_embeds))
+        if do_norm:
+            text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+        return text_embeds
+
+    def get_final_image_embedding(self, images, seller_ids, brand_ids, do_norm=True):
+        image_embeds = self.get_image_embedding(images)
+
+        seller_embeds = self.seller_embedding(seller_ids)
+        brand_embeds = self.brand_embedding(brand_ids)
+
+        seller_embeds = self.seller_layer_norm(seller_embeds)
+        brand_embeds = self.brand_layer_norm(brand_embeds)
+
+        image_embeds = torch.cat([image_embeds, seller_embeds, brand_embeds], dim=-1)
+        image_embeds = self.final_visual_projection(quick_gelu(image_embeds))
+        if do_norm:
+            image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+        return image_embeds
+
+    def forward(
+        self,
+        input_ids: torch.Tensor = None,
+        attention_mask: torch.Tensor = None,
+        images: torch.Tensor = None,
+        seller_ids: torch.Tensor = None,
+        brand_ids: torch.Tensor = None,
+    ):
+        if not self.training and self.output_text_embed:
+            text_embeds = self.get_text_embedding(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+            )
+            return EmbeddingOutputs(embedding=text_embeds)
+
+        if not self.training and self.output_image_embed:
+            image_embeds = self.get_image_embedding(
+                images=images,
+            )
+            return EmbeddingOutputs(embedding=image_embeds)
+
+        if not self.training and self.output_final_text_embed:
+            text_embeds = self.get_final_text_embedding(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+            )
+            return EmbeddingOutputs(embedding=text_embeds)
+
+        if not self.training and self.output_final_image_embed:
+            image_embeds = self.get_final_image_embedding(
+                images=images,
+                seller_ids=seller_ids,
+                brand_ids=brand_ids,
+            )
+            return EmbeddingOutputs(embedding=image_embeds)
+
+        text_embeds = self.get_final_text_embedding(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        image_embeds = self.get_final_image_embedding(
+            images=images,
+            seller_ids=seller_ids,
+            brand_ids=brand_ids,
+        )
+
+        scores = torch.sum(text_embeds * image_embeds, dim=-1, keepdim=True)
+
+        outputs = self.classifier(scores)
+        outputs = torch.sigmoid(outputs)
+
+        return ClassificationOutputs(outputs=outputs)
+    
+
 @register_model("microsoft/model/distillation/mmdnn/bletchley/v1")
 class MMDNNBletchleyForDistillation(GenericModel):
     def __init__(
