@@ -176,7 +176,6 @@ class BletchleyForSLABRanking(GenericModel):
             text_embeds = self.text_projection(text_embeds)
             return EmbeddingOutputs(embedding=text_embeds)
 
-
         query_outputs = self.query_encoder(
             input_ids=query_input_ids,
             attention_mask=query_attention_mask,
@@ -377,7 +376,6 @@ class BletchleyForSLABRankingV2(GenericModel):
             title_embeds = title_outputs[:, 0]
             title_embeds = self.title_projection(title_embeds)
             return EmbeddingOutputs(embedding=title_embeds)
-
 
         query_outputs = self.query_encoder(
             input_ids=query_input_ids,

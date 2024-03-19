@@ -16,6 +16,7 @@ from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
+
 @register_script("microsoft/script/adinsights/generation/instructions/alpaca/sahara/v1")
 class AlpacaSaharaV1Script(GenericScript):
     def __init__(self, config: CoreConfigureParser):
@@ -34,7 +35,7 @@ class AlpacaSaharaV1Script(GenericScript):
 
         if prompt_file is not None and prompt_file.strip() == "":
             prompt_file = None
-        
+
         assert prompt_file is not None or prompt_text is not None
 
         if prompt_file is not None:
@@ -122,6 +123,7 @@ class AlpacaSaharaV1Script(GenericScript):
             escapechar=output_escapechar,
         )
 
+
 @register_script("microsoft/script/adinsights/generation/instructions/alpaca/sahara/v2")
 class AlpacaSaharaV2Script(GenericScript):
     def __init__(self, config: CoreConfigureParser):
@@ -140,7 +142,7 @@ class AlpacaSaharaV2Script(GenericScript):
 
         if prompt_file is not None and prompt_file.strip() == "":
             prompt_file = None
-        
+
         assert prompt_file is not None or prompt_text is not None
 
         if prompt_file is not None:

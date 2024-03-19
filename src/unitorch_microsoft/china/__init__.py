@@ -1,4 +1,4 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
-import unitorch_microsoft.adinsights.webui
+import unitorch_microsoft.china.webui

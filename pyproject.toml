@@ -35,11 +35,11 @@ azure = ["azure-storage-blob"]
 all = ["unitorch_microsoft[deepspeed,diffusers,quantization,azure]"]
 
 [project.scripts]
-unitorch-train = "unitorch_microsoft.console.train:cli_main"
-unitorch-eval = "unitorch_microsoft.console.eval:cli_main"
-unitorch-infer = "unitorch_microsoft.console.infer:cli_main"
-unitorch-launch= "unitorch_microsoft.console.launch:cli_main"
-unitorch-service = "unitorch_microsoft.console.service:cli_main"
+unitorch-train = "unitorch_microsoft.consoles.train:cli_main"
+unitorch-eval = "unitorch_microsoft.consoles.eval:cli_main"
+unitorch-infer = "unitorch_microsoft.consoles.infer:cli_main"
+unitorch-launch= "unitorch_microsoft.consoles.launch:cli_main"
+unitorch-service = "unitorch_microsoft.consoles.service:cli_main"
 
 [tool.setuptools]
 include-package-data = true

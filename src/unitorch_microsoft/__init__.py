@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.utils import replace
 from transformers.utils import is_remote_url
 from unitorch.cli import cached_path as _cached_path
-import unitorch_microsoft.score
+import unitorch_microsoft.scores
 import unitorch_microsoft.models
 import unitorch_microsoft.modules
 import unitorch_microsoft.scripts
@@ -225,10 +225,10 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.pa
     import unitorch_microsoft.pa.intl
     import unitorch_microsoft.pa.l2
-    import unitorch_microsoft.score
+    import unitorch_microsoft.scores
     import unitorch_microsoft.scripts
     import unitorch_microsoft.services
     import unitorch_microsoft.tools
     import unitorch_microsoft.utils
     import unitorch_microsoft.vpr
-    import unitorch_microsoft.webui
+    import unitorch_microsoft.webuis

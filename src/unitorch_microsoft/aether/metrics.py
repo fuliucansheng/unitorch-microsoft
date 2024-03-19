@@ -15,7 +15,7 @@ import pandas as pd
 from functools import partial
 from transformers import BertTokenizer
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-from unitorch.score import (
+from unitorch.scores import (
     auc,
     roc_auc_score,
     accuracy_score,
@@ -26,8 +26,8 @@ from unitorch.score import (
     matthews_corrcoef,
     pearsonr,
 )
-from unitorch.score import bleu_score, rouge1_score, rouge2_score, rougel_score
-from unitorch.score import map50_score, map_score
+from unitorch.scores import bleu_score, rouge1_score, rouge2_score, rougel_score
+from unitorch.scores import map50_score, map_score
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path

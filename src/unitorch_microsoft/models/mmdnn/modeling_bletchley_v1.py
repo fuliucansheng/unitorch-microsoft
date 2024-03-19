@@ -410,7 +410,7 @@ class MMDNNBletchleyForClassificationNoIce(GenericModel):
                 p.requires_grad = False
             for p in self.image_projection.parameters():
                 p.requires_grad = False
-        
+
         if freeze_offer_model:
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
@@ -420,9 +420,13 @@ class MMDNNBletchleyForClassificationNoIce(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v1/noice")
+    @add_default_section_for_init(
+        "microsoft/model/classification/mmdnn/bletchley/v1/noice"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v1/noice")
+        config.set_default_section(
+            "microsoft/model/classification/mmdnn/bletchley/v1/noice"
+        )
         config_type = config.getoption("config_type", "0.3B")
         num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 288)
@@ -569,7 +573,7 @@ class MMDNNBletchleyForClassificationNoIce(GenericModel):
         outputs = torch.sigmoid(outputs)
 
         return ClassificationOutputs(outputs=outputs)
-    
+
 
 @register_model("microsoft/model/distillation/mmdnn/bletchley/v1")
 class MMDNNBletchleyForDistillation(GenericModel):

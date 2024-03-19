@@ -50,8 +50,12 @@ class BletchleyV1ForSLABRetrieval(GenericModel):
         output_offer_embed: Optional[bool] = False,
     ):
         super().__init__()
-        query_config = get_bletchley_text_config(query_config_type, gradient_checkpointing)
-        text_config = get_bletchley_text_config(offer_config_type, gradient_checkpointing)
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
+        text_config = get_bletchley_text_config(
+            offer_config_type, gradient_checkpointing
+        )
         query_config.max_position_embeddings = max_position_embeddings_query
 
         self.projection_dim = projection_dim
@@ -61,8 +65,12 @@ class BletchleyV1ForSLABRetrieval(GenericModel):
         self.output_query_embed = output_query_embed
         self.output_offer_embed = output_offer_embed
 
-        self.query_encoder = BletchleyTextEncoder(query_config, add_projection_layer=False)
-        self.offer_encoder = BletchleyTextEncoder(text_config, add_projection_layer=False)
+        self.query_encoder = BletchleyTextEncoder(
+            query_config, add_projection_layer=False
+        )
+        self.offer_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
 
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
         self.offer_projection = nn.Linear(self.text_embed_dim, self.projection_dim)
@@ -233,8 +241,12 @@ class BletchleyV1ForSLABRetrievalPairwise(GenericModel):
         tp: Optional[float] = 1.0,
     ):
         super().__init__()
-        query_config = get_bletchley_text_config(query_config_type, gradient_checkpointing)
-        text_config = get_bletchley_text_config(offer_config_type, gradient_checkpointing)
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
+        text_config = get_bletchley_text_config(
+            offer_config_type, gradient_checkpointing
+        )
         query_config.max_position_embeddings = max_position_embeddings_query
 
         self.projection_dim = projection_dim
@@ -247,13 +259,17 @@ class BletchleyV1ForSLABRetrievalPairwise(GenericModel):
         self.loss_type = loss_type
         self.hinge_margin = hinge_margin
         self.use_all_gather = use_all_gather
-        if self.loss_type=='bpr_1':
+        if self.loss_type == "bpr_1":
             self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init_value)
         self.random_negative = random_negative
         self.tp = tp
 
-        self.query_encoder = BletchleyTextEncoder(query_config, add_projection_layer=False)
-        self.offer_encoder = BletchleyTextEncoder(text_config, add_projection_layer=False)
+        self.query_encoder = BletchleyTextEncoder(
+            query_config, add_projection_layer=False
+        )
+        self.offer_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
 
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
         self.offer_projection = nn.Linear(self.text_embed_dim, self.projection_dim)
@@ -287,7 +303,9 @@ class BletchleyV1ForSLABRetrievalPairwise(GenericModel):
         )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.3B")
-        max_position_embeddings_query = config.getoption("max_position_embeddings_query", 128)
+        max_position_embeddings_query = config.getoption(
+            "max_position_embeddings_query", 128
+        )
         projection_dim = config.getoption("projection_dim", 512)
         num_class = config.getoption("num_class", 1)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
@@ -387,7 +405,7 @@ class BletchleyV1ForSLABRetrievalPairwise(GenericModel):
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
 
-        if self.loss_type=='bpr':
+        if self.loss_type == "bpr":
             if self.use_all_gather:
                 query_embeds = self.all_gather(query_embeds)
                 offer_embeds = self.all_gather(offer_embeds)
@@ -513,9 +531,9 @@ class BletchleyV1ForSLABRetrievalPairwise(GenericModel):
                 loss_less = loss_i < 0
                 loss_i[loss_less] = 0
                 loss += loss_i.sum()
-            loss = loss / ((y_batch_rn_ori.shape[1]-1)*y_batch_rn_ori.shape[0])
-        
-        elif self.loss_type == 'bpr_1':
+            loss = loss / ((y_batch_rn_ori.shape[1] - 1) * y_batch_rn_ori.shape[0])
+
+        elif self.loss_type == "bpr_1":
             # bpr loss from decu
             logit_scale = self.logit_scale.exp()
             if self.use_all_gather:
@@ -556,8 +574,12 @@ class BletchleyV1ForSLABRetrievalPretrain(GenericModel):
         use_all_gather: Optional[bool] = True,
     ):
         super().__init__()
-        query_config = get_bletchley_text_config(query_config_type, gradient_checkpointing)
-        text_config = get_bletchley_text_config(offer_config_type, gradient_checkpointing)
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
+        text_config = get_bletchley_text_config(
+            offer_config_type, gradient_checkpointing
+        )
         query_config.max_position_embeddings = query_max_position_embeddings
 
         self.projection_dim = projection_dim
@@ -566,8 +588,12 @@ class BletchleyV1ForSLABRetrievalPretrain(GenericModel):
 
         self.use_all_gather = use_all_gather
 
-        self.query_encoder = BletchleyTextEncoder(query_config, add_projection_layer=False)
-        self.offer_encoder = BletchleyTextEncoder(text_config, add_projection_layer=False)
+        self.query_encoder = BletchleyTextEncoder(
+            query_config, add_projection_layer=False
+        )
+        self.offer_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
 
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
         self.offer_projection = nn.Linear(self.text_embed_dim, self.projection_dim)
@@ -583,12 +609,18 @@ class BletchleyV1ForSLABRetrievalPretrain(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/adsplus/slab/retrieval/pretrain/text_bletchleyv1")
+    @add_default_section_for_init(
+        "microsoft/adsplus/slab/retrieval/pretrain/text_bletchleyv1"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/adsplus/slab/retrieval/pretrain/text_bletchleyv1")
+        config.set_default_section(
+            "microsoft/adsplus/slab/retrieval/pretrain/text_bletchleyv1"
+        )
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.3B")
-        query_max_position_embeddings = config.getoption("query_max_position_embeddings", 128)
+        query_max_position_embeddings = config.getoption(
+            "query_max_position_embeddings", 128
+        )
         projection_dim = config.getoption("projection_dim", 512)
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
