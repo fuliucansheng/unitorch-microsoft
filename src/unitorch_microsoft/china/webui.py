@@ -34,7 +34,6 @@ class BloomWebUIV2(BloomWebUI):
         pretrained_names,
         match_patterns,
     )
-
     @property
     def name(self):
         return "China-Bloom"

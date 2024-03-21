@@ -1,5 +1,5 @@
 sqlparse
 pyarrow<=11.0.0
-transformers>=4.35.0
+transformers<=4.38.2
 unitorch>=0.0.0.10,<0.0.1.0
 multiprocess<=0.70.14
