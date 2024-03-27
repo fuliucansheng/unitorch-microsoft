@@ -538,3 +538,157 @@ class BletchleyForMatching(GenericModel):
 
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
+
+@register_model("microsoft/model/matching/bletchley/3towers")
+class BletchleyForMatching3towers(GenericModel):
+    replace_keys_in_state_dict = {
+        "text_encoder.projection": "text_projection",
+        "image_encoder.projection": "image_projection",
+        "query_encoder.projection": "query_projection"
+    }
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 1024,
+        freeze_base_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+        output_query_embed: Optional[bool] = False,
+        output_text_embed: Optional[bool] = False,
+        output_image_embed: Optional[bool] = False,
+    ):
+        super().__init__()
+
+        self.output_query_embed = output_query_embed
+        self.output_text_embed = output_text_embed
+        self.output_image_embed = output_image_embed
+        
+        self.query_encoder = BletchleyTextEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        self.text_encoder = BletchleyTextEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+
+        self.projection_dim = projection_dim
+        self.query_embed_dim = self.query_encoder.hidden_size
+        self.text_embed_dim = self.text_encoder.hidden_size
+        self.image_embed_dim = self.image_encoder.hidden_size
+        self.query_projection = nn.Linear(
+            self.query_embed_dim,
+            self.projection_dim,
+        )
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            self.projection_dim,
+        )
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            self.projection_dim,
+        )
+
+        self.classifier1 = nn.Linear(1, 1)
+        self.classifier2 = nn.Linear(1, 1)
+
+        self.init_weights()
+        self.classifier1.weight.data.fill_(5.0)
+        self.classifier2.weight.data.fill_(5.0)
+
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.query_encoder.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/matching/bletchley/3towers")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/matching/bletchley/3towers")
+        config_type = config.getoption("config_type", "0.8B")
+
+        projection_dim = config.getoption("projection_dim", 1024)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+
+        output_query_embed = config.getoption("output_query_embed", False)
+        output_text_embed = config.getoption("output_text_embed", False)
+        output_image_embed = config.getoption("output_image_embed", False)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            freeze_base_model=freeze_base_model,
+            gradient_checkpointing=gradient_checkpointing,
+            output_query_embed=output_query_embed,
+            output_text_embed=output_text_embed,
+            output_image_embed=output_image_embed,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        return inst
+    def get_query_embedding(self, input_ids, attention_mask):
+        query_outputs = self.query_encoder(input_ids, attention_mask)
+        query_embeds = self.query_projection(query_outputs[:, 0])
+        query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
+        return query_embeds
+    def get_text_embedding(self, input_ids, attention_mask):
+        text_outputs = self.text_encoder(input_ids, attention_mask)
+        text_embeds = self.text_projection(text_outputs[:, 0])
+        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+        return text_embeds
+    def get_image_embedding(self, images):
+        image_outputs = self.image_encoder(images)
+        image_embeds = self.image_projection(image_outputs[:, 0])
+        image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+        return image_embeds
+    @autocast()
+    def forward(
+        self,
+        query_input_ids: torch.Tensor = None,
+        input_ids: torch.Tensor = None,
+        images: torch.Tensor = None,
+        query_attention_mask: torch.Tensor = None,
+        attention_mask: torch.Tensor = None,
+    ):
+        if not self.training:
+            if self.output_image_embed and not self.output_text_embed and not self.output_query_embed:
+                image_embeds = self.get_image_embedding(images)
+                return EmbeddingOutputs(embedding=image_embeds)
+
+            if self.output_text_embed and not self.output_image_embed and not self.output_query_embed:
+                text_embeds = self.get_text_embedding(input_ids, attention_mask)
+                return EmbeddingOutputs(embedding=text_embeds)
+            if self.output_query_embed and not self.output_text_embed and not self.output_image_embed:
+                query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
+                return EmbeddingOutputs(embedding=query_embeds)
+            
+            if self.output_image_embed and self.output_text_embed and self.output_query_embed:
+                image_embeds = self.get_image_embedding(images)
+                text_embeds = self.get_text_embedding(input_ids, attention_mask)
+                query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
+                return EmbeddingOutputs(embedding1=image_embeds, embedding2=text_embeds, embedding3=query_embeds)
+        
+        query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
+        text_embeds = self.get_text_embedding(input_ids, attention_mask)
+        image_embeds = self.get_image_embedding(images)
+ 
+        scores1 = torch.sum(query_embeds * image_embeds, dim=-1, keepdim=True)
+        scores2 = torch.sum(query_embeds * text_embeds, dim=-1, keepdim=True)
+
+        outputs = self.classifier1(scores1) + self.classifier2(scores2)
+        return ClassificationOutputs(outputs=outputs)
