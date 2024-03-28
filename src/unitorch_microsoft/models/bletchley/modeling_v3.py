@@ -644,7 +644,7 @@ def edl_log_loss(output, target, num_classes, annealing_coef, device, edl_act):
     loss = torch.mean(A + kl_div)
     return loss
 
-@register_model("microsoft/model/matching/bletchley/v3/uncertainty")
+@register_model("microsoft/model/matching/bletchley/uncertainty/v3")
 class BletchleyForMatching(GenericModel):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
@@ -707,9 +707,9 @@ class BletchleyForMatching(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/bletchley/v3/uncertainty")
+    @add_default_section_for_init("microsoft/model/matching/bletchley/uncertainty/v3")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/matching/bletchley/v3/uncertainty")
+        config.set_default_section("microsoft/model/matching/bletchley/uncertainty/v3")
         config_type = config.getoption("config_type", "0.8B")
 
         projection_dim = config.getoption("projection_dim", 1024)

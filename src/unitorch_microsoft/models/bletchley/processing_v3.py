@@ -161,7 +161,7 @@ class BletchleyProcessor:
             inputs = {prefix + k: v for k, v in inputs.items()}
         return TensorsInputs(inputs)
     
-    @register_process("microsoft/process/bletchley/v3/classification/uncertainty")
+    @register_process("microsoft/process/bletchley/v3/uncertainty/classification")
     def _classification(
         self,
         text: str,
