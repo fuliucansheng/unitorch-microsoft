@@ -162,7 +162,7 @@ class BletchleyProcessor:
         return TensorsInputs(inputs)
     
     @register_process("microsoft/process/bletchley/v3/uncertainty/classification")
-    def _classification(
+    def _classification_with_label(
         self,
         text: str,
         image: Union[Image.Image, str],

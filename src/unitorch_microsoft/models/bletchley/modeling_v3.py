@@ -645,7 +645,7 @@ def edl_log_loss(output, target, num_classes, annealing_coef, device, edl_act):
     return loss
 
 @register_model("microsoft/model/matching/bletchley/uncertainty/v3")
-class BletchleyForMatching(GenericModel):
+class bletchleyformatchingUncertainty(GenericModel):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
