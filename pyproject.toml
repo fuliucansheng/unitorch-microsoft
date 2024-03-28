@@ -32,6 +32,8 @@ deepspeed = ["deepspeed==0.9.0", "mpi4py==3.1.4"]
 diffusers = ["diffusers>=0.24.0", "safetensors>=0.3.1", "xformers>=0.0.21", "torchsde>=0.2.6"]
 quantization = ["bitsandbytes>=0.41.1", "auto_gptq>=0.4.2"]
 azure = ["azure-storage-blob"]
+fastapi = ["fastapi>=0.103.1"]
+webui = ["gradio<=3.50.2", "gradio_client<=0.6.1"]
 all = ["unitorch_microsoft[deepspeed,diffusers,quantization,azure]"]
 
 [project.scripts]
@@ -39,6 +41,8 @@ unitorch-train = "unitorch_microsoft.consoles.train:cli_main"
 unitorch-eval = "unitorch_microsoft.consoles.eval:cli_main"
 unitorch-infer = "unitorch_microsoft.consoles.infer:cli_main"
 unitorch-launch= "unitorch_microsoft.consoles.launch:cli_main"
+unitorch-webui= "unitorch_microsoft.consoles.webui:cli_main"
+unitorch-fastapi= "unitorch_microsoft.consoles.fastapi:cli_main"
 unitorch-service = "unitorch_microsoft.consoles.service:cli_main"
 
 [tool.setuptools]
