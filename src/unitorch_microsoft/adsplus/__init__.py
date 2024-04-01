@@ -10,3 +10,4 @@ import unitorch_microsoft.adsplus.slab.modeling_bert
 import unitorch_microsoft.adsplus.slab.bletchley_v1_click
 import unitorch_microsoft.adsplus.slab.retrieval.modeling_bletchley_v1
 import unitorch_microsoft.adsplus.slab.retrieval.modeling_bletchley_v1_small
+import unitorch_microsoft.adsplus.image.retrieval.bletchley_v1
