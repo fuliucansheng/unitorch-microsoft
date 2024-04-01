@@ -154,11 +154,10 @@ class MistralProcessor(_LlamaProcessor):
 
     def _instrution_tokenize(self, instruction, encode, max_seq_length):
         tokens1 = self.tokenizer.tokenize(instruction.format(""))
-        tokens2 = self.tokenizer.tokenize(str(encode))
-        encode = instruction.format(
-            "".join(tokens2[: max_seq_length - len(tokens1) - 2])
-        )
-        return self.tokenizer.tokenize(encode)[: max_seq_length - 1]
+        tokens2 = self.tokenizer.tokenize(str(encode))[: max_seq_length - len(tokens1) - 2]
+        sequence2 = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokens2))
+        encode = instruction.format(sequence2)
+        return self.tokenizer.tokenize(encode)[:max_seq_length - 1]
 
     @register_process("microsoft/process/mistral/generation/inputs")
     def _generation_inputs(
