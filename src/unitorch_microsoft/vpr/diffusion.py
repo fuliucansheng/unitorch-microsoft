@@ -19,6 +19,7 @@ from diffusers.models import (
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
+from unitorch.models.diffusers.modeling_stable import compute_snr
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -58,12 +59,14 @@ class StableForArgusGeneration(GenericModel):
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
         freeze_text_encoder: Optional[bool] = True,
+        snr_gamma: Optional[float] = 5.0,
         seed: Optional[int] = 1123,
     ):
         super().__init__()
         self.seed = seed
         self.num_train_timesteps = num_train_timesteps
         self.num_infer_timesteps = num_infer_timesteps
+        self.snr_gamma = snr_gamma
 
         config_dict = json.load(open(config_path))
         self.unet = UNet2DConditionModel.from_config(config_dict)
@@ -118,6 +121,7 @@ class StableForArgusGeneration(GenericModel):
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
         freeze_text_encoder = config.getoption("freeze_text_encoder", True)
+        snr_gamma = config.getoption("snr_gamma", 5.0)
         seed = config.getoption("seed", 1123)
 
         inst = cls(
@@ -127,6 +131,7 @@ class StableForArgusGeneration(GenericModel):
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
             freeze_text_encoder=freeze_text_encoder,
+            snr_gamma=snr_gamma,
             seed=seed,
         )
 
@@ -188,7 +193,24 @@ class StableForArgusGeneration(GenericModel):
         if self.scheduler.config.prediction_type == "v_prediction":
             noise = self.scheduler.get_velocity(latents, noise, timesteps)
 
-        loss = F.mse_loss(outputs, noise, reduction="mean")
+        if self.snr_gamma > 0:
+            snr = compute_snr(timesteps, self.scheduler)
+            base_weight = (
+                torch.stack(
+                    [snr, self.snr_gamma * torch.ones_like(timesteps)], dim=1
+                ).min(dim=1)[0]
+                / snr
+            )
+
+            if self.scheduler.config.prediction_type == "v_prediction":
+                mse_loss_weights = base_weight + 1
+            else:
+                mse_loss_weights = base_weight
+            loss = F.mse_loss(outputs, noise, reduction="none")
+            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+            loss = loss.mean()
+        else:
+            loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
     def generate(
