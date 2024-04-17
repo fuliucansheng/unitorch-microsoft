@@ -31,6 +31,7 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
     BletchleyImageEncoder,
 )
 
+
 @register_model("microsoft/adsplus/image/retrieval/pretrain/bletchley/v1")
 class BletchleyForImageRetrievalPretrain(GenericModel):
     replace_keys_in_state_dict = {
@@ -54,10 +55,18 @@ class BletchleyForImageRetrievalPretrain(GenericModel):
         output_image_embed: Optional[bool] = False,
     ):
         super().__init__()
-        text_config = get_bletchley_text_config(text_config_type, gradient_checkpointing)
-        image_config = get_bletchley_image_config(image_config_type, gradient_checkpointing)
-        self.text_encoder = BletchleyTextEncoder(text_config, add_projection_layer=False)
-        self.image_encoder = BletchleyImageEncoder(image_config, add_projection_layer=False)
+        text_config = get_bletchley_text_config(
+            text_config_type, gradient_checkpointing
+        )
+        image_config = get_bletchley_image_config(
+            image_config_type, gradient_checkpointing
+        )
+        self.text_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            image_config, add_projection_layer=False
+        )
 
         self.projection_dim = projection_dim
         self.text_embed_dim = text_config.hidden_size
@@ -101,9 +110,13 @@ class BletchleyForImageRetrievalPretrain(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/adsplus/image/retrieval/pretrain/bletchley/v1")
+    @add_default_section_for_init(
+        "microsoft/adsplus/image/retrieval/pretrain/bletchley/v1"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/adsplus/image/retrieval/pretrain/bletchley/v1")
+        config.set_default_section(
+            "microsoft/adsplus/image/retrieval/pretrain/bletchley/v1"
+        )
         text_config_type = config.getoption("text_config_type", "0.8B")
         image_config_type = config.getoption("image_config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 64)
@@ -203,8 +216,12 @@ class BletchleyForImageRetrievalMatching(GenericModel):
         output_image_embed: Optional[bool] = False,
     ):
         super().__init__()
-        text_config = get_bletchley_text_config(text_config_type, gradient_checkpointing)
-        image_config = get_bletchley_image_config(image_config_type, gradient_checkpointing)
+        text_config = get_bletchley_text_config(
+            text_config_type, gradient_checkpointing
+        )
+        image_config = get_bletchley_image_config(
+            image_config_type, gradient_checkpointing
+        )
 
         self.output_text_embed = output_text_embed
         self.output_image_embed = output_image_embed
@@ -212,8 +229,12 @@ class BletchleyForImageRetrievalMatching(GenericModel):
         self.text_embed_dim = text_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
 
-        self.text_encoder = BletchleyTextEncoder(text_config, add_projection_layer=False)
-        self.image_encoder = BletchleyImageEncoder(image_config, add_projection_layer=False)
+        self.text_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            image_config, add_projection_layer=False
+        )
 
         self.text_projection = nn.Linear(
             self.text_embed_dim,
@@ -250,9 +271,13 @@ class BletchleyForImageRetrievalMatching(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/adsplus/image/retrieval/matching/bletchley/v1")
+    @add_default_section_for_init(
+        "microsoft/adsplus/image/retrieval/matching/bletchley/v1"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/adsplus/image/retrieval/matching/bletchley/v1")
+        config.set_default_section(
+            "microsoft/adsplus/image/retrieval/matching/bletchley/v1"
+        )
 
         text_config_type = config.getoption("text_config_type", "0.8B")
         image_config_type = config.getoption("image_config_type", "0.8B")
@@ -298,14 +323,18 @@ class BletchleyForImageRetrievalMatching(GenericModel):
             return EmbeddingOutputs(embedding=image_embeds)
 
         if not self.training and self.output_text_embed:
-            text_outputs = self.text_encoder(input_ids=input_ids,attention_mask=attention_mask)
+            text_outputs = self.text_encoder(
+                input_ids=input_ids, attention_mask=attention_mask
+            )
             text_embeds = text_outputs[:, 0]
             text_embeds = self.text_projection(text_embeds)
             text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=text_embeds)
 
         image_outputs = self.image_encoder(images=images)
-        text_outputs = self.text_encoder(input_ids=input_ids,attention_mask=attention_mask)
+        text_outputs = self.text_encoder(
+            input_ids=input_ids, attention_mask=attention_mask
+        )
 
         image_embeds = image_outputs[:, 0]
         image_embeds = self.image_projection(image_embeds)

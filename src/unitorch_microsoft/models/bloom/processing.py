@@ -62,9 +62,11 @@ class BloomProcessor(_BloomProcessor):
 
     def _instrution_tokenize(self, instruction, encode, max_seq_length):
         tokens1 = self.tokenizer.tokenize(instruction.format(""))
-        tokens2 = self.tokenizer.tokenize(str(encode))[: max_seq_length - len(tokens1) - 2]
-        sequence2 = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokens2))
-        encode = instruction.format(sequence2)
+        tokens2 = self.tokenizer.tokenize(str(encode))[
+            : max_seq_length - len(tokens1) - 2
+        ]
+        encode2 = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokens2))
+        encode = instruction.format(encode2)
         return self.tokenizer.tokenize(encode)[:max_seq_length]
 
     @register_process("microsoft/process/bloom/generation/inputs")

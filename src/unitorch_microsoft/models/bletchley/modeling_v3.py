@@ -539,8 +539,6 @@ class BletchleyForMatching(GenericModel):
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
 
-import torch
-
 
 def sce_loss(target, pred, weights=None):
     logits = torch.nn.LogSoftmax(dim=1)(pred)
@@ -577,7 +575,9 @@ def kl_divergence(alpha, num_classes, device):
 
 
 def edl_loss(func, y, alpha, epoch_num, num_classes, annealing_step, device=None):
-    y = y.to(device) # y is of shape [batch_size, num_classes], with each row being a one-hot embedding
+    y = y.to(
+        device
+    )  # y is of shape [batch_size, num_classes], with each row being a one-hot embedding
     alpha = alpha.to(device)
     S = torch.sum(alpha, dim=1, keepdim=True)
 
@@ -594,22 +594,26 @@ def edl_loss(func, y, alpha, epoch_num, num_classes, annealing_step, device=None
 
 
 def edl_digamma_loss(output, target, num_classes, annealing_coef, device, edl_act):
-    if edl_act == 'relu':
+    if edl_act == "relu":
         alpha = torch.relu(output) + 1.0
-    elif edl_act == 'elu':
+    elif edl_act == "elu":
         alpha = torch.nn.ELU()(output) + 2.0
     S = torch.sum(alpha, dim=1, keepdim=True)
-    A = torch.sum(target * (torch.digamma(S) - torch.digamma(alpha)), dim=1, keepdim=True)
+    A = torch.sum(
+        target * (torch.digamma(S) - torch.digamma(alpha)), dim=1, keepdim=True
+    )
     kl_alpha = (alpha - 1) * (1 - target) + 1
     kl_div = annealing_coef * kl_divergence(kl_alpha, num_classes, device)
     loss = torch.mean(A + kl_div)
     return loss
 
 
-def edl_mse_loss(output, target, annealing_coef, device, edl_act='elu', num_classes=1, weights=None):
-    if edl_act == 'relu':
+def edl_mse_loss(
+    output, target, annealing_coef, device, edl_act="elu", num_classes=1, weights=None
+):
+    if edl_act == "relu":
         alpha = torch.relu(output) + 1.0
-    elif edl_act == 'elu':
+    elif edl_act == "elu":
         alpha = torch.nn.ELU()(output) + 2.0
     S = torch.sum(alpha, dim=1, keepdim=True)
     loglikelihood_err = torch.sum((target - (alpha / S)) ** 2, dim=1, keepdim=True)
@@ -633,9 +637,9 @@ def edl_mse_loss(output, target, annealing_coef, device, edl_act='elu', num_clas
 
 
 def edl_log_loss(output, target, num_classes, annealing_coef, device, edl_act):
-    if edl_act == 'relu':
+    if edl_act == "relu":
         alpha = torch.relu(output) + 1.0
-    elif edl_act == 'elu':
+    elif edl_act == "elu":
         alpha = torch.nn.ELU()(output) + 2.0
     S = torch.sum(alpha, dim=1, keepdim=True)
     A = torch.sum(target * (torch.log(S) - torch.log(alpha)), dim=1, keepdim=True)
@@ -643,6 +647,7 @@ def edl_log_loss(output, target, num_classes, annealing_coef, device, edl_act):
     kl_div = annealing_coef * kl_divergence(kl_alpha, num_classes, device)
     loss = torch.mean(A + kl_div)
     return loss
+
 
 @register_model("microsoft/model/matching/bletchley/uncertainty/v3")
 class bletchleyformatchingUncertainty(GenericModel):
@@ -730,7 +735,7 @@ class bletchleyformatchingUncertainty(GenericModel):
             output_image_embed=output_image_embed,
             num_classes=num_classes,
             annealing_coef=annealing_coef,
-            edl_act=edl_act
+            edl_act=edl_act,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
@@ -772,17 +777,25 @@ class bletchleyformatchingUncertainty(GenericModel):
         outputs = self.classifier(scores)
         if label is None:
             return ClassificationOutputs(outputs=outputs)
-        
+
         label = label.unsqueeze(1)
-        loss = edl_log_loss(outputs, label, self.num_classes, self.annealing_coef, device=input_ids.device, edl_act=self.edl_act)
+        loss = edl_log_loss(
+            outputs,
+            label,
+            self.num_classes,
+            self.annealing_coef,
+            device=input_ids.device,
+            edl_act=self.edl_act,
+        )
         return LossOutputs(loss=loss)
-    
+
+
 @register_model("microsoft/model/matching/bletchley/3towers")
 class BletchleyForMatching3towers(GenericModel):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
-        "query_encoder.projection": "query_projection"
+        "query_encoder.projection": "query_projection",
     }
 
     def __init__(
@@ -800,7 +813,7 @@ class BletchleyForMatching3towers(GenericModel):
         self.output_query_embed = output_query_embed
         self.output_text_embed = output_text_embed
         self.output_image_embed = output_image_embed
-        
+
         self.query_encoder = BletchleyTextEncoder(
             config_type,
             add_projection_layer=False,
@@ -879,21 +892,25 @@ class BletchleyForMatching3towers(GenericModel):
             inst.from_pretrained(pretrained_weight_path)
 
         return inst
+
     def get_query_embedding(self, input_ids, attention_mask):
         query_outputs = self.query_encoder(input_ids, attention_mask)
         query_embeds = self.query_projection(query_outputs[:, 0])
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         return query_embeds
+
     def get_text_embedding(self, input_ids, attention_mask):
         text_outputs = self.text_encoder(input_ids, attention_mask)
         text_embeds = self.text_projection(text_outputs[:, 0])
         text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
         return text_embeds
+
     def get_image_embedding(self, images):
         image_outputs = self.image_encoder(images)
         image_embeds = self.image_projection(image_outputs[:, 0])
         image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
         return image_embeds
+
     @autocast()
     def forward(
         self,
@@ -904,27 +921,51 @@ class BletchleyForMatching3towers(GenericModel):
         attention_mask: torch.Tensor = None,
     ):
         if not self.training:
-            if self.output_image_embed and not self.output_text_embed and not self.output_query_embed:
+            if (
+                self.output_image_embed
+                and not self.output_text_embed
+                and not self.output_query_embed
+            ):
                 image_embeds = self.get_image_embedding(images)
                 return EmbeddingOutputs(embedding=image_embeds)
 
-            if self.output_text_embed and not self.output_image_embed and not self.output_query_embed:
+            if (
+                self.output_text_embed
+                and not self.output_image_embed
+                and not self.output_query_embed
+            ):
                 text_embeds = self.get_text_embedding(input_ids, attention_mask)
                 return EmbeddingOutputs(embedding=text_embeds)
-            if self.output_query_embed and not self.output_text_embed and not self.output_image_embed:
-                query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
+            if (
+                self.output_query_embed
+                and not self.output_text_embed
+                and not self.output_image_embed
+            ):
+                query_embeds = self.get_query_embedding(
+                    query_input_ids, query_attention_mask
+                )
                 return EmbeddingOutputs(embedding=query_embeds)
-            
-            if self.output_image_embed and self.output_text_embed and self.output_query_embed:
+
+            if (
+                self.output_image_embed
+                and self.output_text_embed
+                and self.output_query_embed
+            ):
                 image_embeds = self.get_image_embedding(images)
                 text_embeds = self.get_text_embedding(input_ids, attention_mask)
-                query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
-                return EmbeddingOutputs(embedding1=image_embeds, embedding2=text_embeds, embedding3=query_embeds)
-        
+                query_embeds = self.get_query_embedding(
+                    query_input_ids, query_attention_mask
+                )
+                return EmbeddingOutputs(
+                    embedding1=image_embeds,
+                    embedding2=text_embeds,
+                    embedding3=query_embeds,
+                )
+
         query_embeds = self.get_query_embedding(query_input_ids, query_attention_mask)
         text_embeds = self.get_text_embedding(input_ids, attention_mask)
         image_embeds = self.get_image_embedding(images)
- 
+
         scores1 = torch.sum(query_embeds * image_embeds, dim=-1, keepdim=True)
         scores2 = torch.sum(query_embeds * text_embeds, dim=-1, keepdim=True)
 

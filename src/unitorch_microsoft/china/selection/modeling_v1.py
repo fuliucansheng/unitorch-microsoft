@@ -38,7 +38,7 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
 )
 
 
-@register_model("microsoft/china/selection/finetune/retrieval/v1/text")
+@register_model("microsoft/china/selection/retrieval/v1/text")
 class BletchleyForTextRetrieval(GenericModel):
     def __init__(
         self,
@@ -105,9 +105,9 @@ class BletchleyForTextRetrieval(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/china/selection/finetune/retrieval/v1/text")
+    @add_default_section_for_init("microsoft/china/selection/retrieval/v1/text")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/china/selection/finetune/retrieval/v1/text")
+        config.set_default_section("microsoft/china/selection/retrieval/v1/text")
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
 
@@ -195,7 +195,9 @@ class BletchleyForTextRetrieval(GenericModel):
             input_ids=doc_input_ids, attention_mask=doc_attention_mask
         )
         neg_doc_input_ids = neg_doc_input_ids.view(-1, neg_doc_input_ids.shape[2])
-        neg_doc_attention_mask = neg_doc_attention_mask.view(-1, neg_doc_attention_mask.shape[2])
+        neg_doc_attention_mask = neg_doc_attention_mask.view(
+            -1, neg_doc_attention_mask.shape[2]
+        )
         neg_doc_outputs = self.doc_encoder(
             input_ids=neg_doc_input_ids, attention_mask=neg_doc_attention_mask
         )
@@ -206,7 +208,7 @@ class BletchleyForTextRetrieval(GenericModel):
         doc_embeds = doc_outputs[:, 0]
         doc_embeds = self.doc_projection(doc_embeds)
 
-        neg_doc_embeds = neg_doc_outputs[:,0]
+        neg_doc_embeds = neg_doc_outputs[:, 0]
         neg_doc_embeds = self.doc_projection(neg_doc_embeds)
 
         query_embeds = self.query_layer_norm(quick_gelu(query_embeds))
@@ -221,21 +223,29 @@ class BletchleyForTextRetrieval(GenericModel):
         doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
         neg_doc_embeds = neg_doc_embeds / neg_doc_embeds.norm(dim=-1, keepdim=True)
 
-
         if self.use_all_gather and dist.is_initialized():
             query_embeds = self.all_gather(query_embeds)
             doc_embeds = self.all_gather(doc_embeds)
             neg_doc_embeds = self.all_gather(neg_doc_embeds)
             neg_doc_num_attention_mask = self.all_gather(neg_doc_num_attention_mask)
         logits = torch.matmul(query_embeds, doc_embeds.t()) * self.temperature  # bs*bs
-        neg_doc_embeds = neg_doc_embeds.view(logits.shape[0],-1,neg_doc_embeds.shape[-1]) #bs*k*dim
-        neg_logits = torch.matmul(query_embeds.unsqueeze(1), neg_doc_embeds.transpose(1,2)).squeeze(1) * self.temperature #bs*k
+        neg_doc_embeds = neg_doc_embeds.view(
+            logits.shape[0], -1, neg_doc_embeds.shape[-1]
+        )  # bs*k*dim
+        neg_logits = (
+            torch.matmul(
+                query_embeds.unsqueeze(1), neg_doc_embeds.transpose(1, 2)
+            ).squeeze(1)
+            * self.temperature
+        )  # bs*k
         # reorg
         batch_size = logits.shape[0]
         masks = torch.eye(batch_size).to(logits.device).bool()
         positive_samples = torch.masked_select(logits, masks).view(batch_size, -1)
         negative_samples = torch.masked_select(logits, ~masks).view(batch_size, -1)
-        samples = torch.cat([positive_samples, negative_samples, neg_logits], dim=-1) #bs*(bs+k)
+        samples = torch.cat(
+            [positive_samples, negative_samples, neg_logits], dim=-1
+        )  # bs*(bs+k)
         # sample
         if self.random_negative_samples > batch_size - 1:
             self.random_negative_samples = batch_size - 1
@@ -246,7 +256,12 @@ class BletchleyForTextRetrieval(GenericModel):
         masks = torch.cat([masks, neg_doc_num_attention_mask], dim=-1)
         for i in range(batch_size):
             masks[
-                i, random.sample(range(1, batch_size), self.random_negative_samples - torch.count_nonzero(neg_doc_num_attention_mask[i]))
+                i,
+                random.sample(
+                    range(1, batch_size),
+                    self.random_negative_samples
+                    - torch.count_nonzero(neg_doc_num_attention_mask[i]),
+                ),
             ] = 1
         samples = torch.masked_select(samples, masks.bool()).view(batch_size, -1)
 
@@ -258,7 +273,8 @@ class BletchleyForTextRetrieval(GenericModel):
 
         return LossOutputs(loss=loss)
 
-@register_model("microsoft/china/selection/finetune/matching/bletchley/v1")
+
+@register_model("microsoft/china/selection/matching/bletchley/v1")
 class BletchleyForMatching(GenericModel):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
@@ -268,7 +284,7 @@ class BletchleyForMatching(GenericModel):
     def __init__(
         self,
         query_config_type: str,
-	doc_config_type: str,
+        doc_config_type: str,
         projection_dim: Optional[int] = 1024,
         freeze_base_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
@@ -276,7 +292,9 @@ class BletchleyForMatching(GenericModel):
         output_doc_embed: Optional[bool] = False,
     ):
         super().__init__()
-        query_config = get_bletchley_text_config(query_config_type, gradient_checkpointing)
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
         doc_config = get_bletchley_text_config(doc_config_type, gradient_checkpointing)
 
         self.output_query_embed = output_query_embed
@@ -288,9 +306,7 @@ class BletchleyForMatching(GenericModel):
         self.query_encoder = BletchleyTextEncoder(
             query_config, add_projection_layer=False
         )
-        self.doc_encoder = BletchleyTextEncoder(
-            doc_config, add_projection_layer=False
-        )
+        self.doc_encoder = BletchleyTextEncoder(doc_config, add_projection_layer=False)
 
         self.query_projection = nn.Linear(
             self.query_embed_dim,
@@ -314,9 +330,9 @@ class BletchleyForMatching(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/china/selection/finetune/matching/bletchley/v1")
+    @add_default_section_for_init("microsoft/china/selection/matching/bletchley/v1")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/china/selection/finetune/matching/bletchley/v1")
+        config.set_default_section("microsoft/china/selection/matching/bletchley/v1")
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
 
@@ -328,7 +344,7 @@ class BletchleyForMatching(GenericModel):
 
         inst = cls(
             query_config_type=query_config_type,
-	    doc_config_type=doc_config_type,
+            doc_config_type=doc_config_type,
             projection_dim=projection_dim,
             freeze_base_model=freeze_base_model,
             gradient_checkpointing=gradient_checkpointing,
@@ -391,7 +407,6 @@ class BletchleyForMatching(GenericModel):
 
         doc_embeds = doc_outputs[:, 0]
         doc_embeds = self.doc_projection(doc_embeds)
-
 
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)

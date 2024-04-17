@@ -48,9 +48,15 @@ class Bletchley3TowerForPretrainV2(GenericModel):
     ):
         super().__init__()
 
-        query_config = get_bletchley_text_config(query_config_type, gradient_checkpointing)
-        offer_config = get_bletchley_text_config(offer_config_type, gradient_checkpointing)
-        image_config = get_bletchley_image_config(offer_config_type, gradient_checkpointing)
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
+        offer_config = get_bletchley_text_config(
+            offer_config_type, gradient_checkpointing
+        )
+        image_config = get_bletchley_image_config(
+            offer_config_type, gradient_checkpointing
+        )
 
         self.projection_dim = projection_dim
         self.query_embed_dim = query_config.hidden_size
@@ -61,13 +67,25 @@ class Bletchley3TowerForPretrainV2(GenericModel):
         self.output_offer_embed = output_offer_embed
         self.output_image_embed = output_image_embed
 
-        self.query_encoder = BletchleyTextEncoder(query_config, add_projection_layer=False)
-        self.offer_encoder = BletchleyTextEncoder(offer_config, add_projection_layer=False)
-        self.image_encoder = BletchleyImageEncoder(image_config, add_projection_layer=False)
+        self.query_encoder = BletchleyTextEncoder(
+            query_config, add_projection_layer=False
+        )
+        self.offer_encoder = BletchleyTextEncoder(
+            offer_config, add_projection_layer=False
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            image_config, add_projection_layer=False
+        )
 
         self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
-        self.offer_projection = nn.Linear(self.offer_embed_dim,self.projection_dim,)
-        self.image_projection = nn.Linear(self.image_embed_dim,self.projection_dim,)
+        self.offer_projection = nn.Linear(
+            self.offer_embed_dim,
+            self.projection_dim,
+        )
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            self.projection_dim,
+        )
 
         self.logit_scale_query = nn.Parameter(torch.ones([]) * logit_scale_init_value)
         self.logit_scale_image = nn.Parameter(torch.ones([]) * logit_scale_init_value)
@@ -105,9 +123,9 @@ class Bletchley3TowerForPretrainV2(GenericModel):
             logit_scale_init_value=logit_scale_init_value,
             gradient_checkpointing=gradient_checkpointing,
             use_all_gather=use_all_gather,
-            output_query_embed = output_query_embed,
-            output_offer_embed = output_offer_embed,
-            output_image_embed = output_image_embed,
+            output_query_embed=output_query_embed,
+            output_offer_embed=output_offer_embed,
+            output_image_embed=output_image_embed,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
@@ -141,12 +159,12 @@ class Bletchley3TowerForPretrainV2(GenericModel):
             offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=offer_embeds)
 
-        if  not self.training and self.output_image_embed:
+        if not self.training and self.output_image_embed:
             image_outputs = self.image_encoder(images)
             image_embeds = self.image_projection(image_outputs[:, 0])
             image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=image_embeds)
-        
+
         query_outputs = self.query_encoder(query_input_ids, query_attention_mask)
         query_embeds = self.query_projection(query_outputs[:, 0])
 

@@ -19,7 +19,8 @@ from unitorch.cli import (
 )
 from unitorch.cli.models import TensorsInputs
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.models.bletchley.processing_v1 import BletchleyProcessor 
+from unitorch_microsoft.models.bletchley.processing_v1 import BletchleyProcessor
+
 
 class BletchleyProcessorV2(BletchleyProcessor):
     def __init__(
@@ -31,15 +32,21 @@ class BletchleyProcessorV2(BletchleyProcessor):
         crop_shape: Optional[List[int]] = [224, 224],
         max_num_text: Optional[int] = 5,
     ):
-        super().__init__(max_seq_length, pixel_mean, pixel_std, resize_shape, crop_shape)
+        super().__init__(
+            max_seq_length, pixel_mean, pixel_std, resize_shape, crop_shape
+        )
         self.max_num_text = max_num_text
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/china/selection/finetune/bletchley/v1")
+    @add_default_section_for_init(
+        "microsoft/process/china/selection/bletchley/v1"
+    )
     def from_core_configure(cls, config, **kwargs):
         pass
 
-    @register_process("microsoft/process/china/selection/finetune/v1/text_classification_list")
+    @register_process(
+        "microsoft/process/china/selection/bletchley/v1/text_classification_list"
+    )
     def _text_classification_list(
         self,
         text: Union[str, List[str]],
@@ -58,13 +65,12 @@ class BletchleyProcessorV2(BletchleyProcessor):
         outputs = [
             self._text_classification(text, text_pair, max_seq_length) for text in texts
         ]
-        inputs = dict (
-                input_ids=torch.stack([output.input_ids for output in outputs]),
-                attention_mask=torch.stack([output.attention_mask for output in outputs]),
-                num_attention_mask=torch.tensor(num_attention_mask),
+        inputs = dict(
+            input_ids=torch.stack([output.input_ids for output in outputs]),
+            attention_mask=torch.stack([output.attention_mask for output in outputs]),
+            num_attention_mask=torch.tensor(num_attention_mask),
         )
 
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
         return TensorsInputs(inputs)
-
