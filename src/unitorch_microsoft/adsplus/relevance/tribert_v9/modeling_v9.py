@@ -25,10 +25,12 @@ from unitorch.cli.models import ClassificationOutputs
 from unitorch_microsoft import cached_path
 
 
-class TriTwinBertEncoder(BertPreTrainedModel):
-    def __init__(self, config):
-        super().__init__(config)
-        self.bert = BertModel(self.config)
+class TriTwinBertEncoder(nn.modules):
+    def __init__(self, config, pooltype):
+        super().__init__(config, pooltype)
+        self.bert = BertModel(self.config, 
+                              add_pooling_layer=pooltype == "bert",
+                              )
         self.init_weights()
 
     def forward(
@@ -70,14 +72,17 @@ class TribertForClassification(GenericModel):
         self.config.vocab_size = vocab_size
         self.query_encoder = TriTwinBertEncoder(
             self.config,
+            add_pooling_layer=pooltype == "bert",
         )
 
         self.doc_encoder = TriTwinBertEncoder(
             self.config,
+            add_pooling_layer=pooltype == "bert",
         )
 
         self.ads_encoder = TriTwinBertEncoder(
             self.config,
+            add_pooling_layer=pooltype == "bert",
         )
 
         self.postlayer = MultiTriPostLayer(
