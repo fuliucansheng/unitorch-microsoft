@@ -145,6 +145,12 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
             for p in self.brand_embedding.parameters():
                 p.requires_grad = False
+            for p in self.seller_layer_norm.parameters():
+                p.requires_grad = False
+            for p in self.brand_layer_norm.parameters():
+                p.requires_grad = False
+            for p in self.image_layer_norm.parameters():
+                p.requires_grad = False
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
             for p in self.image_projection.parameters():
@@ -427,6 +433,16 @@ class MMDNNBletchleyForClassificationNoIce(GenericModel):
                 p.requires_grad = False
 
         if freeze_offer_model:
+            for p in self.seller_embedding.parameters():
+                p.requires_grad = False
+            for p in self.brand_embedding.parameters():
+                p.requires_grad = False
+            for p in self.seller_layer_norm.parameters():
+                p.requires_grad = False
+            for p in self.brand_layer_norm.parameters():
+                p.requires_grad = False
+            for p in self.image_layer_norm.parameters():
+                p.requires_grad = False
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
             for p in self.image_projection.parameters():
