@@ -48,6 +48,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_hidden_dim: Optional[int] = 64,
         freeze_base_model: Optional[bool] = True,
         freeze_image_model: Optional[bool] = True,
+        freeze_offer_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
         enable_quantization: Optional[bool] = False,
         output_text_embed: Optional[bool] = False,
@@ -138,6 +139,18 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
             for p in self.image_projection.parameters():
                 p.requires_grad = False
+        
+        if freeze_offer_model:
+            for p in self.seller_embedding.parameters():
+                p.requires_grad = False
+            for p in self.brand_embedding.parameters():
+                p.requires_grad = False
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+            for p in self.image_projection.parameters():
+                p.requires_grad = False
+            for p in self.final_visual_projection.parameters():
+                p.requires_grad = False
 
     @classmethod
     @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v1")
@@ -154,6 +167,7 @@ class MMDNNBletchleyForClassification(GenericModel):
         output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
         freeze_image_model = config.getoption("freeze_image_model", True)
+        freeze_offer_model = config.getoption("freeze_offer_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         enable_quantization = config.getoption("enable_quantization", False)
         output_text_embed = config.getoption("output_text_embed", False)
@@ -173,6 +187,7 @@ class MMDNNBletchleyForClassification(GenericModel):
             output_hidden_dim=output_hidden_dim,
             freeze_base_model=freeze_base_model,
             freeze_image_model=freeze_image_model,
+            freeze_offer_model=freeze_offer_model,
             gradient_checkpointing=gradient_checkpointing,
             enable_quantization=enable_quantization,
             output_text_embed=output_text_embed,
