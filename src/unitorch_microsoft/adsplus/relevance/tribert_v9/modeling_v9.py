@@ -25,11 +25,11 @@ from unitorch.cli.models import ClassificationOutputs
 from unitorch_microsoft import cached_path
 
 
-class TriTwinBertEncoder(nn.modules):
-    def __init__(self, config, pooltype):
-        super().__init__(config, pooltype)
+class TriTwinBertEncoder(nn.Module):
+    def __init__(self, config, add_pooling_layer):
+        super().__init__(config, add_pooling_layer)
         self.bert = BertModel(self.config, 
-                              add_pooling_layer=pooltype == "bert",
+                              add_pooling_layer=add_pooling_layer,
                               )
         self.init_weights()
 
