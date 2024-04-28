@@ -139,7 +139,7 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
             for p in self.image_projection.parameters():
                 p.requires_grad = False
-        
+
         if freeze_offer_model:
             for p in self.seller_embedding.parameters():
                 p.requires_grad = False

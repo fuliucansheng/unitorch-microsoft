@@ -336,7 +336,6 @@ class BletchleyForClassification(GenericModel):
                 self.click_position_embedding(pos_ids)
             )
             click_emb.append(click_pos_emb)
-            
 
         if self.enable_tgs_features:
             click_tg_emb = self.click_tg_layer_norm(self.click_tg_embedding(tg_ids))

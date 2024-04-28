@@ -38,9 +38,7 @@ class BletchleyProcessorV2(BletchleyProcessor):
         self.max_num_text = max_num_text
 
     @classmethod
-    @add_default_section_for_init(
-        "microsoft/process/china/selection/bletchley/v1"
-    )
+    @add_default_section_for_init("microsoft/process/china/selection/bletchley/v1")
     def from_core_configure(cls, config, **kwargs):
         pass
 

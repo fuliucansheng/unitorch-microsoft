@@ -15,8 +15,10 @@ from unitorch.cli.models import (
     GenerationOutputs,
     GenerationTargets,
 )
-from unitorch.cli.models.bert import pretrained_bert_infos
 from unitorch.cli.models.bert import BertProcessor
+from unitorch_microsoft.adsplus.relevance.tribert import pretrained_bert_infos
+
+
 class TribertV9Processor(BertProcessor):
     def __init__(
         self,
@@ -54,7 +56,7 @@ class TribertV9Processor(BertProcessor):
         )
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/tribert_v9")
+    @add_default_section_for_init("microsoft/process/tribert/v9")
     def from_core_configure(cls, config, **kwargs):
         """
         Create an instance of BertProcessor from a core configuration.
@@ -66,7 +68,7 @@ class TribertV9Processor(BertProcessor):
         Returns:
             BertProcessor: An instance of BertProcessor.
         """
-        config.set_default_section("microsoft/process/tribert_v9")
+        config.set_default_section("microsoft/process/tribert/v9")
         pretrained_name = config.getoption("pretrained_name", "default-bert")
         vocab_path = config.getoption("vocab_path", None)
         vocab_path = pop_value(
@@ -78,8 +80,8 @@ class TribertV9Processor(BertProcessor):
         return {
             "vocab_path": vocab_path,
         }
-    
-    @register_process("microsoft/process/tribert_v9/classification")
+
+    @register_process("microsoft/process/tribert/v9/classification")
     def _classification(
         self,
         text,
@@ -93,7 +95,7 @@ class TribertV9Processor(BertProcessor):
             text=text,
             max_seq_length=max_seq_length,
         )
-        
+
         return TensorsInputs(
             {
                 input_ids_name: outputs.input_ids,

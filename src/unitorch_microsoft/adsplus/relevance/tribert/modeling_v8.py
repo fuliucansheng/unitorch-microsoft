@@ -237,6 +237,7 @@ class TriPostLayer(nn.Module):
         sim4score="cosine",
         pooltype="bert",
         hidden_size=512,
+        hidden_downscale_size=128,
         reslayer_use_bn=True,
         reslayer_downscale_size=128,
         reslayer_hidden_size=64,
@@ -246,7 +247,8 @@ class TriPostLayer(nn.Module):
         self.sim4score = sim4score
         self.pooltype = pooltype
         self.hidden_size = hidden_size
-        self.fc1 = nn.Linear(reslayer_downscale_size, self.hidden_size)
+        self.fc0 = nn.Linear(self.hidden_size, hidden_downscale_size)
+        self.fc1 = nn.Linear(hidden_downscale_size, self.hidden_size)
 
         if self.sim4score in ["reslayer"]:
             self.res_bn1 = (
@@ -255,8 +257,7 @@ class TriPostLayer(nn.Module):
             self.res_bn2 = (
                 nn.BatchNorm1d(reslayer_downscale_size * 3) if reslayer_use_bn else None
             )
-
-            self.fc0 = nn.Linear(self.hidden_size, reslayer_downscale_size)
+            self.res_fc0 = nn.Linear(self.hidden_size, reslayer_downscale_size)
             self.res_fc1 = nn.Linear(reslayer_downscale_size * 3, reslayer_hidden_size)
             self.res_fc1.weight.data.normal_(mean=0.0, std=0.02)
             self.res_fc1.bias.data.zero_()
@@ -308,18 +309,17 @@ class TriPostLayer(nn.Module):
 
     def forward(
         self,
-        qseq_in: torch.Tensor = None,
-        dseq_in: torch.Tensor = None,
-        adsseq_in: torch.Tensor = None,
+        q_in: torch.Tensor = None,
+        d_in: torch.Tensor = None,
+        ads_in: torch.Tensor = None,
     ):
-        q_out = self.fc1(qseq_in)
-        d_out = self.fc1(dseq_in)
-        ads_out = self.fc1(adsseq_in)
+        q_out = torch.tanh(self.fc0(q_in))
+        d_out = torch.tanh(self.fc0(d_in))
+        ads_out = torch.tanh(self.fc0(ads_in))
 
-        if self.sim4score in ["reslayer"]:
-            q_out = torch.tanh(self.fc0(q_out))
-            d_out = torch.tanh(self.fc0(d_out))
-            ads_out = torch.tanh(self.fc0(ads_out))
+        q_out = self.fc1(q_out)
+        d_out = self.fc1(d_out)
+        ads_out = self.fc1(ads_out)
 
         if not self.training:
             q_out = self._quantization(q_out)
@@ -327,6 +327,9 @@ class TriPostLayer(nn.Module):
             ads_out = self._quantization(ads_out)
 
         if self.sim4score in ["reslayer"]:
+            q_out = self.res_fc0(torch.relu(q_out))
+            d_out = self.res_fc0(torch.relu(d_out))
+            ads_out = self.res_fc0(torch.relu(ads_out))
             output = torch.cat([q_out, d_out, ads_out], dim=-1)
             output = self.res_layer(self.res_fc1, self.res_fc2, output)
             output = self.res_layer(self.res_fc3, self.res_fc4, output)
@@ -354,6 +357,7 @@ class MultiTriPostLayer(nn.Module):
         sim4score: str = "cosine",
         pooltype: str = "bert",
         hidden_size: int = 512,
+        hidden_downscale_size: int = 128,
         reslayer_use_bn: bool = True,
         reslayer_downscale_size: int = 128,
         reslayer_hidden_size: int = 64,
@@ -363,13 +367,13 @@ class MultiTriPostLayer(nn.Module):
         self.sim4score = sim4score
         self.pooltype = pooltype
         self.hidden_size = hidden_size
+        self.hidden_downscale_size = hidden_downscale_size
         self.reslayer_use_bn = reslayer_use_bn
         self.reslayer_downscale_size = reslayer_downscale_size
         self.reslayer_hidden_size = reslayer_hidden_size
 
         if self.pooltype in ["weight"]:
             self.attn = nn.Linear(self.hidden_size, 1, bias=False)
-        self.fc0 = nn.Linear(self.hidden_size, reslayer_downscale_size)
 
         self.num_tasks = num_tasks
         self.mtfc = nn.ModuleDict(
@@ -379,6 +383,7 @@ class MultiTriPostLayer(nn.Module):
                     sim4score=self.sim4score,
                     pooltype=self.pooltype,
                     hidden_size=self.hidden_size,
+                    hidden_downscale_size=self.hidden_downscale_size,
                     reslayer_use_bn=self.reslayer_use_bn,
                     reslayer_downscale_size=self.reslayer_downscale_size,
                     reslayer_hidden_size=self.reslayer_hidden_size,
@@ -417,9 +422,9 @@ class MultiTriPostLayer(nn.Module):
             return q_out
 
         if self.pooltype in ["weight"]:
-            q_out = torch.relu(self.fc0(self._attn(qseq_in, q_mask)))
-            d_out = torch.relu(self.fc0(self._attn(dseq_in, d_mask)))
-            ads_out = torch.relu(self.fc0(self._attn(adsseq_in, ads_mask)))
+            q_out = self._attn(qseq_in, q_mask)
+            d_out = self._attn(dseq_in, d_mask)
+            ads_out = self._attn(adsseq_in, ads_mask)
         else:
             q_out = qpool_in
             d_out = dpool_in
@@ -447,6 +452,7 @@ class TribertForClassification(GenericModel):
         pooltype: str = "bert",
         hidden_size: int = 512,
         max_n_letters: int = 20,
+        hidden_downscale_size: int = 128,
         reslayer_use_bn: bool = True,
         reslayer_downscale_size: int = 128,
         reslayer_hidden_size: int = 64,
@@ -478,6 +484,7 @@ class TribertForClassification(GenericModel):
             sim4score=sim4score,
             pooltype=pooltype,
             hidden_size=self.config.hidden_size,
+            hidden_downscale_size=hidden_downscale_size,
             reslayer_use_bn=reslayer_use_bn,
             reslayer_downscale_size=reslayer_downscale_size,
             reslayer_hidden_size=reslayer_hidden_size,
@@ -517,6 +524,7 @@ class TribertForClassification(GenericModel):
         sim4score = config.getoption("sim4score", "cosine")
         pooltype = config.getoption("pooltype", "bert")
         hidden_size = config.getoption("hidden_size", 512)
+        hidden_downscale_size = config.getoption("hidden_downscale_size", 128)
         max_n_letters = config.getoption("max_n_letters", 20)
         reslayer_use_bn = config.getoption("reslayer_use_bn", True)
         reslayer_downscale_size = config.getoption("reslayer_downscale_size", 128)
@@ -528,6 +536,7 @@ class TribertForClassification(GenericModel):
             sim4score=sim4score,
             pooltype=pooltype,
             hidden_size=hidden_size,
+            hidden_downscale_size=hidden_downscale_size,
             max_n_letters=max_n_letters,
             reslayer_use_bn=reslayer_use_bn,
             reslayer_downscale_size=reslayer_downscale_size,
