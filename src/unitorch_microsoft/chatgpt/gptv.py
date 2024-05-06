@@ -47,7 +47,10 @@ class GPTVScript(GenericScript):
         chunksize = config.getoption("chunksize", 1000)
         max_tokens = config.getoption("max_tokens", 200)
         temperature = config.getoption("temperature", 0)
+        presence_penalty = config.getoption("presence_penalty", 0)
+        frequency_penalty = config.getoption("frequency_penalty", 0)
         top_p = config.getoption("top_p", 1)
+        stop = config.getoption("stop", None)
         freq = config.getoption("freq", 20)
         input_escapechar = config.getoption("input_escapechar", None)
         output_escapechar = config.getoption("output_escapechar", None)
@@ -124,7 +127,10 @@ class GPTVScript(GenericScript):
                 "transcript": transcript,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                "presence_penalty": presence_penalty,
+                "frequency_penalty": frequency_penalty,
                 "top_p": top_p,
+                "stop": stop,
                 "_batch_request_metadata": {
                     "ConversationId": str(row[index_col]),
                 },
