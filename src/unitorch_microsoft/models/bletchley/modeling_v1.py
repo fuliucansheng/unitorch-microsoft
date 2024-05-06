@@ -848,7 +848,6 @@ class BletchleyForTextRetrieval(GenericModel):
         query_config_type: str,
         doc_config_type: str,
         projection_dim: Optional[int] = 1024,
-        output_hidden_dim: Optional[int] = 64,
         freeze_base_model: Optional[bool] = True,
         gradient_checkpointing: Optional[bool] = False,
         use_all_gather: Optional[bool] = True,
@@ -886,18 +885,6 @@ class BletchleyForTextRetrieval(GenericModel):
             projection_dim,
         )  # image_encoder.projection.weight,  image_encoder.projection.bias
 
-        self.query_layer_norm = nn.LayerNorm(projection_dim)
-        self.doc_layer_norm = nn.LayerNorm(projection_dim)
-
-        self.final_doc_projection = nn.Linear(
-            projection_dim,
-            output_hidden_dim,
-        )
-        self.final_query_projection = nn.Linear(
-            projection_dim,
-            output_hidden_dim,
-        )
-
         self.init_weights()
 
         if freeze_base_model:
@@ -915,7 +902,6 @@ class BletchleyForTextRetrieval(GenericModel):
         doc_config_type = config.getoption("doc_config_type", "0.8B")
 
         projection_dim = config.getoption("projection_dim", 1024)
-        output_hidden_dim = config.getoption("output_hidden_dim", 64)
         freeze_base_model = config.getoption("freeze_base_model", True)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
         use_all_gather = config.getoption("use_all_gather", True)
@@ -926,7 +912,6 @@ class BletchleyForTextRetrieval(GenericModel):
             query_config_type=query_config_type,
             doc_config_type=doc_config_type,
             projection_dim=projection_dim,
-            output_hidden_dim=output_hidden_dim,
             freeze_base_model=freeze_base_model,
             gradient_checkpointing=gradient_checkpointing,
             use_all_gather=use_all_gather,
@@ -971,8 +956,6 @@ class BletchleyForTextRetrieval(GenericModel):
             )
             query_embeds = query_outputs[:, 0]
             query_embeds = self.query_projection(query_embeds)
-            query_embeds = self.query_layer_norm(quick_gelu(query_embeds))
-            query_embeds = self.final_query_projection(quick_gelu(query_embeds))
             query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
 
             return EmbeddingOutputs(embedding=query_embeds)
@@ -983,8 +966,6 @@ class BletchleyForTextRetrieval(GenericModel):
             )
             doc_embeds = doc_outputs[:, 0]
             doc_embeds = self.doc_projection(doc_embeds)
-            doc_embeds = self.doc_layer_norm(quick_gelu(doc_embeds))
-            doc_embeds = self.final_doc_projection(quick_gelu(doc_embeds))
             doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
 
             return EmbeddingOutputs(embedding=doc_embeds)
@@ -1000,12 +981,6 @@ class BletchleyForTextRetrieval(GenericModel):
 
         doc_embeds = doc_outputs[:, 0]
         doc_embeds = self.doc_projection(doc_embeds)
-
-        query_embeds = self.query_layer_norm(quick_gelu(query_embeds))
-        doc_embeds = self.doc_layer_norm(quick_gelu(doc_embeds))
-
-        query_embeds = self.final_query_projection(quick_gelu(query_embeds))
-        doc_embeds = self.final_doc_projection(quick_gelu(doc_embeds))
 
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
