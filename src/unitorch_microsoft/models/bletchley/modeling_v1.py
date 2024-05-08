@@ -1,7 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
-from functools import cache
 import os
 import random
 import torch
