@@ -44,7 +44,9 @@ class BletchleyProcessor:
             ]
         )
         # self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-large")
-        vocab_path = cached_path("https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/sentencepiece.bpe.model")
+        vocab_path = cached_path(
+            "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/sentencepiece.bpe.model"
+        )
         self.tokenizer = XLMRobertaTokenizer(vocab_path)
         self.pad_token = self.tokenizer.pad_token
         self.sep_token = self.tokenizer.sep_token

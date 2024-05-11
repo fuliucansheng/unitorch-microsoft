@@ -84,14 +84,11 @@ class BletchleyForTextPretrain(GenericModel):
         self.init_weights()
 
         if enable_quantization:
-            for __model__ in [
-                self.query_encoder,
-                self.query_projection
-            ]:
+            for __model__ in [self.query_encoder, self.query_projection]:
                 __model__.qconfig = torch.quantization.get_default_qat_qconfig(
                     version=0
                 )
-                torch.quantization.prepare_qat(__model__, inplace=True)            
+                torch.quantization.prepare_qat(__model__, inplace=True)
 
         if freeze_base_model:
             for p in self.query_encoder.parameters():
@@ -204,6 +201,7 @@ class BletchleyForTextPretrain(GenericModel):
         loss = _clip_loss(logits_per_text)
 
         return LossOutputs(loss=loss)
+
 
 @register_model("microsoft/china/selection/retrieval/v1/text")
 class BletchleyForTextRetrieval(GenericModel):
@@ -581,4 +579,3 @@ class BletchleyForMatching(GenericModel):
 
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
-

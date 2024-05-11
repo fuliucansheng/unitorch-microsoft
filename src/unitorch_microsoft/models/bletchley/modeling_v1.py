@@ -45,7 +45,9 @@ def get_bletchley_text_config(
         None,
     ], "Invalid config passed"
     # config = XLMRobertaConfig.from_pretrained("xlm-roberta-large")
-    config_path = cached_path("https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/config.json")
+    config_path = cached_path(
+        "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/config.json"
+    )
     config = XLMRobertaConfig.from_json_file(config_path)
     config.num_hidden_layers = 12
     config.max_position_embeddings = 128
@@ -79,7 +81,9 @@ def get_bletchley_image_config(
 ):
     assert config_type in ["0.3B", "0.8B", "2.5B", None], "Invalid config passed"
     # config = XLMRobertaConfig.from_pretrained("xlm-roberta-large")
-    config_path = cached_path("https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/config.json")
+    config_path = cached_path(
+        "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/config.json"
+    )
     config = XLMRobertaConfig.from_json_file(config_path)
     config.hidden_dropout_prob = 0.0
     config.attention_probs_dropout_prob = 0.0
