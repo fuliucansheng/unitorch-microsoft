@@ -29,19 +29,18 @@ class OnnxConverter:
 
     def export(self,
                query_input_ids = None,
-               query_attention_mask=None,
                do_optimize = True,
                do_quantize = True):
         torch.set_printoptions(profile="full")
         onnx_path = os.path.join(self.OutputFolder, 'model.onnx')
         torch.onnx.export(
             self.model,
-            (query_input_ids, query_attention_mask),
+            (query_input_ids),
             f=onnx_path,
-            input_names=["query_input_ids", "query_attention_mask"],
-            output_names=["qvec", "dummy_score"],
+            input_names=["input_ids"],
+            output_names=["dummy_score", "embeddings"],
             export_params=True,
-            dynamic_axes={"query_input_ids": {0: "querylen"}, "query_attention_mask": {0: "attentionlen"}},
+            dynamic_axes={"input_ids": {0: "max_len"}},
             do_constant_folding=True,
             verbose=False,
             opset_version=13,
@@ -61,52 +60,46 @@ class OnnxConverter:
 
     def ParityCheck(self,
                     onnx_path,
-                    query_input_ids, query_attention_mask):
+                    query_input_ids):
         #output from model
-        embedding, dummy_score = self.model(query_input_ids, query_attention_mask)
-        print("model output")
-        print(embedding)
-        print(embedding.shape)
+        dummy_score, embedding = self.model(query_input_ids)
         #onnx output
         ort_session = ort.InferenceSession(onnx_path)
         outputs = ort_session.run(
             None,
-            {"query_input_ids": query_input_ids.cpu().numpy(), "query_attention_mask": query_attention_mask.cpu().numpy()},
+            {"input_ids": query_input_ids.cpu().numpy()},
         )
-        print("onnx output")
         for x in ort_session.get_outputs():
             print(x)
-        print(outputs[0])
-        print(outputs[0].shape)
         #compare result
-        np.testing.assert_allclose(embedding.detach().cpu().numpy(), outputs[0], rtol=1e-03, atol=1e-05)
+        np.testing.assert_allclose(embedding.detach().cpu().numpy(), outputs[1], rtol=1e-03, atol=1e-05)
 
     def ParityCheckPair(self,
                     onnx_path,
-                    query_input_ids_a, query_attention_mask_a,
-		    query_input_ids_b, query_attention_mask_b):
+                    query_input_ids_a,
+		    query_input_ids_b,):
         #output from model
-        embedding1, dummy_score = self.model(query_input_ids_a, query_attention_mask_a)
-        embedding2, dummy_score = self.model(query_input_ids_b, query_attention_mask_b)
+        dummy_score, embedding1 = self.model(query_input_ids_a)
+        dummy_score, embedding2 = self.model(query_input_ids_b)
         #onnx output
         ort_session = ort.InferenceSession(onnx_path)
         outputs1 = ort_session.run(
             None,
-            {"query_input_ids": query_input_ids_a.cpu().numpy(), "query_attention_mask": query_attention_mask_a.cpu().numpy()},
+            {"input_ids": query_input_ids_a.cpu().numpy()},
         )
         outputs2 = ort_session.run(
             None,
-            {"query_input_ids": query_input_ids_b.cpu().numpy(), "query_attention_mask": query_attention_mask_b.cpu().numpy()},
+            {"input_ids": query_input_ids_b.cpu().numpy()},
         )
 	#cosines similarity
         embedding1 = embedding1.detach().cpu().numpy()
         embedding2 = embedding2.detach().cpu().numpy()
         cosine1 = np.dot(embedding1, embedding2.T) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
         cosine1_2 = np.dot(embedding1, embedding2.T)
-        cosine2 = np.dot(outputs1[0], outputs2[0].T) / (np.linalg.norm(outputs1[0]) * np.linalg.norm(outputs2[0]))
-        cosine2_2 = np.dot(outputs1[0], outputs2[0].T)
-        cosine3 = np.dot(embedding1, outputs1[0].T) / (np.linalg.norm(embedding1) * np.linalg.norm(outputs1[0]))
-        cosine3_2 = np.dot(embedding1, outputs1[0].T)
+        cosine2 = np.dot(outputs1[1], outputs2[1].T) / (np.linalg.norm(outputs1[1]) * np.linalg.norm(outputs2[1]))
+        cosine2_2 = np.dot(outputs1[1], outputs2[1].T)
+        cosine3 = np.dot(embedding1, outputs1[1].T) / (np.linalg.norm(embedding1) * np.linalg.norm(outputs1[1]))
+        cosine3_2 = np.dot(embedding1, outputs1[1].T)
 
         print(cosine1, cosine1_2)
         print(cosine2, cosine2_2)
@@ -158,8 +151,20 @@ class BletchleyForTextPretrainQueryEncoder(nn.Module):
         query_input_ids=None,
         query_attention_mask=None,
     ):
-        query_input_ids = query_input_ids.unsqueeze(0)
-        query_attention_mask = query_attention_mask.unsqueeze(0)
+        query_input_ids = query_input_ids + 1
+        query_input_ids = torch.cat(
+            [torch.tensor([0], dtype=torch.int64).reshape(1, -1), query_input_ids],
+            dim=0,
+        )
+        query_input_ids = torch.cat(
+            [query_input_ids, torch.tensor([2], dtype=torch.int64).reshape(1, -1)],
+            dim=0,
+        )
+        query_input_ids = query_input_ids.reshape(1, -1)
+        query_attention_mask = torch.ones([1, query_input_ids.shape[1]]).reshape(1, -1).to(query_input_ids)
+        query_input_ids[query_input_ids > 250001] = 250001
+        query_input_ids[query_input_ids < 0] = 0
+        
         query_outputs = self.query_encoder(
             input_ids=query_input_ids,
             attention_mask=query_attention_mask,
@@ -168,7 +173,7 @@ class BletchleyForTextPretrainQueryEncoder(nn.Module):
         query_embeds = self.query_projection(query_embeds)
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
 
-        return query_embeds.view(1, -1), query_embeds[:, 0].view(1).squeeze()
+        return query_embeds[:, 0].view(1).squeeze(), query_embeds.view(1, -1)
 
 if __name__ == '__main__':
 
@@ -176,36 +181,27 @@ if __name__ == '__main__':
     query = "这是一个测试"
     processor = BletchleyProcessor(max_seq_length = 16)
     outputs = processor._tokenize(query, max_seq_length = 16)
-    input_ids = outputs.input_ids
-    attention_mask = outputs.attention_mask
+    #input_ids = outputs.input_ids.unsqueeze(-1)
+    input_ids = torch.tensor([5,100012,49124]).unsqueeze(-1)
     #another query
     query2 = "苹果"
     outputs2 = processor._tokenize(query2, max_seq_length = 16)
-    input_ids2 = outputs2.input_ids
-    attention_mask2 = outputs2.attention_mask
-    
+    #input_ids2 = outputs2.input_ids.unsqueeze(-1)
+    input_ids2 = torch.tensor([5,64045]).unsqueeze(-1)
+
     print(input_ids.shape)
-    print(attention_mask.shape)
-    print(input_ids)
-    print(attention_mask)
     #prepare model
-    model_file = '/home/xucha/unitorch-microsoft/src/unitorch_microsoft/ckpt/pytorch_model_noquant.bin'
+    model_file = '/home/xucha/unitorch-microsoft/src/unitorch_microsoft/ckpt/pytorch_model_quant.bin'
     model = BletchleyForTextPretrainQueryEncoder(query_config_type='0.15B', weight_path=model_file, projection_dim=64)
     model.eval()
 
     #export to onnx
-    output_folder = './onnx_noquant'
+    output_folder = './onnx_quant'
     onnx_converter = OnnxConverter(model, output_folder)
-    #onnx_converter.export(input_ids, attention_mask)
+    onnx_converter.export(input_ids)
 
     #Parity check
-    onnx_path='/home/xucha/unitorch-microsoft/src/unitorch_microsoft/china/selection/onnx_noquant/model.optimized.quantized.onnx'
-    onnx_converter.ParityCheckPair(onnx_path, input_ids, attention_mask, input_ids2, attention_mask2)
-    onnx_converter.ParityCheck(onnx_path, input_ids, attention_mask)
-
-    
-
-       
-
-
-
+    onnx_path='/home/xucha/unitorch-microsoft/src/unitorch_microsoft/china/selection/onnx_quant/model.optimized.quantized.onnx'
+    onnx_converter.ParityCheckPair(onnx_path, input_ids, input_ids2)
+    print("check")
+    onnx_converter.ParityCheck(onnx_path, input_ids)
