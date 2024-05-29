@@ -606,6 +606,278 @@ class MMDNNBletchleyForClassificationNoIce(GenericModel):
         return ClassificationOutputs(outputs=outputs)
 
 
+@register_model("microsoft/model/classification/mmdnn/bletchley/v1/text/noice")
+class MMDNNBletchleyTextForClassificationNoIce(GenericModel):
+    def __init__(
+        self,
+        query_config_type: str,
+        offer_config_type: str,
+        num_query_layers: Optional[int] = 6,
+        projection_dim: Optional[int] = 288,
+        num_seller: Optional[int] = 15020,
+        num_brand: Optional[int] = 1000001,
+        hidden_dim: Optional[int] = 32,
+        output_hidden_dim: Optional[int] = 64,
+        freeze_base_model: Optional[bool] = True,
+        freeze_offer_model: Optional[bool] = False,
+        gradient_checkpointing: Optional[bool] = False,
+        enable_quantization: Optional[bool] = False,
+        output_query_embed: Optional[bool] = False,
+        output_offer_embed: Optional[bool] = False,
+        output_final_query_embed: Optional[bool] = False,
+        output_final_offer_embed: Optional[bool] = False,
+    ):
+        super().__init__()
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
+        offer_config = get_bletchley_text_config(
+            offer_config_type, gradient_checkpointing
+        )
+
+        self.projection_dim = projection_dim
+        self.query_embed_dim = query_config.hidden_size
+        self.offer_embed_dim = offer_config.hidden_size
+        query_config.num_hidden_layers = num_query_layers
+
+        self.output_query_embed = output_query_embed
+        self.output_offer_embed = output_offer_embed
+        self.output_final_query_embed = output_final_query_embed
+        self.output_final_offer_embed = output_final_offer_embed
+
+        self.query_encoder = BletchleyTextEncoder(
+            query_config, add_projection_layer=False
+        )
+        self.offer_encoder = BletchleyTextEncoder(
+            offer_config, add_projection_layer=False
+        )
+
+        self.query_projection = nn.Linear(self.query_embed_dim, self.projection_dim)
+        self.offer_projection = nn.Linear(self.offer_embed_dim, self.projection_dim)
+
+        self.query_layer_norm = nn.LayerNorm(projection_dim)
+        self.offer_layer_norm = nn.LayerNorm(projection_dim)
+
+        self.seller_embedding = nn.Embedding(num_seller, hidden_dim)
+        self.seller_layer_norm = nn.LayerNorm(hidden_dim)
+        self.brand_embedding = nn.Embedding(num_brand, hidden_dim)
+        self.brand_layer_norm = nn.LayerNorm(hidden_dim)
+
+        self.final_offer_projection = nn.Linear(
+            projection_dim + hidden_dim * 2,
+            output_hidden_dim,
+        )
+        self.final_query_projection = nn.Linear(
+            projection_dim,
+            output_hidden_dim,
+        )
+
+        self.classifier = nn.Linear(1, 1)
+
+        self.init_weights()
+        self.classifier.weight.data.fill_(5.0)
+
+        if enable_quantization:
+            for __model__ in [
+                self.query_encoder,
+                self.query_layer_norm,
+                self.final_query_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
+
+        if freeze_base_model:
+            for p in self.query_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.offer_encoder.parameters():
+                p.requires_grad = False
+
+        if freeze_offer_model:
+            for p in self.offer_encoder.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init(
+        "microsoft/model/classification/mmdnn/bletchley/v1/text/noice"
+    )
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section(
+            "microsoft/model/classification/mmdnn/bletchley/v1/text/noice"
+        )
+        query_config_type = config.getoption("query_config_type", "0.3B")
+        offer_config_type = config.getoption("offer_config_type", "0.3B")
+        num_query_layers = config.getoption("num_query_layers", 6)
+        projection_dim = config.getoption("projection_dim", 288)
+        num_seller = config.getoption("num_seller", 15020)
+        num_brand = config.getoption("num_brand", 1000001)
+        hidden_dim = config.getoption("hidden_dim", 32)
+        output_hidden_dim = config.getoption("output_hidden_dim", 64)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_offer_model = config.getoption("freeze_offer_model", False)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        enable_quantization = config.getoption("enable_quantization", False)
+        output_query_embed = config.getoption("output_query_embed", False)
+        output_offer_embed = config.getoption("output_offer_embed", False)
+        output_final_query_embed = config.getoption("output_final_query_embed", False)
+        output_final_offer_embed = config.getoption("output_final_offer_embed", False)
+
+        inst = cls(
+            query_config_type=query_config_type,
+            offer_config_type=offer_config_type,
+            num_query_layers=num_query_layers,
+            projection_dim=projection_dim,
+            num_seller=num_seller,
+            num_brand=num_brand,
+            hidden_dim=hidden_dim,
+            output_hidden_dim=output_hidden_dim,
+            freeze_base_model=freeze_base_model,
+            freeze_offer_model=freeze_offer_model,
+            gradient_checkpointing=gradient_checkpointing,
+            enable_quantization=enable_quantization,
+            output_query_embed=output_query_embed,
+            output_offer_embed=output_offer_embed,
+            output_final_query_embed=output_final_query_embed,
+            output_final_offer_embed=output_final_offer_embed,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        return inst
+
+    def from_pretrained(self, weight_path):
+        if not os.path.exists(weight_path):
+            return
+        state_dict = torch.load(weight_path, map_location="cpu")
+        _keys = [key for key in state_dict.keys() if key.startswith("text_encoder")]
+        for _key in _keys:
+            _value = state_dict.pop(_key)
+            state_dict["query_encoder" + _key[12:]] = _value
+            state_dict["offer_encoder" + _key[12:]] = _value
+
+        super().from_pretrained(state_dict=state_dict)
+
+    def get_query_embedding(self, input_ids, attention_mask):
+        query_outputs = self.query_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        query_embeds = query_outputs[:, 0]
+        query_embeds = self.query_projection(query_embeds)
+        query_embeds = self.query_layer_norm(quick_gelu(query_embeds))
+        return query_embeds
+
+    def get_offer_embedding(self, input_ids, attention_mask):
+        offer_outputs = self.offer_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        offer_embeds = offer_outputs[:, 0]
+        offer_embeds = self.offer_projection(offer_embeds)
+        offer_embeds = self.offer_layer_norm(quick_gelu(offer_embeds))
+        return offer_embeds
+
+    def get_final_query_embedding(
+        self,
+        input_ids,
+        attention_mask,
+        do_norm=True,
+    ):
+        query_embeds = self.get_query_embedding(input_ids, attention_mask)
+        query_embeds = self.final_query_projection(quick_gelu(query_embeds))
+        if do_norm:
+            query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
+        return query_embeds
+
+    def get_final_offer_embedding(
+        self,
+        input_ids,
+        attention_mask,
+        seller_ids,
+        brand_ids,
+        do_norm=True,
+    ):
+        offer_embeds = self.get_offer_embedding(input_ids, attention_mask)
+
+        seller_embeds = self.seller_embedding(seller_ids)
+        brand_embeds = self.brand_embedding(brand_ids)
+
+        seller_embeds = self.seller_layer_norm(seller_embeds)
+        brand_embeds = self.brand_layer_norm(brand_embeds)
+
+        offer_embeds = torch.cat(
+            [offer_embeds, seller_embeds, brand_embeds],
+            dim=-1,
+        )
+
+        offer_embeds = self.final_offer_projection(quick_gelu(offer_embeds))
+        if do_norm:
+            offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
+
+        return offer_embeds
+
+    def forward(
+        self,
+        query_input_ids: torch.Tensor = None,
+        query_attention_mask: torch.Tensor = None,
+        offer_input_ids: torch.Tensor = None,
+        offer_attention_mask: torch.Tensor = None,
+        seller_ids: torch.Tensor = None,
+        brand_ids: torch.Tensor = None,
+    ):
+        if not self.training and self.output_query_embed:
+            query_embeds = self.get_query_embedding(
+                input_ids=query_input_ids,
+                attention_mask=query_attention_mask,
+            )
+            return EmbeddingOutputs(embedding=query_embeds)
+
+        if not self.training and self.output_offer_embed:
+            offer_embeds = self.get_offer_embedding(
+                input_ids=offer_input_ids,
+                attention_mask=offer_attention_mask,
+            )
+
+            return EmbeddingOutputs(embedding=offer_embeds)
+
+        if not self.training and self.output_final_query_embed:
+            query_embeds = self.get_final_query_embedding(
+                input_ids=query_input_ids,
+                attention_mask=query_attention_mask,
+            )
+            return EmbeddingOutputs(embedding=query_embeds)
+
+        if not self.training and self.output_final_offer_embed:
+            offer_embeds = self.get_final_offer_embedding(
+                input_ids=offer_input_ids,
+                attention_mask=offer_attention_mask,
+                seller_ids=seller_ids,
+                brand_ids=brand_ids,
+            )
+            return EmbeddingOutputs(embedding=offer_embeds)
+
+        query_embeds = self.get_final_query_embedding(
+            input_ids=query_input_ids,
+            attention_mask=query_attention_mask,
+        )
+        offer_embeds = self.get_final_offer_embedding(
+            input_ids=offer_input_ids,
+            attention_mask=offer_attention_mask,
+            seller_ids=seller_ids,
+            brand_ids=brand_ids,
+        )
+
+        scores = torch.sum(query_embeds * offer_embeds, dim=-1, keepdim=True)
+
+        outputs = self.classifier(scores)
+        outputs = torch.sigmoid(outputs)
+
+        return ClassificationOutputs(outputs=outputs)
+
+
 @register_model("microsoft/model/distillation/mmdnn/bletchley/v1")
 class MMDNNBletchleyForDistillation(GenericModel):
     def __init__(
