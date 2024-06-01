@@ -6,3 +6,4 @@ import unitorch_microsoft.models.mmdnn.modeling_bletchley_v3
 import unitorch_microsoft.models.mmdnn.modeling_bletchley_v3_intl
 import unitorch_microsoft.models.mmdnn.modeling_bletchley_v3_reslayer
 import unitorch_microsoft.models.mmdnn.modeling_bletchley_v3_intl_reslayer
+import unitorch_microsoft.models.mmdnn.v6
