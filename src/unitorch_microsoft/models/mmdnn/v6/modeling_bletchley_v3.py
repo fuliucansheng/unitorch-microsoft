@@ -1049,7 +1049,7 @@ class MMDNNBletchleyReslayerTextForClassification(GenericModel):
             do_norm=False,
         )
 
-        mix_embeds = text_embeds * image_embeds
+        mix_embeds = query_embeds * offer_embeds
         mix_embeds = self.dropout(mix_embeds)
         mix_embeds = self.reslayer(mix_embeds)
         scores = self.linear(mix_embeds)
