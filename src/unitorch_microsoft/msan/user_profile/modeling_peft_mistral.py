@@ -43,7 +43,7 @@ class MistralLoraForClassification(GenericPeftModel):
     def __init__(
         self,
         config_path: str,
-        num_age_classes: Optional[int] = 5,
+        num_age_classes: Optional[int] = 6,
         num_gender_classes: Optional[int] = 2,
         loss_weight: Optional[float] = 0.5,
         hidden_dropout_prob: Optional[float] = 0.1,
@@ -143,6 +143,10 @@ class MistralLoraForClassification(GenericPeftModel):
         if quant_config_path is not None:
             quant_config_path = cached_path(quant_config_path)
 
+        num_age_classes = config.getoption("num_age_classes", 6)
+        num_gender_classes = config.getoption("num_gender_classes", 2)
+        loss_weight = config.getoption("loss_weight", 0.5)
+        hidden_dropout_prob = config.getoption("hidden_dropout_prob", 0.1)
         lora_r = config.getoption("lora_r", 16)
         lora_alpha = config.getoption("lora_alpha", 32)
         lora_dropout = config.getoption("lora_dropout", 0.05)
@@ -153,6 +157,10 @@ class MistralLoraForClassification(GenericPeftModel):
 
         inst = cls(
             config_path,
+            num_age_classes=num_age_classes,
+            num_gender_classes=num_gender_classes,
+            loss_weight=loss_weight,
+            hidden_dropout_prob=hidden_dropout_prob,
             quant_config_path=quant_config_path,
             lora_r=lora_r,
             lora_alpha=lora_alpha,
