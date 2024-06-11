@@ -220,14 +220,10 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.models.tribert
     import unitorch_microsoft.models.tulg
     import unitorch_microsoft.models.tulr
-    import unitorch_microsoft.modules
     import unitorch_microsoft.msan
     import unitorch_microsoft.pa
     import unitorch_microsoft.pa.intl
     import unitorch_microsoft.pa.l2
-    import unitorch_microsoft.scores
-    import unitorch_microsoft.scripts
-    import unitorch_microsoft.services
     import unitorch_microsoft.tools
     import unitorch_microsoft.utils
     import unitorch_microsoft.vpr
