@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import numpy as np
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.scores import (
     bleu_score,
     rouge1_score,
