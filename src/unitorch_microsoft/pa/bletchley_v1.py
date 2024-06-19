@@ -42,6 +42,7 @@ class BletchleyForPretrain(GenericModel):
     def __init__(
         self,
         config_type,
+        num_query_layers: Optional[int] = 6,
         projection_dim: int = 1024,
         freeze_text_model: Optional[bool] = False,
         logit_scale_init_value: Optional[float] = 2.6592,
@@ -56,6 +57,7 @@ class BletchleyForPretrain(GenericModel):
         self.projection_dim = projection_dim
         self.text_embed_dim = text_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
+        text_config.num_hidden_layers = num_query_layers
 
         self.text_encoder = BletchleyTextEncoder(
             text_config, add_projection_layer=False
@@ -86,6 +88,7 @@ class BletchleyForPretrain(GenericModel):
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/pa/pretrain/bletchley/v1")
         config_type = config.getoption("config_type", "0.3B")
+        num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 1024)
         freeze_text_model = config.getoption("freeze_text_model", False)
         logit_scale_init_value = config.getoption("logit_scale_init_value", 2.6592)
@@ -94,6 +97,7 @@ class BletchleyForPretrain(GenericModel):
 
         inst = cls(
             config_type=config_type,
+            num_query_layers=num_query_layers,
             projection_dim=projection_dim,
             freeze_text_model=freeze_text_model,
             logit_scale_init_value=logit_scale_init_value,
@@ -144,6 +148,7 @@ class BletchleyForPretrainV2(GenericModel):
         self,
         query_config_type,
         offer_config_type,
+        num_query_layers: Optional[int] = 6,
         projection_dim: int = 1024,
         freeze_offer_model: Optional[bool] = False,
         logit_scale_init_value: Optional[float] = 2.6592,
@@ -166,6 +171,7 @@ class BletchleyForPretrainV2(GenericModel):
         self.query_embed_dim = query_config.hidden_size
         self.offer_embed_dim = offer_config.hidden_size
         self.image_embed_dim = image_config.hidden_size
+        query_config.num_hidden_layers = num_query_layers
 
         self.query_encoder = BletchleyTextEncoder(
             query_config, add_projection_layer=False
@@ -206,6 +212,7 @@ class BletchleyForPretrainV2(GenericModel):
         config.set_default_section("microsoft/pa/pretrain/bletchley/v1/v2")
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.8B")
+        num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 1024)
         freeze_offer_model = config.getoption("freeze_offer_model", False)
         logit_scale_init_value = config.getoption("logit_scale_init_value", 2.6592)
@@ -215,6 +222,7 @@ class BletchleyForPretrainV2(GenericModel):
         inst = cls(
             query_config_type=query_config_type,
             offer_config_type=offer_config_type,
+            num_query_layers=num_query_layers,
             projection_dim=projection_dim,
             freeze_offer_model=freeze_offer_model,
             logit_scale_init_value=logit_scale_init_value,
@@ -298,6 +306,7 @@ class BletchleyTextForPretrainV2(GenericModel):
         self,
         query_config_type,
         offer_config_type,
+        num_query_layers: Optional[int] = 6,
         projection_dim: int = 1024,
         freeze_offer_model: Optional[bool] = False,
         logit_scale_init_value: Optional[float] = 2.6592,
@@ -311,6 +320,8 @@ class BletchleyTextForPretrainV2(GenericModel):
         offer_config = get_bletchley_text_config(
             offer_config_type, gradient_checkpointing
         )
+        query_config.num_hidden_layers = num_query_layers
+        
         self.query_encoder = BletchleyTextEncoder(
             query_config,
             add_projection_layer=False,
@@ -343,6 +354,7 @@ class BletchleyTextForPretrainV2(GenericModel):
         config.set_default_section("microsoft/pa/pretrain/bletchley/v1/v2/text")
         query_config_type = config.getoption("query_config_type", "0.3B")
         offer_config_type = config.getoption("offer_config_type", "0.8B")
+        num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 1024)
         freeze_offer_model = config.getoption("freeze_offer_model", False)
         logit_scale_init_value = config.getoption("logit_scale_init_value", 2.6592)
@@ -352,6 +364,7 @@ class BletchleyTextForPretrainV2(GenericModel):
         inst = cls(
             query_config_type=query_config_type,
             offer_config_type=offer_config_type,
+            num_query_layers=num_query_layers,
             projection_dim=projection_dim,
             freeze_offer_model=freeze_offer_model,
             logit_scale_init_value=logit_scale_init_value,
