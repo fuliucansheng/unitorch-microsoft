@@ -34,7 +34,8 @@ from unitorch.cli.models import (
 )
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.adsplus.relevance.tribert import pretrained_bert_infos
-    
+
+
 class AttentionLayer(nn.Module):
     def __init__(self, hidden_dim, projection_dim):
         super().__init__()
@@ -50,7 +51,7 @@ class AttentionLayer(nn.Module):
             hidden_states.transpose(1, 2), attention_probs.unsqueeze(dim=-1)
         ).squeeze(dim=-1)
         return self.projection(output)
-    
+
 
 @register_model("microsoft/adsplus/relevance/pretrain/tribert/v9/clip")
 class TribertClipForPretrain(GenericModel):
@@ -122,13 +123,14 @@ class TribertClipForPretrain(GenericModel):
             self.projection_dim,
         )
 
-        self.logit_scale = nn.Parameter(torch.ones([]) * self.config.logit_scale_init_value)
+        self.logit_scale = nn.Parameter(
+            torch.ones([]) * self.config.logit_scale_init_value
+        )
         self.init_weights()
 
         self.query_encoder.bert.gradient_checkpointing = gradient_checkpointing
         self.doc_encoder.bert.gradient_checkpointing = gradient_checkpointing
         self.ads_encoder.bert.gradient_checkpointing = gradient_checkpointing
-
 
     def from_pretrained(self, weight_path):
         if not os.path.exists(weight_path):
@@ -180,12 +182,12 @@ class TribertClipForPretrain(GenericModel):
             weight_path = cached_path(weight_path)
             inst.from_pretrained(weight_path)
         return inst
-    
+
     def all_gather(self, input):
         output = AllGather.apply(input)
         output = output.view(-1, *(output.shape[2:]))
         return output
-    
+
     @autocast()
     def forward(
         self,
@@ -215,13 +217,25 @@ class TribertClipForPretrain(GenericModel):
         ads_outputs = self.ads_encoder(
             ads_input_ids, ads_attention_mask, ads_token_type_ids, ads_position_ids
         )
-        query_doc_embeds = self.query_doc_projection(query_outputs.last_hidden_state, query_attention_mask)
-        query_ads_embeds = self.query_ads_projection(query_outputs.last_hidden_state, query_attention_mask)
-        doc_query_embeds = self.doc_query_projection(doc_outputs.last_hidden_state, doc_attention_mask)
-        doc_ads_embeds = self.doc_ads_projection(doc_outputs.last_hidden_state, doc_attention_mask)
-        ads_query_embeds = self.ads_query_projection(ads_outputs.last_hidden_state, ads_attention_mask)
-        ads_doc_embeds = self.ads_doc_projection(ads_outputs.last_hidden_state, ads_attention_mask)
-        
+        query_doc_embeds = self.query_doc_projection(
+            query_outputs.last_hidden_state, query_attention_mask
+        )
+        query_ads_embeds = self.query_ads_projection(
+            query_outputs.last_hidden_state, query_attention_mask
+        )
+        doc_query_embeds = self.doc_query_projection(
+            doc_outputs.last_hidden_state, doc_attention_mask
+        )
+        doc_ads_embeds = self.doc_ads_projection(
+            doc_outputs.last_hidden_state, doc_attention_mask
+        )
+        ads_query_embeds = self.ads_query_projection(
+            ads_outputs.last_hidden_state, ads_attention_mask
+        )
+        ads_doc_embeds = self.ads_doc_projection(
+            ads_outputs.last_hidden_state, ads_attention_mask
+        )
+
         # normalized features
         query_doc_embeds = query_doc_embeds / query_doc_embeds.norm(
             dim=-1, keepdim=True

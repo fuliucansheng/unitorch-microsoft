@@ -26,7 +26,12 @@ from unitorch.models.quantization import quantize_model
 from unitorch.models.peft import PeftModelForSequenceClassification, GenericPeftModel
 
 from unitorch.cli.models import generation_model_decorator
-from unitorch.cli.models import ClassificationOutputs, GenerationOutputs, LossOutputs, EmbeddingOutputs
+from unitorch.cli.models import (
+    ClassificationOutputs,
+    GenerationOutputs,
+    LossOutputs,
+    EmbeddingOutputs,
+)
 from unitorch_microsoft.models.mistral import pretrained_mistral_infos
 
 
@@ -74,7 +79,9 @@ class MistralLoraForClassification(GenericPeftModel):
             model = quantize_model(model, quant_config, ignore_modules=ignore_modules)
         self.peft_model = PeftModelForSequenceClassification(model, self.peft_config)
         self.dropout = nn.Dropout(hidden_dropout_prob)
-        self.age_classifier = nn.Linear(self.peft_model.config.hidden_size, num_age_classes)
+        self.age_classifier = nn.Linear(
+            self.peft_model.config.hidden_size, num_age_classes
+        )
         self.gender_classifier = nn.Linear(
             self.peft_model.config.hidden_size,
             num_gender_classes,
@@ -116,10 +123,14 @@ class MistralLoraForClassification(GenericPeftModel):
             loss = age_loss * self.loss_weight + gender_loss * (1 - self.loss_weight)
             return LossOutputs(loss=loss)
 
-        return EmbeddingOutputs(embedding=age_logits.softmax(-1), embedding1=gender_logits.softmax(-1))
+        return EmbeddingOutputs(
+            embedding=age_logits.softmax(-1), embedding1=gender_logits.softmax(-1)
+        )
 
     @classmethod
-    @add_default_section_for_init("microsoft/msan/user_profile/classification/peft/lora/mistral")
+    @add_default_section_for_init(
+        "microsoft/msan/user_profile/classification/peft/lora/mistral"
+    )
     def from_core_configure(cls, config, **kwargs):
         """
         Create an instance of MistralLoraForGeneration from a core configuration.
@@ -131,7 +142,9 @@ class MistralLoraForClassification(GenericPeftModel):
         Returns:
             MistralLoraForGeneration: The initialized MistralLoraForGeneration instance.
         """
-        config.set_default_section("microsoft/msan/user_profile/classification/peft/lora/mistral")
+        config.set_default_section(
+            "microsoft/msan/user_profile/classification/peft/lora/mistral"
+        )
         pretrained_name = config.getoption("pretrained_name", "default-mistral")
         config_path = config.getoption("config_path", None)
         config_path = pop_value(

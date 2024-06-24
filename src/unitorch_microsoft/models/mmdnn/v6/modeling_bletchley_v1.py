@@ -152,9 +152,13 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/mmdnn/v6/bletchley/v1")
+    @add_default_section_for_init(
+        "microsoft/model/classification/mmdnn/v6/bletchley/v1"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/classification/mmdnn/v6/bletchley/v1")
+        config.set_default_section(
+            "microsoft/model/classification/mmdnn/v6/bletchley/v1"
+        )
         config_type = config.getoption("config_type", "0.3B")
         num_query_layers = config.getoption("num_query_layers", 6)
         projection_dim = config.getoption("projection_dim", 288)
@@ -525,6 +529,7 @@ class MMDNNBletchleyForClassificationNoIds(GenericModel):
 
         return ClassificationOutputs(outputs=outputs)
 
+
 @register_model("microsoft/model/classification/mmdnn/v6/bletchley/v1/text")
 class MMDNNBletchleyTextForClassification(GenericModel):
     def __init__(
@@ -797,6 +802,7 @@ class MMDNNBletchleyTextForClassification(GenericModel):
 
         return ClassificationOutputs(outputs=outputs)
 
+
 @register_model("microsoft/model/classification/mmdnn/v6/bletchley/v1/text/noids")
 class MMDNNBletchleyTextForClassificationNoIds(GenericModel):
     def __init__(
@@ -982,6 +988,7 @@ class MMDNNBletchleyTextForClassificationNoIds(GenericModel):
             offer_embeds = offer_embeds / offer_embeds.norm(dim=-1, keepdim=True)
 
         return offer_embeds
+
     @autocast()
     def forward(
         self,
@@ -1034,6 +1041,7 @@ class MMDNNBletchleyTextForClassificationNoIds(GenericModel):
         outputs = torch.sigmoid(outputs)
 
         return ClassificationOutputs(outputs=outputs)
+
 
 @register_model("microsoft/model/classification/mmdnn/v6/bletchley/v1/v2")
 class MMDNNBletchleyForClassificationV2(GenericModel):

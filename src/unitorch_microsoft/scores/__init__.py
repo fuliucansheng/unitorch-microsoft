@@ -27,6 +27,7 @@ from unitorch.cli.models import (
 )
 from unitorch.cli.scores import Score
 
+
 @register_score("microsoft/score/bleu")
 class BleuScore(Score):
     def __init__(
