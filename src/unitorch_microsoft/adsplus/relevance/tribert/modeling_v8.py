@@ -247,8 +247,6 @@ class TriPostLayer(nn.Module):
         self.sim4score = sim4score
         self.pooltype = pooltype
         self.hidden_size = hidden_size
-        self.fc0 = nn.Linear(self.hidden_size, hidden_downscale_size)
-        self.fc1 = nn.Linear(hidden_downscale_size, self.hidden_size)
 
         if self.sim4score in ["reslayer"]:
             self.res_bn1 = (
@@ -309,22 +307,10 @@ class TriPostLayer(nn.Module):
 
     def forward(
         self,
-        q_in: torch.Tensor = None,
-        d_in: torch.Tensor = None,
-        ads_in: torch.Tensor = None,
+        q_out: torch.Tensor = None,
+        d_out: torch.Tensor = None,
+        ads_out: torch.Tensor = None,
     ):
-        q_out = torch.tanh(self.fc0(q_in))
-        d_out = torch.tanh(self.fc0(d_in))
-        ads_out = torch.tanh(self.fc0(ads_in))
-
-        q_out = self.fc1(q_out)
-        d_out = self.fc1(d_out)
-        ads_out = self.fc1(ads_out)
-
-        if not self.training:
-            q_out = self._quantization(q_out)
-            d_out = self._quantization(d_out)
-            ads_out = self._quantization(ads_out)
 
         if self.sim4score in ["reslayer"]:
             q_out = self.res_fc0(torch.relu(q_out))
@@ -372,9 +358,8 @@ class MultiTriPostLayer(nn.Module):
         self.reslayer_downscale_size = reslayer_downscale_size
         self.reslayer_hidden_size = reslayer_hidden_size
 
-        if self.pooltype in ["weight"]:
-            self.attn = nn.Linear(self.hidden_size, 1, bias=False)
 
+        self.fc1 = nn.Linear(hidden_downscale_size, self.hidden_size)
         self.num_tasks = num_tasks
         self.mtfc = nn.ModuleDict(
             {
@@ -392,44 +377,17 @@ class MultiTriPostLayer(nn.Module):
             }
         )
 
-    def _attn(self, d_in, d_mask):
-        att = self.attn(d_in).squeeze(dim=-1)
-        d_mask = d_mask.to(att)
-        att = att + (1 - d_mask) * -10000
-        att = F.softmax(att, dim=-1)
-        return torch.bmm(d_in.transpose(1, 2), att.unsqueeze(dim=-1)).squeeze(dim=-1)
-
     def forward(
         self,
         task: torch.Tensor = None,
-        qseq_in: torch.Tensor = None,
-        qpool_in: torch.Tensor = None,
-        q_mask: torch.Tensor = None,
-        dseq_in: torch.Tensor = None,
-        dpool_in: torch.Tensor = None,
-        d_mask: torch.Tensor = None,
-        adsseq_in: torch.Tensor = None,
-        adspool_in: torch.Tensor = None,
-        ads_mask: torch.Tensor = None,
+        q_out: torch.Tensor = None,
+        d_out: torch.Tensor = None,
+        ads_out: torch.Tensor = None,
     ):
-        if dseq_in is None:
-            q_out = (
-                self._attn(qseq_in, q_mask) if self.pooltype in ["weight"] else qpool_in
-            )
-            q_out = (
-                torch.tanh(self.fc0(q_out)) if self.sim4score in ["reslayer"] else q_out
-            )
-            return q_out
 
-        if self.pooltype in ["weight"]:
-            q_out = self._attn(qseq_in, q_mask)
-            d_out = self._attn(dseq_in, d_mask)
-            ads_out = self._attn(adsseq_in, ads_mask)
-        else:
-            q_out = qpool_in
-            d_out = dpool_in
-            ads_out = adspool_in
-
+        q_out = self.fc1(q_out)
+        d_out = self.fc1(d_out)
+        ads_out = self.fc1(ads_out)
         out = torch.empty(q_out.shape[0], self.num_classes)
         out = torch.zeros_like(out).to(q_out).float()
         for i in range(self.num_tasks):

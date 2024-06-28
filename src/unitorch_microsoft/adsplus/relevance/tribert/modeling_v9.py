@@ -23,10 +23,9 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_model,
 )
-from unitorch.cli.models import ClassificationOutputs
+from unitorch.cli.models import ClassificationOutputs,EmbeddingOutputs
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.adsplus.relevance.tribert import pretrained_bert_infos
-
 
 class TriTwinBertEncoder(nn.Module):
     def __init__(self, config, add_pooling_layer):
@@ -77,10 +76,13 @@ class TribertForClassification(GenericModel):
         reslayer_use_bn: bool = True,
         reslayer_downscale_size: int = 128,
         reslayer_hidden_size: int = 64,
+        output: str = "query",  # query, doc, ads
     ):
         super().__init__()
         self.config = BertConfig.from_json_file(config_path)
         self.config.gradient_checkpointing = False
+        self.pooltype = pooltype
+        self.hidden_size = self.config.hidden_size
         self.query_encoder = TriTwinBertEncoder(
             self.config,
             add_pooling_layer=pooltype == "bert",
@@ -95,6 +97,12 @@ class TribertForClassification(GenericModel):
             self.config,
             add_pooling_layer=pooltype == "bert",
         )
+
+        if self.pooltype in ["weight"]:
+            self.attn = nn.Linear(self.hidden_size, 1, bias=False)
+
+        self.fc0 = nn.Linear(self.hidden_size, hidden_downscale_size)
+        self.output = output
 
         self.postlayer = MultiTriPostLayer(
             num_tasks=num_tasks,
@@ -146,6 +154,7 @@ class TribertForClassification(GenericModel):
         reslayer_use_bn = config.getoption("reslayer_use_bn", True)
         reslayer_downscale_size = config.getoption("reslayer_downscale_size", 128)
         reslayer_hidden_size = config.getoption("reslayer_hidden_size", 64)
+        output = config.getoption("output", None)
         inst = cls(
             config_path=config_path,
             num_tasks=num_tasks,
@@ -156,6 +165,7 @@ class TribertForClassification(GenericModel):
             reslayer_use_bn=reslayer_use_bn,
             reslayer_downscale_size=reslayer_downscale_size,
             reslayer_hidden_size=reslayer_hidden_size,
+            output=output,
         )
 
         weight_path = config.getoption("pretrained_weight_path", None)
@@ -168,6 +178,13 @@ class TribertForClassification(GenericModel):
             weight_path = cached_path(weight_path)
             inst.from_pretrained(weight_path)
         return inst
+
+    def _attn(self, d_in, d_mask):
+        att = self.attn(d_in).squeeze(dim=-1)
+        d_mask = d_mask.to(att)
+        att = att + (1 - d_mask) * -10000
+        att = F.softmax(att, dim=-1)
+        return torch.bmm(d_in.transpose(1, 2), att.unsqueeze(dim=-1)).squeeze(dim=-1)
 
     @autocast()
     def forward(
@@ -198,17 +215,39 @@ class TribertForClassification(GenericModel):
         ads_outputs = self.ads_encoder(
             ads_input_ids, ads_attention_mask, ads_token_type_ids, ads_position_ids
         )
+
+        if self.pooltype in ["weight"]:
+            q_in = self._attn(query_outputs.last_hidden_state, query_attention_mask)
+            d_in = self._attn(doc_outputs.last_hidden_state, doc_attention_mask)
+            ads_in = self._attn(ads_outputs.last_hidden_state, ads_attention_mask)
+        else:
+            q_in = query_outputs.pooler_output
+            d_in = doc_outputs.pooler_output
+            ads_in = ads_outputs.pooler_output
+
+        if self.output == "query":
+            q_out = torch.tanh(self.fc0(q_in))
+            return EmbeddingOutputs(embedding=q_out)
+        elif self.output == "doc":
+            d_out = torch.tanh(self.fc0(d_in))
+            return EmbeddingOutputs(embedding=d_out)
+        elif self.output == "ads":
+            ads_out = torch.tanh(self.fc0(ads_in))
+            return EmbeddingOutputs(embedding=ads_out)
+        elif self.output == "all":
+            q_out = torch.tanh(self.fc0(q_in))
+            d_out = torch.tanh(self.fc0(d_in))
+            ads_out = torch.tanh(self.fc0(ads_in))
+            return EmbeddingOutputs(embedding=q_out, embedding1=d_out, embedding2=ads_out)
+        
+        q_out = torch.tanh(self.fc0(q_in))
+        d_out = torch.tanh(self.fc0(d_in))
+        ads_out = torch.tanh(self.fc0(ads_in))
         outputs = self.postlayer(
             task=task,
-            qseq_in=query_outputs.last_hidden_state,
-            qpool_in=query_outputs.pooler_output,
-            q_mask=query_attention_mask,
-            dseq_in=doc_outputs.last_hidden_state,
-            dpool_in=doc_outputs.pooler_output,
-            d_mask=doc_attention_mask,
-            adsseq_in=ads_outputs.last_hidden_state,
-            adspool_in=ads_outputs.pooler_output,
-            ads_mask=ads_attention_mask,
+            q_out=q_out,
+            d_out=d_out,
+            ads_out=ads_out,
         )
         return ClassificationOutputs(outputs=outputs)
 
