@@ -29,9 +29,11 @@ except ImportError:
         "Please install them using `pip install lxml selenium`."
     )
 
-
 async def crawl(urls, api_token=None):
-    semaphore = asyncio.Semaphore(20)
+    semaphore = asyncio.Semaphore(100)
+
+    tasks = []
+    results = []
 
     async def fetch(url, session):
         api_url = "https://api.crawlbase.com"
@@ -45,11 +47,24 @@ async def crawl(urls, api_token=None):
                     return "<html></html>"
                 text = await response.text()
                 return text
+            
+    async def send(urls, session):
+        task = []
+        for url in urls:
+            _task = asyncio.create_task(fetch(url, session))
+            _task.add_done_callback(lambda x: results.append(x.result()))
+            task.append(_task)
+        await asyncio.gather(*task)
 
     async with aiohttp.ClientSession() as sess:
-        tasks = [fetch(url, sess) for url in urls]
-        htmls = await asyncio.gather(*tasks)
-        return pd.DataFrame({"url": urls, "html": htmls})
+        for i in range(0, len(urls), 20):
+            chunk = urls[i:i+20]
+            _task = asyncio.create_task(send(chunk, sess))
+            tasks.append(_task)
+            await asyncio.sleep(1)
+        await asyncio.gather(*tasks)
+    
+    return pd.DataFrame({"url": urls, "html": results})
 
 
 @register_script("microsoft/script/china/alibaba/crawler/crawlbase/1688/crawling")
