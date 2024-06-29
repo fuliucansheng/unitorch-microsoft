@@ -127,6 +127,7 @@ class Alibaba1688Render(GenericScript):
             "microsoft/script/china/alibaba/crawler/crawlbase/1688/rendering"
         )
         data_file = config.getoption("data_file", None)
+        use_google_chrome = config.getoption("use_google_chrome", False)
         output_file = config.getoption("output_file", "./output.jsonl")
         result_file = config.getoption("output_file", "./output.tsv")
 
@@ -157,7 +158,13 @@ class Alibaba1688Render(GenericScript):
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("--no-sandbox")  # linux only
             chrome_options.add_argument("--headless=new")
+            chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument("start-maximized")
+            if use_google_chrome:
+                # wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+                # dpkg -i ./google-chrome-stable_current_amd64.deb
+                # apt --fix-broken install
+                chrome_options.binary_location="/usr/bin/google-chrome"
             driver = webdriver.Chrome(options=chrome_options)
             driver.set_page_load_timeout(90)
 
@@ -167,6 +174,7 @@ class Alibaba1688Render(GenericScript):
                 url, html = row["url"], row["html"]
                 with open(html_page, "w") as f:
                     f.write(html)
+                    f.flush()
                 for _ in range(3):
                     try:
                         driver.get(html_url)
