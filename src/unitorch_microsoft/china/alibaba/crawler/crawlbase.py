@@ -279,8 +279,14 @@ class Alibaba1688Render(GenericScript):
                 "keywords", [""]
             )[0]
         )
-        results["title"] = results.html.map(
-            lambda x: (etree.HTML(x).xpath("//title/text()") + [""])[0]
-        )
+        def extract(x):
+            tree = etree.HTML(x)
+            if tree is None:
+                return ""
+            titles = tree.xpath("//title/text()")
+            if len(titles) == 0:
+                return ""
+            return titles[0]
+        results["title"] = results.html.map(extract)
         results = results[["url", "keywords", "title", "products"]]
         results.to_csv(result_file, sep="\t", index=False, header=False)
