@@ -13,8 +13,10 @@ from unitorch.cli import register_service, GenericService
 
 class HttpFileServer(http.server.SimpleHTTPRequestHandler):
     web_dir = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=self.web_dir, **kwargs)
+
 
 @register_service("microsoft/service/http_file_server")
 class HttpFileServerService(GenericService):
@@ -26,7 +28,7 @@ class HttpFileServerService(GenericService):
         self.name = config.getoption("processname", "core_http_server_service")
         self.web_dir = config.getoption("web_dir", None)
         assert self.web_dir is not None, "web_dir must be provided"
-        
+
     def start(self, **kwargs):
         HttpFileServer.web_dir = self.web_dir
         self.httpd = http.server.HTTPServer((self.ip, self.port), HttpFileServer)

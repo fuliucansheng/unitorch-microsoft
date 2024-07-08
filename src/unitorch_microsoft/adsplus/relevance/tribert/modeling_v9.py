@@ -23,9 +23,10 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_model,
 )
-from unitorch.cli.models import ClassificationOutputs,EmbeddingOutputs
+from unitorch.cli.models import ClassificationOutputs, EmbeddingOutputs
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.adsplus.relevance.tribert import pretrained_bert_infos
+
 
 class TriTwinBertEncoder(nn.Module):
     def __init__(self, config, add_pooling_layer):
@@ -49,7 +50,7 @@ class TriTwinBertEncoder(nn.Module):
             position_ids=position_ids,
         )
         return outputs
-    
+
     def from_pretrained(self, weight_path, prefix):
         if not os.path.exists(weight_path):
             return
@@ -58,7 +59,7 @@ class TriTwinBertEncoder(nn.Module):
         for _key in _keys:
             _value = state_dict.pop(_key)
             state_dict[prefix + _key] = _value
-        
+
 
 @register_model("microsoft/adsplus/relevance/classification/tribert/v9")
 class TribertForClassification(GenericModel):
@@ -119,6 +120,7 @@ class TribertForClassification(GenericModel):
         self.init_weights()
 
     def from_pretrained(self, weight_path):
+        weight_path = cached_path(weight_path)
         if not os.path.exists(weight_path):
             return
         state_dict = torch.load(weight_path, map_location="cpu")
@@ -238,8 +240,10 @@ class TribertForClassification(GenericModel):
             q_out = torch.tanh(self.fc0(q_in))
             d_out = torch.tanh(self.fc0(d_in))
             ads_out = torch.tanh(self.fc0(ads_in))
-            return EmbeddingOutputs(embedding=q_out, embedding1=d_out, embedding2=ads_out)
-        
+            return EmbeddingOutputs(
+                embedding=q_out, embedding1=d_out, embedding2=ads_out
+            )
+
         q_out = torch.tanh(self.fc0(q_in))
         d_out = torch.tanh(self.fc0(d_in))
         ads_out = torch.tanh(self.fc0(ads_in))
@@ -251,7 +255,10 @@ class TribertForClassification(GenericModel):
         )
         return ClassificationOutputs(outputs=outputs)
 
-@register_model("microsoft/adsplus/relevance/classification/tribert/v9/diffOnlineOffline")
+
+@register_model(
+    "microsoft/adsplus/relevance/classification/tribert/v9/diffOnlineOffline"
+)
 class TribertForClassification_V2(GenericModel):
     replace_keys_in_state_dict = {"gamma": "weight", "beta": "bias"}
     prefix_keys_in_state_dict = {}
@@ -377,7 +384,6 @@ class TribertForClassification_V2(GenericModel):
             check_none=False,
         )
         if weight_path is not None:
-            weight_path = cached_path(weight_path)
             inst.from_pretrained(weight_path)
         if offline_pretrained_weight is not None:
             offline_pretrained_weight = cached_path(offline_pretrained_weight)
@@ -428,7 +434,6 @@ class TribertForClassification_V2(GenericModel):
             ads_mask=ads_attention_mask,
         )
         return ClassificationOutputs(outputs=outputs)
-
 
 
 class TriPostLayerV2(nn.Module):
@@ -590,7 +595,7 @@ class MultiTriPostLayerV2(nn.Module):
                     sim4score=self.sim4score,
                     pooltype=self.pooltype,
                     hidden_size=self.hidden_size,
-                    offline_hidden_size = self.offline_hidden_size,
+                    offline_hidden_size=self.offline_hidden_size,
                     hidden_downscale_size=self.hidden_downscale_size,
                     reslayer_use_bn=self.reslayer_use_bn,
                     reslayer_downscale_size=self.reslayer_downscale_size,
@@ -652,4 +657,3 @@ class MultiTriPostLayerV2(nn.Module):
                 task == i
             ).float().unsqueeze(-1)
         return out
-

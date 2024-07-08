@@ -124,7 +124,7 @@ class DV3Script(GenericScript):
                 output_file,
                 sep="\t",
                 index=False,
-                header=output_header,
+                header=output_header and i == 0,
                 mode="a",
                 quoting=3,
                 escapechar=output_escapechar,

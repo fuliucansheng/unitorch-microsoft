@@ -321,7 +321,7 @@ class BletchleyTextForPretrainV2(GenericModel):
             offer_config_type, gradient_checkpointing
         )
         query_config.num_hidden_layers = num_query_layers
-        
+
         self.query_encoder = BletchleyTextEncoder(
             query_config,
             add_projection_layer=False,

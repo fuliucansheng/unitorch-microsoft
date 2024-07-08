@@ -29,6 +29,7 @@ except ImportError:
         "Please install them using `pip install lxml selenium`."
     )
 
+
 async def crawl(urls, api_token=None):
     semaphore = asyncio.Semaphore(100)
 
@@ -47,7 +48,7 @@ async def crawl(urls, api_token=None):
                     return "<html></html>"
                 text = await response.text()
                 return text
-            
+
     async def send(urls, session):
         task = []
         for url in urls:
@@ -58,12 +59,12 @@ async def crawl(urls, api_token=None):
 
     async with aiohttp.ClientSession() as sess:
         for i in range(0, len(urls), 20):
-            chunk = urls[i:i+20]
+            chunk = urls[i : i + 20]
             _task = asyncio.create_task(send(chunk, sess))
             tasks.append(_task)
             await asyncio.sleep(1)
         await asyncio.gather(*tasks)
-    
+
     return pd.DataFrame({"url": urls, "html": results})
 
 
@@ -106,6 +107,7 @@ class Alibaba1688Crawler(GenericScript):
 
         logging.info(f"start crawling {len(urls)} urls")
         results = asyncio.run(crawl(urls, api_token))
+
         def extract(x):
             tree = etree.HTML(x)
             if tree is None:
@@ -114,6 +116,7 @@ class Alibaba1688Crawler(GenericScript):
             if len(titles) == 0:
                 return ""
             return titles[0]
+
         results["title"] = results.html.map(extract)
 
         logging.info(
@@ -279,6 +282,7 @@ class Alibaba1688Render(GenericScript):
                 "keywords", [""]
             )[0]
         )
+
         def extract(x):
             tree = etree.HTML(x)
             if tree is None:
@@ -287,6 +291,7 @@ class Alibaba1688Render(GenericScript):
             if len(titles) == 0:
                 return ""
             return titles[0]
+
         results["title"] = results.html.map(extract)
         results = results[["url", "keywords", "title", "products"]]
         results.to_csv(result_file, sep="\t", index=False, header=False)

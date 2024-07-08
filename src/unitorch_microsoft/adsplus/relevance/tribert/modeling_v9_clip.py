@@ -133,6 +133,7 @@ class TribertClipForPretrain(GenericModel):
         self.ads_encoder.bert.gradient_checkpointing = gradient_checkpointing
 
     def from_pretrained(self, weight_path):
+        weight_path = cached_path(weight_path)
         if not os.path.exists(weight_path):
             return
         state_dict = torch.load(weight_path, map_location="cpu")
@@ -179,7 +180,6 @@ class TribertClipForPretrain(GenericModel):
             check_none=False,
         )
         if weight_path is not None:
-            weight_path = cached_path(weight_path)
             inst.from_pretrained(weight_path)
         return inst
 

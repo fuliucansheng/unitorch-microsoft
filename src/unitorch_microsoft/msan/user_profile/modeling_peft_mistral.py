@@ -32,7 +32,7 @@ from unitorch.cli.models import (
     LossOutputs,
     EmbeddingOutputs,
 )
-from unitorch_microsoft.models.mistral import pretrained_mistral_infos
+from unitorch.cli.models.mistral import pretrained_mistral_infos
 
 
 @register_model("microsoft/msan/user_profile/classification/peft/lora/mistral")

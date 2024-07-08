@@ -311,7 +311,6 @@ class TriPostLayer(nn.Module):
         d_out: torch.Tensor = None,
         ads_out: torch.Tensor = None,
     ):
-
         if self.sim4score in ["reslayer"]:
             q_out = self.res_fc0(torch.relu(q_out))
             d_out = self.res_fc0(torch.relu(d_out))
@@ -358,7 +357,6 @@ class MultiTriPostLayer(nn.Module):
         self.reslayer_downscale_size = reslayer_downscale_size
         self.reslayer_hidden_size = reslayer_hidden_size
 
-
         self.fc1 = nn.Linear(hidden_downscale_size, self.hidden_size)
         self.num_tasks = num_tasks
         self.mtfc = nn.ModuleDict(
@@ -384,7 +382,6 @@ class MultiTriPostLayer(nn.Module):
         d_out: torch.Tensor = None,
         ads_out: torch.Tensor = None,
     ):
-
         q_out = self.fc1(q_out)
         d_out = self.fc1(d_out)
         ads_out = self.fc1(ads_out)

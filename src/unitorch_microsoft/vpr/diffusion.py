@@ -28,7 +28,7 @@ from unitorch.cli import (
 )
 from unitorch.cli.models import diffusion_model_decorator
 from unitorch.cli.models import EmbeddingOutputs, LossOutputs
-from unitorch.cli.models.diffusers import pretrained_diffusers_infos, load_weight
+from unitorch.cli.models.diffusers import pretrained_stable_infos, load_weight
 from unitorch.cli.models.bert import pretrained_bert_infos
 from unitorch_microsoft import cached_path
 
@@ -97,7 +97,7 @@ class StableForArgusGeneration(GenericModel):
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/diffusion/stable/argus")
         pretrained_name = config.getoption("pretrained_name", "stable-v1.5")
-        pretrain_infos = nested_dict_value(pretrained_diffusers_infos, pretrained_name)
+        pretrain_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
         config_path = pop_value(

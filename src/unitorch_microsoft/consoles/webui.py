@@ -7,10 +7,11 @@ import fire
 import logging
 import importlib
 import gradio as gr
-import pkg_resources
+import importlib_resources
 import unitorch.cli
 from torch.multiprocessing import spawn
 from transformers.utils import is_remote_url
+from unitorch.utils import read_file
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import (
     import_library,
@@ -24,23 +25,8 @@ from unitorch_microsoft import cached_path
 
 
 @fire.decorators.SetParseFn(str)
-def webui(config_path_or_dir: str, **kwargs):
-    config_file = kwargs.pop("config_file", "config.ini")
-
-    if os.path.isdir(config_path_or_dir):
-        config_path = os.path.join(config_path_or_dir, config_file)
-        sys.path.insert(0, config_path_or_dir)
-        for f in os.listdir(config_path_or_dir):
-            fpath = os.path.normpath(os.path.join(config_path_or_dir, f))
-            if (
-                not f.startswith("_")
-                and not f.startswith(".")
-                and (f.endswith(".py") or os.path.isdir(fpath))
-            ):
-                fname = f[:-3] if f.endswith(".py") else f
-                module = importlib.import_module(f"{fname}")
-    else:
-        config_path = cached_path(config_path_or_dir)
+def webui(config_path: str, **kwargs):
+    config_path = cached_path(config_path)
 
     params = []
     for k, v in kwargs.items():
@@ -87,21 +73,33 @@ def webui(config_path_or_dir: str, **kwargs):
     else:
         demo_webui = gr.TabbedInterface(
             interface_list=[webui.iface for webui in webuis],
-            tab_names=[webui.name for webui in webuis],
-            theme="sudeepshouche/minimalist",
+            tab_names=[webui.iname for webui in webuis],
             title="Unitorch WebUI",
-            css="footer {visibility: hidden}",
         )
+
+    demo_webui.title = "Unitorch WebUI"
+    demo_webui.theme_css = read_file(
+        os.path.join(importlib_resources.files("unitorch"), "cli/assets/style.css")
+    )
+    demo_webui.css = demo_webui.theme_css
 
     config.set_default_section("core/cli")
     host = config.getoption("host", "0.0.0.0")
     port = config.getoption("port", 7860)
     share = config.getoption("share", False)
+    ssl_keyfile = config.getoption("ssl_keyfile", None)
+    ssl_certfile = config.getoption("ssl_certfile", None)
+    ssl_verify = config.getoption("ssl_verify", True)
     demo_webui.launch(
         server_name=host,
         server_port=port,
         share=share,
-        favicon_path=pkg_resources.resource_filename("unitorch", "cli/assets/icon.png"),
+        favicon_path=os.path.join(
+            importlib_resources.files("unitorch"), "cli/assets/icon.png"
+        ),
+        ssl_keyfile=ssl_keyfile,
+        ssl_certfile=ssl_certfile,
+        ssl_verify=ssl_verify,
     )
 
     os._exit(0)

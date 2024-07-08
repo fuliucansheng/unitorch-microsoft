@@ -5,9 +5,8 @@ import os
 import logging
 import torch
 
-from unitorch.cli import GenericScript
+from unitorch.cli import GenericScript, CoreConfigureParser
 from unitorch.cli import register_script
-from unitorch_microsoft import CoreConfigureParser
 
 
 @register_script("microsoft/script/tools/model_soups")

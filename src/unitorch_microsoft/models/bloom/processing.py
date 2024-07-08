@@ -178,7 +178,7 @@ class BloomProcessor(_BloomProcessor):
             decoded = list(map(cleanup_string, decoded))
         else:
             raise ValueError(
-                f"Unsupported type for minigpt4 detokenize: {type(decoded[0])}"
+                f"Unsupported type for bloom detokenize: {type(decoded[0])}"
             )
         results["decoded"] = decoded
         return WriterOutputs(results)

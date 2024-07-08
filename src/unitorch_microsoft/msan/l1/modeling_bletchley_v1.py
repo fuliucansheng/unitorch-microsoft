@@ -87,12 +87,12 @@ class BletchleyForPretrain(GenericModel):
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
-            pretrained_weight_path = cached_path(pretrained_weight_path)
             inst.from_pretrained(pretrained_weight_path)
 
         return inst
 
     def from_pretrained(self, weight_path):
+        weight_path = cached_path(weight_path)
         if not os.path.exists(weight_path):
             return
         state_dict = torch.load(weight_path, map_location="cpu")
@@ -317,7 +317,6 @@ class BletchleyForClassification(GenericModel):
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
-            pretrained_weight_path = cached_path(pretrained_weight_path)
             inst.from_pretrained(pretrained_weight_path)
 
         return inst

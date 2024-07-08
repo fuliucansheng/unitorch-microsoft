@@ -198,7 +198,6 @@ class MetricsScript(GenericScript):
 
         y_true_col = y_true_col.strip()
         y_pred_col = y_pred_col.strip()
-        assert y_true_col in names and y_pred_col in names
 
         data = pd.read_csv(
             data_file,
@@ -208,6 +207,8 @@ class MetricsScript(GenericScript):
             header="infer" if names is None else None,
             escapechar=escapechar,
         )
+        names = data.columns.tolist()
+        assert y_true_col in names and y_pred_col in names
 
         y_true = data[y_true_col]
         y_pred = data[y_pred_col]
