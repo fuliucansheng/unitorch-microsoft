@@ -106,9 +106,15 @@ class Alibaba1688Crawler(GenericScript):
 
         logging.info(f"start crawling {len(urls)} urls")
         results = asyncio.run(crawl(urls, api_token))
-        results["title"] = results.html.map(
-            lambda x: (etree.HTML(x).xpath("//title/text()") + [""])[0]
-        )
+        def extract(x):
+            tree = etree.HTML(x)
+            if tree is None:
+                return ""
+            titles = tree.xpath("//title/text()")
+            if len(titles) == 0:
+                return ""
+            return titles[0]
+        results["title"] = results.html.map(extract)
 
         logging.info(
             f"finish crawling {len(urls)} urls, {len(results[results.title != ''])} success. "
@@ -127,9 +133,8 @@ class Alibaba1688Render(GenericScript):
             "microsoft/script/china/alibaba/crawler/crawlbase/1688/rendering"
         )
         data_file = config.getoption("data_file", None)
-        use_google_chrome = config.getoption("use_google_chrome", False)
         output_file = config.getoption("output_file", "./output.jsonl")
-        result_file = config.getoption("output_file", "./output.tsv")
+        result_file = config.getoption("result_file", "./output.tsv")
 
         assert data_file is not None and os.path.exists(data_file)
 
@@ -158,13 +163,7 @@ class Alibaba1688Render(GenericScript):
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("--no-sandbox")  # linux only
             chrome_options.add_argument("--headless=new")
-            chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument("start-maximized")
-            if use_google_chrome:
-                # wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-                # dpkg -i ./google-chrome-stable_current_amd64.deb
-                # apt --fix-broken install
-                chrome_options.binary_location="/usr/bin/google-chrome"
             driver = webdriver.Chrome(options=chrome_options)
             driver.set_page_load_timeout(90)
 
@@ -174,7 +173,6 @@ class Alibaba1688Render(GenericScript):
                 url, html = row["url"], row["html"]
                 with open(html_page, "w") as f:
                     f.write(html)
-                    f.flush()
                 for _ in range(3):
                     try:
                         driver.get(html_url)
