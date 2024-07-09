@@ -1,4 +1,4 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
-import unitorch_microsoft.webuis.image_retrieval
+# import unitorch_microsoft.webuis.image_retrieval
