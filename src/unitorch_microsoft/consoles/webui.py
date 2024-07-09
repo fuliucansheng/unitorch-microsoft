@@ -22,7 +22,7 @@ from unitorch.cli import (
 )
 import unitorch.cli.webuis
 from unitorch_microsoft import cached_path
-
+import unitorch_microsoft.webuis
 
 @fire.decorators.SetParseFn(str)
 def webui(config_path: str, **kwargs):

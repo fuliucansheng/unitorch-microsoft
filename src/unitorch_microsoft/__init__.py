@@ -73,7 +73,7 @@ import unitorch_microsoft.models
 import unitorch_microsoft.modules
 import unitorch_microsoft.scripts
 import unitorch_microsoft.services
-import unitorch_microsoft.webuis
+# import unitorch_microsoft.webuis
 
 UNITORCH_DEBUG = os.environ.get("UNITORCH_DEBUG", "INFO").upper()
 
