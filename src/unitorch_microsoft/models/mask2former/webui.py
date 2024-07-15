@@ -63,12 +63,19 @@ class Mask2FormerWebUI(SimpleWebUI):
             max_value=1,
             step=0.01,
         )
+        output_image_type = create_element(
+            "radio", "Output Image Type", default="Mask", values=["Mask", "Object"]
+        )
         reset = create_element("button", "Reset")
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image")
 
         # create layout
-        left = create_column(input_image, mask_threshold, create_row(reset, generate))
+        left = create_column(
+            input_image,
+            create_row(mask_threshold, output_image_type),
+            create_row(reset, generate),
+        )
         right = create_column(output_image)
         iface = create_blocks(pretrain_layout, create_row(left, right))
 
@@ -78,7 +85,9 @@ class Mask2FormerWebUI(SimpleWebUI):
         start.click(self.start, inputs=[name], outputs=[status])
         stop.click(self.stop, outputs=[status])
         generate.click(
-            self.serve, inputs=[input_image, mask_threshold], outputs=[output_image]
+            self.serve,
+            inputs=[input_image, mask_threshold, output_image_type],
+            outputs=[output_image],
         )
 
         iface.load(
@@ -113,10 +122,17 @@ class Mask2FormerWebUI(SimpleWebUI):
         self,
         image: Image.Image,
         mask_threshold: float = 0.5,
+        output_image_type: str = "Mask",
     ):
         assert self._pipe is not None
-        result = self._pipe(
+        mask = self._pipe(
             image,
             threshold=mask_threshold,
         )
+        if output_image_type == "Object":
+            result = Image.new("RGBA", image.size, (0, 0, 0, 0))
+            mask = mask.convert("L").resize(image.size)
+            result.paste(image, (0, 0), mask)
+        else:
+            result = mask
         return result

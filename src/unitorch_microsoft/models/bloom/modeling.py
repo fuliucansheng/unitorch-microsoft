@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 from transformers.utils import is_remote_url
 from transformers import BloomModel, BloomConfig
-from unitorch.utils import pop_value, nested_dict_value
+from unitorch.utils import pop_value, nested_dict_value, is_auto_gptq_available
 from unitorch.models import GenericModel
 from unitorch.cli import (
     cached_path,
@@ -18,7 +18,6 @@ from unitorch.cli import (
 from unitorch.cli.models import generation_model_decorator
 from unitorch.cli.models import ClassificationOutputs, GenerationOutputs, LossOutputs
 from unitorch.cli.models.bloom import pretrained_bloom_infos
-from unitorch_microsoft import is_auto_gptq_available
 from unitorch_microsoft.models.bloom.modeling_utils import BloomForCausalLM
 
 
