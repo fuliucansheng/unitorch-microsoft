@@ -66,15 +66,14 @@ class Mask2FormerWebUI(SimpleWebUI):
         output_image_type = create_element(
             "radio", "Output Image Type", default="Mask", values=["Mask", "Object"]
         )
-        reset = create_element("button", "Reset")
-        generate = create_element("button", "Generate")
+        segment = create_element("button", "Segment")
         output_image = create_element("image", "Output Image")
 
         # create layout
         left = create_column(
             input_image,
             create_row(mask_threshold, output_image_type),
-            create_row(reset, generate),
+            create_row(segment),
         )
         right = create_column(output_image)
         iface = create_blocks(pretrain_layout, create_row(left, right))
@@ -84,7 +83,7 @@ class Mask2FormerWebUI(SimpleWebUI):
 
         start.click(self.start, inputs=[name], outputs=[status])
         stop.click(self.stop, outputs=[status])
-        generate.click(
+        segment.click(
             self.serve,
             inputs=[input_image, mask_threshold, output_image_type],
             outputs=[output_image],

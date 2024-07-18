@@ -44,12 +44,14 @@ from unitorch.losses import BCELoss, MSELoss
 class TripLoss(nn.Module):
     def __init__(self, weight, margin):
         super().__init__()
-        self.miner = TripletMarginMiner(margin, 'semihard')
+        self.miner = TripletMarginMiner(margin, "semihard")
         self.loss_func = TripletMarginLoss(margin)
         self.weight = weight
 
     def forward(self, visual_embedding, text_embedding):
-        label = torch.ones(visual_embedding.size()[0], dtype = torch.long).to(visual_embedding.device)
+        label = torch.ones(visual_embedding.size()[0], dtype=torch.long).to(
+            visual_embedding.device
+        )
         idx = torch.arange(0, visual_embedding.size()[0]).to(visual_embedding.device)
         label = torch.cat([label, label])
         embed = torch.cat([text_embedding, visual_embedding], dim=0)[label != 0]
@@ -60,47 +62,53 @@ class TripLoss(nn.Module):
         loss = self.loss_func(embed, trip_label, miner_output)
         return self.weight * loss
 
+
 class MatchLoss(nn.Module):
     def __init__(self):
         super().__init__()
-    
-        
+
     def get_pair(self, logits):
         # reorg
         batch_size = logits.shape[0]
         masks = torch.eye(batch_size).to(logits.device).bool()
         positive_samples = torch.masked_select(logits, masks).view(batch_size, -1)
-        positive_labels = torch.ones(positive_samples.size()[0], dtype = torch.float).to(logits.device)
-        negative_samples = torch.masked_select(logits, ~masks).view(batch_size, -1)
-        negative_probs = F.softmax(negative_samples+1e-4,dim=1)
-        masks = torch.zeros(batch_size, batch_size-1, dtype=torch.float).to(
+        positive_labels = torch.ones(positive_samples.size()[0], dtype=torch.float).to(
             logits.device
         )
-        #sample
+        negative_samples = torch.masked_select(logits, ~masks).view(batch_size, -1)
+        negative_probs = F.softmax(negative_samples + 1e-4, dim=1)
+        masks = torch.zeros(batch_size, batch_size - 1, dtype=torch.float).to(
+            logits.device
+        )
+        # sample
         if torch.max(negative_probs) != 0:
             for b in range(batch_size):
                 if torch.max(negative_probs[b]):
-                    neg_idx = torch.multinomial(negative_probs[b],1).item()
+                    neg_idx = torch.multinomial(negative_probs[b], 1).item()
                 else:
                     neg_idx = 0
-                masks[b,neg_idx] = 1
-        negative_samples = torch.masked_select(negative_samples, masks.bool()).view(batch_size, -1)
-        negative_labels = torch.zeros(negative_samples.size()[0], dtype = torch.float).to(logits.device)
-        #negative_labels = negative_labels * -1
-        data = torch.cat([positive_samples, negative_samples],dim=0)
-        label = torch.cat([positive_labels, negative_labels],dim=0)
-        return data,label
-    def forward(self, logits):
-        data,label = self.get_pair(logits)
-        data2,label2 = self.get_pair(logits.t())
-        data = torch.cat([data, data2],dim=0)
-        label = torch.cat([label, label2],dim=0)
-        return data,label
+                masks[b, neg_idx] = 1
+        negative_samples = torch.masked_select(negative_samples, masks.bool()).view(
+            batch_size, -1
+        )
+        negative_labels = torch.zeros(negative_samples.size()[0], dtype=torch.float).to(
+            logits.device
+        )
+        # negative_labels = negative_labels * -1
+        data = torch.cat([positive_samples, negative_samples], dim=0)
+        label = torch.cat([positive_labels, negative_labels], dim=0)
+        return data, label
 
+    def forward(self, logits):
+        data, label = self.get_pair(logits)
+        data2, label2 = self.get_pair(logits.t())
+        data = torch.cat([data, data2], dim=0)
+        label = torch.cat([label, label2], dim=0)
+        return data, label
 
 
 @register_model("microsoft/china/selection/pretrain/v2/text")
-#support hard negative
+# support hard negative
 class BletchleyForTextPretrainV2(GenericModel):
     def __init__(
         self,
@@ -161,7 +169,6 @@ class BletchleyForTextPretrainV2(GenericModel):
             self.matchloss = MatchLoss()
             self.matchloss_weight = matchloss_weight
             self.matchloss_type = matchloss_type
-        
 
         if enable_quantization:
             for __model__ in [self.query_encoder, self.query_projection]:
@@ -196,7 +203,7 @@ class BletchleyForTextPretrainV2(GenericModel):
         enable_matchloss = config.getoption("enable_matchloss", False)
         triploss_weight = config.getoption("triploss_weight", 1)
         triploss_margin = config.getoption("triploss_margin", 0.1)
-        matchloss_weight = config.getoption("matchloss_weight", 0.1)        
+        matchloss_weight = config.getoption("matchloss_weight", 0.1)
         matchloss_type = config.getoption("matchloss_type", "MSE")
         inst = cls(
             query_config_type=query_config_type,
@@ -214,7 +221,7 @@ class BletchleyForTextPretrainV2(GenericModel):
             triploss_weight=triploss_weight,
             triploss_margin=triploss_margin,
             matchloss_weight=matchloss_weight,
-            matchloss_type=matchloss_type
+            matchloss_type=matchloss_type,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
@@ -288,18 +295,18 @@ class BletchleyForTextPretrainV2(GenericModel):
             query_embeds = self.all_gather(query_embeds)
             doc_embeds = self.all_gather(doc_embeds)
 
-        #use multiple loss
+        # use multiple loss
         logits_raw = torch.matmul(query_embeds, doc_embeds.t())
         logits_per_text = logits_raw * logit_scale
         loss_clip = _clip_loss(logits_per_text)
-        #tiplet loss
+        # tiplet loss
         if self.triploss != None:
             loss_trip = self.triploss(query_embeds, doc_embeds)
         else:
-            loss_trip = 0.0*loss_clip
-        #match loss
+            loss_trip = 0.0 * loss_clip
+        # match loss
         if self.matchloss != None:
-            data,label = self.matchloss(logits_raw)
+            data, label = self.matchloss(logits_raw)
             data = self.classifier(data)
             if self.matchloss_type == "BCE":
                 loss_func = BCELoss()
@@ -307,13 +314,11 @@ class BletchleyForTextPretrainV2(GenericModel):
                 loss_func = MSELoss()
             loss_match = self.matchloss_weight * loss_func(data, label)
         else:
-            loss_match = 0.0*loss_clip
-        
+            loss_match = 0.0 * loss_clip
+
         loss = loss_clip + loss_trip + loss_match
 
-
         return LossOutputs(loss=loss)
-
 
 
 @register_model("microsoft/china/selection/pretrain/v1/text")
