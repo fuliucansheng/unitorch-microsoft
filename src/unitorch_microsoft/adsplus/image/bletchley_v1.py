@@ -350,3 +350,124 @@ class BletchleyForImageRankingPosition(GenericModel):
             outputs += self.position(pos_emb)
 
         return ClassificationOutputs(outputs=outputs)
+
+
+@register_model("microsoft/adsplus/image/bletchley/v1/position/embeddingscore")
+class BletchleyForImageRankingPositionEmbeddingScore(GenericModel):
+    replace_keys_in_state_dict = {
+        "text_encoder.projection": "text_projection",
+        "image_encoder.projection": "image_projection",
+    }
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 64,
+        hidden_size: Optional[int] = 512,
+        num_text_layers: Optional[int] = 4,
+        num_positions: Optional[int] = None,
+        freeze_base_model: Optional[bool] = False,
+        freeze_image_model: Optional[bool] = True,
+        enable_quantization: Optional[bool] = False,
+        gradient_checkpointing: Optional[bool] = False,
+    ):
+        super().__init__()
+        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
+        text_config.num_hidden_layers = num_text_layers
+
+        self.text_embed_dim = text_config.hidden_size
+
+        self.text_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
+
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            projection_dim,
+        )  # text_encoder.projection.weight, text_encoder.projection.bias
+
+        self.fc1 = nn.Linear(projection_dim, hidden_size)
+        self.max_fc = nn.Linear(hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, 1)
+
+        self.num_positions = num_positions
+        if num_positions is not None:
+            self.position_embedding = nn.Embedding(num_positions, projection_dim)
+            self.position_layer_norm = nn.LayerNorm(projection_dim)
+            self.position = nn.Linear(projection_dim, 1)
+
+        self.init_weights()
+
+        if enable_quantization:
+            for __model__ in [
+                self.text_encoder,
+                self.text_projection,
+            ]:
+                __model__.qconfig = torch.quantization.get_default_qat_qconfig(
+                    version=0
+                )
+                torch.quantization.prepare_qat(__model__, inplace=True)
+
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init("microsoft/adsplus/image/bletchley/v1/position/embeddingscore")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/adsplus/image/bletchley/v1/position/embeddingscore")
+        config_type = config.getoption("config_type", "0.3B")
+
+        projection_dim = config.getoption("projection_dim", 64)
+        hidden_size = config.getoption("hidden_size", 512)
+        num_text_layers = config.getoption("num_text_layers", 4)
+        num_positions = config.getoption("num_positions", 50)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        freeze_image_model = config.getoption("freeze_image_model", True)
+        enable_quantization = config.getoption("enable_quantization", False)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            hidden_size=hidden_size,
+            num_text_layers=num_text_layers,
+            num_positions=num_positions,
+            freeze_image_model=freeze_image_model,
+            freeze_base_model=freeze_base_model,
+            enable_quantization=enable_quantization,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        return inst
+
+    @autocast()
+    def forward(
+        self,
+        input_ids: torch.Tensor = None,
+        pos_ids: Optional[torch.Tensor] = None,
+        image_embeds: torch.Tensor = None,
+        attention_mask: torch.Tensor = None,
+    ):
+
+        text_outputs = self.text_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+        text_embeds = text_outputs[:, 0]
+        text_embeds = self.text_projection(text_embeds)
+
+        text_embeds = self.fc1(torch.relu(text_embeds))
+        image_embeds = self.fc1(torch.relu(image_embeds))
+        outputs = torch.max(text_embeds, image_embeds)
+        outputs = torch.relu(self.max_fc(outputs)) + outputs
+        outputs = self.fc2(outputs)
+
+        if pos_ids is not None and self.num_positions is not None:
+            pos_emb = self.position_layer_norm(self.position_embedding(pos_ids))
+            outputs += self.position(pos_emb)
+
+        return ClassificationOutputs(outputs=outputs)
