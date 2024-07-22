@@ -164,14 +164,14 @@ class BletchleyProcessor:
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
         return TensorsInputs(inputs)
-    
+
     @register_process("microsoft/process/bletchley/v1/image_embedding")
     def _image_classification(
         self,
         image_embedding: str,
         prefix: Optional[str] = None,
     ):
-        image_embedding = list(map(lambda x: float(x), image_embedding.split(' ')))
+        image_embedding = list(map(lambda x: float(x), image_embedding.split(" ")))
         image_embedding = torch.Tensor(image_embedding)
         inputs = dict(
             image_embeds=image_embedding,

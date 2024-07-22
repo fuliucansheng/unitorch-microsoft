@@ -155,14 +155,17 @@ class BletchleyForImageRanking(GenericModel):
             return EmbeddingOutputs(embedding=image_embeds)
 
         if not self.training and self.output_text_embed:
-            text_outputs = self.text_encoder(input_ids=input_ids,attention_mask=attention_mask)
+            text_outputs = self.text_encoder(
+                input_ids=input_ids, attention_mask=attention_mask
+            )
             text_embeds = text_outputs[:, 0]
             text_embeds = self.text_projection(text_embeds)
             return EmbeddingOutputs(embedding=text_embeds)
 
-
         image_outputs = self.image_encoder(images=images)
-        text_outputs = self.text_encoder(input_ids=input_ids,attention_mask=attention_mask)
+        text_outputs = self.text_encoder(
+            input_ids=input_ids, attention_mask=attention_mask
+        )
 
         image_embeds = image_outputs[:, 0]
         image_embeds = self.image_projection(image_embeds)
@@ -236,9 +239,13 @@ class BletchleyForImageRankingEmbeddingScore(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/adsplus/image/bletchley/v1/click/embeddingscore")
+    @add_default_section_for_init(
+        "microsoft/adsplus/image/bletchley/v1/click/embeddingscore"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/adsplus/image/bletchley/v1/click/embeddingscore")
+        config.set_default_section(
+            "microsoft/adsplus/image/bletchley/v1/click/embeddingscore"
+        )
         config_type = config.getoption("config_type", "0.3B")
         projection_dim = config.getoption("projection_dim", 512)
         num_classes = config.getoption("num_classes", 1)
@@ -272,7 +279,9 @@ class BletchleyForImageRankingEmbeddingScore(GenericModel):
         image_embeds: torch.Tensor = None,
         attention_mask: torch.Tensor = None,
     ):
-        text_outputs = self.text_encoder(input_ids=input_ids,attention_mask=attention_mask)
+        text_outputs = self.text_encoder(
+            input_ids=input_ids, attention_mask=attention_mask
+        )
         text_embeds = text_outputs[:, 0]
         text_embeds = self.text_projection(text_embeds)
 

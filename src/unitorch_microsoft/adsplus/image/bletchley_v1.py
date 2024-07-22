@@ -413,9 +413,13 @@ class BletchleyForImageRankingPositionEmbeddingScore(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/adsplus/image/bletchley/v1/position/embeddingscore")
+    @add_default_section_for_init(
+        "microsoft/adsplus/image/bletchley/v1/position/embeddingscore"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/adsplus/image/bletchley/v1/position/embeddingscore")
+        config.set_default_section(
+            "microsoft/adsplus/image/bletchley/v1/position/embeddingscore"
+        )
         config_type = config.getoption("config_type", "0.3B")
 
         projection_dim = config.getoption("projection_dim", 64)
@@ -452,7 +456,6 @@ class BletchleyForImageRankingPositionEmbeddingScore(GenericModel):
         image_embeds: torch.Tensor = None,
         attention_mask: torch.Tensor = None,
     ):
-
         text_outputs = self.text_encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,

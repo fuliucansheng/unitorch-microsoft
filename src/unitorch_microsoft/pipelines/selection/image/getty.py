@@ -29,7 +29,7 @@ try:
     import faiss
 except ImportError:
     raise ImportError(
-        "Please install faiss to use BletchleyFaissPipeline. "
+        "Please install faiss to use BletchleyGettyImageSelectionPipeline. "
         "You can install it with `pip install faiss-cpu`."
     )
 
@@ -40,7 +40,7 @@ pretrained_bletchley_infos = {
 }
 
 
-class BletchleyFaissPipeline(_BletchleyForPretrain):
+class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
     def __init__(
         self,
         config_type: str,

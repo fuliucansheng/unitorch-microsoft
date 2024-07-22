@@ -16,19 +16,8 @@ except ImportError:
     raise ImportError("Please install openai package by running `pip install openai`.")
 
 from unitorch.cli import CoreConfigureParser, GenericScript
-from unitorch.cli import register_script, locate_path
-
-all_api_infos = [
-    {
-        # "api_key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "api_key": os.getenv("OPENAI_API_KEY"),
-        # "api_endpoint": "https://advancedchat4.openai.azure.com/openai/deployments/gpt-4-1106/chat/completions?api-version=2023-07-01-preview",
-        "api_endpoint": os.getenv("OPENAI_API_ENDPOINT"),
-        # "api_deploy_name": "gpt-4-1106",
-        "api_deploy_name": os.getenv("OPENAI_API_DEPLOY_NAME"),
-    },
-]
-
+from unitorch.cli import register_script
+from unitorch_microsoft import cached_path
 
 def get_respone(
     prompt,
@@ -82,7 +71,7 @@ class AzureChatGPT(GenericScript):
         )
         output_file = config.getoption("output_file", "./output.txt")
 
-        prompt_file = locate_path(prompt_file)
+        prompt_file = cached_path(prompt_file)
 
         if not os.path.exists(input_file):
             raise ValueError(f"data file {input_file} not found")
@@ -92,17 +81,11 @@ class AzureChatGPT(GenericScript):
         freq = config.getoption("freq", 10)
 
         # Azure API
-        use_config_api = config.getoption("use_config_api", True)
         api_endpoint = config.getoption("api_endpoint", None)
         api_key = config.getoption("api_key", None)
         api_deploy_name = config.getoption("api_deploy_name", None)
-
-        if api_endpoint is None:
-            assert use_config_api, "api_endpoint is required."
-            api_info = random.choice(all_api_infos)
-            api_endpoint = api_info["api_endpoint"]
-            api_key = api_info["api_key"]
-            api_deploy_name = api_info["api_deploy_name"]
+        
+        assert api_endpoint is not None, "api_endpoint is required"
 
         input_escapechar = config.getoption("input_escapechar", None)
         output_escapechar = config.getoption("output_escapechar", None)
