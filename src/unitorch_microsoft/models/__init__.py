@@ -2,3 +2,4 @@
 # Licensed under the MIT License.
 
 import unitorch_microsoft.models.classification_utils
+import unitorch_microsoft.models.image_utils
