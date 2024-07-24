@@ -19,6 +19,7 @@ from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
+
 def get_respone(
     prompt,
     system_prompt: Optional[
@@ -84,7 +85,7 @@ class AzureChatGPT(GenericScript):
         api_endpoint = config.getoption("api_endpoint", None)
         api_key = config.getoption("api_key", None)
         api_deploy_name = config.getoption("api_deploy_name", None)
-        
+
         assert api_endpoint is not None, "api_endpoint is required"
 
         input_escapechar = config.getoption("input_escapechar", None)

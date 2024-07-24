@@ -23,6 +23,7 @@ from unitorch.cli import (
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+
 class ImageProcessor:
     """
     Processor for image-related operations.

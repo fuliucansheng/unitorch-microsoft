@@ -23,6 +23,7 @@ from unitorch.cli import (
 import unitorch.cli.webuis
 from unitorch_microsoft import cached_path
 
+
 @fire.decorators.SetParseFn(str)
 def webui(config_path: str, **kwargs):
     config_path = cached_path(config_path)
@@ -52,6 +53,7 @@ def webui(config_path: str, **kwargs):
 
     enabled_webuis = config.getdefault("core/cli", "enabled_webuis", None)
     single_webui = config.getdefault("core/cli", "single_webui", False)
+    title = config.getdefault("core/cli", "title", "🔥 Unitorch WebUI")
     assert enabled_webuis is not None
     if isinstance(enabled_webuis, str):
         enabled_webuis = [enabled_webuis]
@@ -73,10 +75,10 @@ def webui(config_path: str, **kwargs):
         demo_webui = gr.TabbedInterface(
             interface_list=[webui.iface for webui in webuis],
             tab_names=[webui.iname for webui in webuis],
-            title="🔥 Unitorch WebUI",
+            title=title,
         )
 
-    demo_webui.title = "Unitorch WebUI"
+    demo_webui.title = title
     demo_webui.theme_css = read_file(
         os.path.join(importlib_resources.files("unitorch"), "cli/assets/style.css")
     )
@@ -89,6 +91,7 @@ def webui(config_path: str, **kwargs):
     ssl_keyfile = config.getoption("ssl_keyfile", None)
     ssl_certfile = config.getoption("ssl_certfile", None)
     ssl_verify = config.getoption("ssl_verify", True)
+    auth = config.getoption("auth", None)
     demo_webui.launch(
         server_name=host,
         server_port=port,
@@ -99,6 +102,7 @@ def webui(config_path: str, **kwargs):
         ssl_keyfile=ssl_keyfile,
         ssl_certfile=ssl_certfile,
         ssl_verify=ssl_verify,
+        auth=auth,
     )
 
     os._exit(0)
