@@ -351,6 +351,10 @@ class BletchleyForPretrain(GenericModel):
 
 @register_model("microsoft/model/pretrain/bletchley/v1/text")
 class BletchleyForTextPretrain(GenericModel):
+    replace_keys_in_state_dict = {
+        "query_encoder.projection": "query_projection",
+        "doc_encoder.projection": "doc_projection",
+    }
     def __init__(
         self,
         query_config_type: str,
@@ -849,8 +853,12 @@ class BletchleyForMatching(GenericModel):
         return ClassificationOutputs(outputs=outputs)
 
 
-@register_model("microsoft/model/retrieval/bletchley/v1/text")
-class BletchleyForTextRetrieval(GenericModel):
+@register_model("microsoft/model/selection/bletchley/v1/text")
+class BletchleyForTextSelection(GenericModel):
+    replace_keys_in_state_dict = {
+        "query_encoder.projection": "query_projection",
+        "doc_encoder.projection": "doc_projection",
+    }
     def __init__(
         self,
         query_config_type: str,
@@ -903,9 +911,9 @@ class BletchleyForTextRetrieval(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/retrieval/bletchley/v1/text")
+    @add_default_section_for_init("microsoft/model/selection/bletchley/v1/text")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/retrieval/bletchley/v1/text")
+        config.set_default_section("microsoft/model/selection/bletchley/v1/text")
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
 

@@ -121,7 +121,7 @@ class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
             self.faiss_index.add(np.array(emb).reshape(1, -1))
 
     @classmethod
-    @add_default_section_for_init("microsoft/pipeline/adsplus/image_retrieval/getty")
+    @add_default_section_for_init("microsoft/pipeline/selection/image/getty")
     def from_core_configure(
         cls,
         config,
@@ -134,7 +134,7 @@ class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
         device: Optional[str] = "cpu",
         **kwargs,
     ):
-        config.set_default_section("microsoft/pipeline/adsplus/image_retrieval/getty")
+        config.set_default_section("microsoft/pipeline/selection/image/getty")
         config_type = config.getoption("config_type", config_type)
 
         data_file = config.getoption("data_file", data_file)
@@ -200,7 +200,7 @@ class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
 
     @torch.no_grad()
     @add_default_section_for_function(
-        "microsoft/pipeline/adsplus/image_retrieval/getty"
+        "microsoft/pipeline/selection/image/getty"
     )
     def __call__(
         self,

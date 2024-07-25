@@ -96,7 +96,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset["__label__"] = ""
 
         if os.path.exists(result_file):
-            self.dataset = pd.read_csv(result_file, sep="\t", quoting=3)
+            self.dataset = pd.read_csv(result_file, sep="\t")
+            self.dataset["__index__"] = self.dataset["__index__"].astype(str)
             self.dataset.fillna("", inplace=True)
 
         # create elements
@@ -314,5 +315,5 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset.loc[self.dataset.__index__ == index, "__user__"] = user
         self.dataset.loc[self.dataset.__index__ == index, "__label__"] = choice
         self.dataset.loc[self.dataset.__index__ == index, "__comment__"] = comment
-        self.dataset.to_csv(self.result_file, sep="\t", index=False, quoting=3)
+        self.dataset.to_csv(self.result_file, sep="\t", index=False)
         return self.sample()
