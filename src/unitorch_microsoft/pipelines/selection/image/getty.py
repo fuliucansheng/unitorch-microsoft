@@ -109,7 +109,7 @@ class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
             self.image_cols = image_cols
             for image_col in image_cols:
                 self.dataset[image_col] = self.dataset[image_col].map(
-                    lambda x: f"![]({x})"
+                    lambda x: f'<img src="{x}" width="100%">'
                 )
 
         self.faiss_index = faiss.IndexFlatIP(projection_dim)
@@ -221,5 +221,5 @@ class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
         dists_maps = {i: d for i, d in zip(indices[0], dists[0])}
         results = self.dataset[self.dataset["__index__"].isin(dists_maps.keys())]
         results["similarity"] = results["__index__"].map(dists_maps)
-        results.sort_values("Similarity", inplace=True, ascending=False)
-        return results[self.show_cols + ["Similarity"]]
+        results.sort_values("similarity", inplace=True, ascending=False)
+        return results[self.show_cols + ["similarity"]]
