@@ -355,6 +355,7 @@ class BletchleyForTextPretrain(GenericModel):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
+
     def __init__(
         self,
         query_config_type: str,
@@ -859,6 +860,7 @@ class BletchleyForTextSelection(GenericModel):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
+
     def __init__(
         self,
         query_config_type: str,

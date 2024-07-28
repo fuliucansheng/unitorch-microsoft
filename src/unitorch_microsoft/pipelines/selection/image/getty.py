@@ -199,9 +199,7 @@ class BletchleyGettyImageSelectionPipeline(_BletchleyForPretrain):
         return text_embeds
 
     @torch.no_grad()
-    @add_default_section_for_function(
-        "microsoft/pipeline/selection/image/getty"
-    )
+    @add_default_section_for_function("microsoft/pipeline/selection/image/getty")
     def __call__(
         self,
         text: Optional[str] = None,

@@ -22,6 +22,15 @@ from unitorch.cli import (
 )
 import unitorch.cli.webuis
 from unitorch_microsoft import cached_path
+import unitorch_microsoft.webuis
+
+
+def reload_module(module):
+    for name in dir(module):
+        attr = getattr(module, name)
+        if isinstance(attr, type(sys)) and attr.__name__.startswith(module.__name__):
+            reload_module(attr)
+    importlib.reload(module)
 
 
 @fire.decorators.SetParseFn(str)
@@ -51,9 +60,12 @@ def webui(config_path: str, **kwargs):
         for library in depends_libraries:
             import_library(library)
 
+    reload_module(unitorch.cli.webuis)
+    reload_module(unitorch_microsoft.webuis)
+
     enabled_webuis = config.getdefault("core/cli", "enabled_webuis", None)
     single_webui = config.getdefault("core/cli", "single_webui", False)
-    title = config.getdefault("core/cli", "title", "🔥 Unitorch WebUI")
+    title = config.getdefault("core/cli", "title", "Unitorch WebUI")
     assert enabled_webuis is not None
     if isinstance(enabled_webuis, str):
         enabled_webuis = [enabled_webuis]
