@@ -57,7 +57,7 @@ class TULRV6Processor(HfTextClassificationProcessor):
     @add_default_section_for_init("microsoft/adsplus/relevance/process/tulr/v6")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/adsplus/relevance/process/tulr/v6")
-        pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
+        pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         vocab_path = config.getoption("vocab_path", None)
         vocab_path = pop_value(
             vocab_path,

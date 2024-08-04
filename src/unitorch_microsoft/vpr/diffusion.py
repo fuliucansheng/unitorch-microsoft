@@ -323,7 +323,9 @@ class StableForArgusGenerationV2(GenericModel):
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/diffusion/stable/argus/v2")
         pretrained_name = config.getoption("pretrained_name", "stable-v1.5")
-        pretrained_bert_name = config.getoption("pretrained_bert_name", "default-bert")
+        pretrained_bert_name = config.getoption(
+            "pretrained_bert_name", "bert-base-uncased"
+        )
         pretrain_infos = nested_dict_value(pretrained_diffusers_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)

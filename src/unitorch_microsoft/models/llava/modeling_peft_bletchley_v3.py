@@ -146,9 +146,11 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
         config.set_default_section(
             "microsoft/model/classification/peft/lora/llava/mistral_bletchley_v3"
         )
-        pretrained_name = config.getoption("pretrained_name", "default-llava-v1.6")
+        pretrained_name = config.getoption(
+            "pretrained_name", "llava-v1.6-mistral-7b-hf"
+        )
         pretrained_lora_name = config.getoption(
-            "pretrained_lora_name", "default-llava-lora"
+            "pretrained_lora_name", "llava-v1.6-mistral-7b-lora"
         )
         config_path = config.getoption("config_path", None)
         config_path = pop_value(
@@ -402,9 +404,11 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
         config.set_default_section(
             "microsoft/model/generation/peft/lora/llava/mistral_bletchley_v3"
         )
-        pretrained_name = config.getoption("pretrained_name", "default-llava-v1.6")
+        pretrained_name = config.getoption(
+            "pretrained_name", "llava-v1.6-mistral-7b-hf"
+        )
         pretrained_lora_name = config.getoption(
-            "pretrained_lora_name", "default-llava-lora"
+            "pretrained_lora_name", "llava-v1.6-mistral-7b-lora"
         )
         config_path = config.getoption("config_path", None)
         config_path = pop_value(

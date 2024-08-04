@@ -75,7 +75,7 @@ class BloomGPTQForGeneration(GenericModel):
             BloomForGeneration: An instance of BloomForGeneration initialized with the provided configuration.
         """
         config.set_default_section("microsoft/model/generation/bloom/gptq")
-        pretrained_name = config.getoption("pretrained_name", "default-bloom")
+        pretrained_name = config.getoption("pretrained_name", "bloom-560m")
         config_path = config.getoption("config_path", None)
         config_path = pop_value(
             config_path,

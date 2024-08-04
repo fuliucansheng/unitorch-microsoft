@@ -3,10 +3,6 @@
 
 # pretrained infos
 pretrained_tulr_infos = {
-    "default-tulrv6": {
-        "config": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/config.json",
-        "vocab": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/sentencepiece.bpe.model",
-    },
     "tulrv6-base": {
         "config": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/config.json",
         "vocab": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/sentencepiece.bpe.model",

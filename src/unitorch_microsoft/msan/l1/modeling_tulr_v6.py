@@ -62,7 +62,7 @@ class TULRV6ForClassification(GenericModel):
     @add_default_section_for_init("microsoft/msan/l1/model/classification/tulr/v6")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/msan/l1/model/classification/tulr/v6")
-        pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
+        pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(
@@ -130,7 +130,7 @@ class TULRV6ForClassificationV2(GenericModel):
     @add_default_section_for_init("microsoft/msan/l1/model/classification/tulr/v6/v2")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/msan/l1/model/classification/tulr/v6/v2")
-        pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
+        pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(
@@ -223,7 +223,7 @@ class TULRV6ForClassificationV3(GenericModel):
     @add_default_section_for_init("microsoft/msan/l1/model/classification/tulr/v6/v3")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/msan/l1/model/classification/tulr/v6/v3")
-        pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
+        pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(

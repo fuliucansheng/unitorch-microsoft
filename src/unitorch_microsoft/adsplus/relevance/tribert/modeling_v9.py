@@ -141,7 +141,7 @@ class TribertForClassification(GenericModel):
         config.set_default_section(
             "microsoft/adsplus/relevance/classification/tribert/v9"
         )
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
         config_path = pop_value(
             config_path,
@@ -338,7 +338,7 @@ class TribertForClassification_V2(GenericModel):
         config.set_default_section(
             "microsoft/adsplus/relevance/classification/tribert/v9/diffOnlineOffline"
         )
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
         config_path = pop_value(
             config_path,

@@ -60,7 +60,7 @@ class BertForClassification(GenericModel):
             BertForClassification: An instance of BertForClassification.
         """
         config.set_default_section("microsoft/adsplus/click/classification/bert")
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(

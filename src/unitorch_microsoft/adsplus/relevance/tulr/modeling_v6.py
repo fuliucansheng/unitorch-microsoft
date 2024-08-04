@@ -55,7 +55,7 @@ class TULRV6ForClassification(GenericModel):
     @add_default_section_for_init("microsoft/adsplus/relevance/classification/tulr/v6")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/adsplus/relevance/classification/tulr/v6")
-        pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
+        pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)
         num_classes = config.getoption("num_classes", 1)
         used_tasks = config.getoption("used_tasks", [4, 5, 6, 7])

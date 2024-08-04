@@ -48,7 +48,7 @@ class BloomProcessor(_BloomProcessor):
     @add_default_section_for_init("microsoft/process/bloom")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/process/bloom")
-        pretrained_name = config.getoption("pretrained_name", "default-bloom")
+        pretrained_name = config.getoption("pretrained_name", "bloom-560m")
         tokenizer_file = config.getoption("tokenizer_file", None)
         tokenizer_file = pop_value(
             tokenizer_file,

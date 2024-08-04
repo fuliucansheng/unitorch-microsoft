@@ -70,7 +70,7 @@ class VisualBertForPretrainV2(GenericModel):
     @add_default_section_for_init("microsoft/vpr/pretrain/visualbert/v2")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/visualbert/v2")
-        pretrained_name = config.getoption("pretrained_name", "default-visualbert")
+        pretrained_name = config.getoption("pretrained_name", "visualbert-vqa-coco-pre")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(
@@ -215,7 +215,7 @@ class VisualBertForClassificationV2(GenericModel):
     @add_default_section_for_init("microsoft/vpr/classification/visualbert/v2")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/visualbert/v2")
-        pretrained_name = config.getoption("pretrained_name", "default-visualbert")
+        pretrained_name = config.getoption("pretrained_name", "visualbert-vqa-coco-pre")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(

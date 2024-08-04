@@ -48,7 +48,7 @@ class LlamaProcessor(_LlamaProcessor):
     @add_default_section_for_init("microsoft/process/llama")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/process/llama")
-        pretrained_name = config.getoption("pretrained_name", "default-llama")
+        pretrained_name = config.getoption("pretrained_name", "llama-7b")
         vocab_path = config.getoption("vocab_path", None)
         vocab_path = pop_value(
             vocab_path,

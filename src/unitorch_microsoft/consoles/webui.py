@@ -11,7 +11,7 @@ import importlib_resources
 import unitorch.cli
 from torch.multiprocessing import spawn
 from transformers.utils import is_remote_url
-from unitorch.utils import read_file
+from unitorch.utils import read_file, reload_module
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import (
     import_library,
@@ -23,14 +23,6 @@ from unitorch.cli import (
 import unitorch.cli.webuis
 from unitorch_microsoft import cached_path
 import unitorch_microsoft.webuis
-
-
-def reload_module(module):
-    for name in dir(module):
-        attr = getattr(module, name)
-        if isinstance(attr, type(sys)) and attr.__name__.startswith(module.__name__):
-            reload_module(attr)
-    importlib.reload(module)
 
 
 @fire.decorators.SetParseFn(str)

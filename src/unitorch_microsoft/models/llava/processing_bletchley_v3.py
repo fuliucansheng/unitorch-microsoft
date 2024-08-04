@@ -102,7 +102,9 @@ class LlavaMistralBlethchleyV3Processor(
             LlavaMistralClipProcessor: An instance of LlavaMistralClipProcessor.
         """
         config.set_default_section("microsoft/process/llava/mistral_bletchley_v3")
-        pretrained_name = config.getoption("pretrained_name", "default-llava-v1.6")
+        pretrained_name = config.getoption(
+            "pretrained_name", "llava-v1.6-mistral-7b-hf"
+        )
         vocab_path = config.getoption("vocab_path", None)
         vocab_path = pop_value(
             vocab_path,

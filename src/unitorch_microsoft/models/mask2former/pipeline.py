@@ -45,7 +45,7 @@ class Mask2FormerPipeline(_Mask2FormerForSegmentation):
     def from_core_configure(
         cls,
         config,
-        pretrained_name: Optional[str] = "default-mask2former",
+        pretrained_name: Optional[str] = "mask2former-swin-tiny-ade-semantic",
         config_path: Optional[str] = None,
         vision_config_path: Optional[str] = None,
         pretrained_weight_path: Optional[str] = None,

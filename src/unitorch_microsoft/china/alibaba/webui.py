@@ -24,13 +24,13 @@ from unitorch.cli.webuis import (
     create_freeu_layout,
 )
 from unitorch.cli.webuis import SimpleWebUI
-from unitorch_microsoft.pipelines.selection.image import (
-    BletchleyGettyImageSelectionPipeline,
+from unitorch_microsoft.china.alibaba.pipeline import (
+    BletchleyAli1688ImageSelectionPipeline,
 )
 
 
-@register_webui("microsoft/webui/selection/image/getty")
-class GettyImageSelectionWebUI(SimpleWebUI):
+@register_webui("microsoft/china/webui/ali1688")
+class Ali1688ImageSelectionWebUI(SimpleWebUI):
     supported_pretrained_names = ["2.5B"]
 
     def __init__(self, config: CoreConfigureParser):
@@ -79,12 +79,12 @@ class GettyImageSelectionWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Getty", iface=iface)
+        super().__init__(config, iname="Ali1688", iface=iface)
 
     def start(self, config_type, **kwargs):
         if self._status == "Running":
             return self._status
-        self._pipe = BletchleyGettyImageSelectionPipeline.from_core_configure(
+        self._pipe = BletchleyAli1688ImageSelectionPipeline.from_core_configure(
             self._config,
             config_type="2.5B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/image/pytorch_model.bletchley.v1.retrieval.61.28.bin",

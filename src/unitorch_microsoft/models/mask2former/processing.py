@@ -73,7 +73,9 @@ class Mask2FormerProcessor(HfImageClassificationProcessor):
             dict: The processed arguments for initializing the processor.
         """
         config.set_default_section("microsoft/process/mask2former")
-        pretrained_name = config.getoption("pretrained_name", "default-mask2former")
+        pretrained_name = config.getoption(
+            "pretrained_name", "mask2former-swin-tiny-ade-semantic"
+        )
         vision_config_path = config.getoption("vision_config_path", None)
         vision_config_path = pop_value(
             vision_config_path,

@@ -77,7 +77,7 @@ class TULRV6ForClassification(GenericModel):
     @add_default_section_for_init("microsoft/adinsights/model/classification/tulr/v6")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/adinsights/model/classification/tulr/v6")
-        pretrained_name = config.getoption("pretrained_name", "default-tulrv6")
+        pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)
 
         config_path = pop_value(

@@ -46,7 +46,7 @@ class VisualBertProcessor(BertProcessor):
     @add_default_section_for_init("microsoft/vpr/process/visualbert")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/process/visualbert")
-        pretrained_name = config.getoption("pretrained_name", "default-visualbert")
+        pretrained_name = config.getoption("pretrained_name", "visualbert-vqa-coco-pre")
         vocab_path = config.getoption("vocab_path", None)
         vocab_path = pop_value(
             vocab_path,

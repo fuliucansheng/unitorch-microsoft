@@ -58,7 +58,7 @@ class BertForPretrain(GenericModel):
     @add_default_section_for_init("microsoft/vpr/pretrain/bert")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/bert")
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
         num_hidden_layers = config.getoption("num_hidden_layers", 3)
         output_query_embed = config.getoption("output_query_embed", False)
@@ -180,7 +180,7 @@ class BertForPretrainV2(GenericModel):
     @add_default_section_for_init("microsoft/vpr/pretrain/bert/v2")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/bert/v2")
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
         num_hidden_layers = config.getoption("num_hidden_layers", 3)
         output_query_embed = config.getoption("output_query_embed", False)
@@ -300,7 +300,7 @@ class BertForClassification(GenericModel):
     @add_default_section_for_init("microsoft/vpr/classification/bert")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/bert")
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
         num_hidden_layers = config.getoption("num_hidden_layers", 12)
         output_query_embed = config.getoption("output_query_embed", False)
@@ -408,7 +408,7 @@ class BertForClassificationV2(GenericModel):
     @add_default_section_for_init("microsoft/vpr/classification/bert/v2")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/bert/v2")
-        pretrained_name = config.getoption("pretrained_name", "default-bert")
+        pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
         num_hidden_layers = config.getoption("num_hidden_layers", 12)
         output_query_embed = config.getoption("output_query_embed", False)
