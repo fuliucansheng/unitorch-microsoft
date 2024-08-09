@@ -30,7 +30,7 @@ class PhraseScript(GenericScript):
 
         data_file = config.getoption("data_file", None)
         chunksize = config.getoption("chunksize", 100)
-        threshold = config.getoption("threshold", 0.1)
+        threshold = config.getoption("threshold", 0.01)
         output_file = config.getoption("output_file", "./output.txt")
 
         data = pd.read_csv(
@@ -64,7 +64,6 @@ class PhraseScript(GenericScript):
                 emb = np.array(list(map(float, row["emb"].split(" "))))
                 if check(emb):
                     results.append(row["phrase"])
-            break
 
         results = pd.DataFrame(results, columns=["phrase"])
         results.to_csv(

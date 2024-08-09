@@ -2,9 +2,15 @@
 # Licensed under the MIT License.
 
 import os
+import io
 import re
+import requests
+import tempfile
+import hashlib
 import pandas as pd
 import gradio as gr
+from PIL import Image
+from unitorch import get_temp_home
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import register_webui
 from unitorch.cli.webuis import (
@@ -33,6 +39,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if isinstance(names, str):
             names = re.split(r"[,;]", names)
             names = [n.strip() for n in names]
+
+        temp_folder = config.getoption("temp_folder", get_temp_home())
+        os.makedirs(temp_folder, exist_ok=True)
+        self.temp_folder = temp_folder
 
         self.dataset = pd.read_csv(
             data_file,
@@ -99,6 +109,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             self.dataset = pd.read_csv(result_file, sep="\t")
             self.dataset["__index__"] = self.dataset["__index__"].astype(str)
             self.dataset.fillna("", inplace=True)
+        else:
+            self.dataset.to_csv(result_file, sep="\t", index=False)
 
         # create elements
         index = create_element(
@@ -161,12 +173,18 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             "text",
             label="Progress",
             interactive=False,
+            scale=2,
         )
 
         # show results
         refresh = create_element(
             "button",
             label="Refresh",
+        )
+        download = create_element(
+            "download_button",
+            label="Download",
+            link=os.path.abspath(self.result_file),
         )
         results = create_element(
             "dataframe",
@@ -198,7 +216,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label_layout,
             name="Labeling",
         )
-        tab2 = create_tab(create_row(progress, refresh), results, name="Results")
+        tab2 = create_tab(
+            create_row(progress, refresh, download), results, name="Results"
+        )
         tabs = create_tabs(tab1, tab2)
         iface = create_blocks(guideline, tabs)
 
@@ -255,6 +275,24 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         new_index = new_one["__index__"]
         new_texts = new_one[self.text_cols].tolist()
         new_images = new_one[self.image_cols].tolist()
+
+        def save_url(url):
+            if url.startswith("http"):
+                try:
+                    response = requests.get(url, stream=True)
+                    name = os.path.join(
+                        self.temp_folder, hashlib.md5(url.encode()).hexdigest()
+                    )
+                    if response.status_code == 200:
+                        with open(name, "wb") as f:
+                            for chunk in response.iter_content(8192):
+                                f.write(chunk)
+                        return name
+                except Exception as e:
+                    print(e)
+            return url
+
+        new_images = [save_url(p) for p in new_images]
         new_videos = new_one[self.video_cols].tolist()
 
         return (

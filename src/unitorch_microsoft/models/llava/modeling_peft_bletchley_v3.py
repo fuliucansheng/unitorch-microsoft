@@ -242,7 +242,7 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
         Returns:
             torch Output logits.Tensor: tensor of shape (batch_size, sequence_length, vocab_size).
         """
-        vision_outputs = self.vision_tower(pixel_values)
+        vision_outputs = self.vision_tower(pixel_values.to(self.dtype))
         image_embeds = vision_outputs
         image_embeds = self.multi_modal_projector(image_embeds)
         image_embeds = torch.cat(
@@ -494,7 +494,7 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
         Returns:
             torch Output logits.Tensor: tensor of shape (batch_size, sequence_length, vocab_size).
         """
-        vision_outputs = self.vision_tower(pixel_values)
+        vision_outputs = self.vision_tower(pixel_values.to(self.dtype))
         image_embeds = vision_outputs
         image_embeds = self.multi_modal_projector(image_embeds)
         image_embeds = torch.cat(

@@ -26,6 +26,7 @@ from unitorch.models import (
     QuantizationConfig,
     QuantizationMixin,
 )
+from unitorch.models.quantization import quantize_model
 from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.cli import (
     cached_path,
@@ -43,9 +44,7 @@ from unitorch_microsoft.models.llava import (
 
 
 @register_model("microsoft/model/classification/llava/mistral_bletchley_v3")
-class LlavaMistralBlethchleyV3ForClassification(
-    GenericModel, QuantizationMixin, PeftWeightLoaderMixin
-):
+class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "image_encoder.": "vision_tower.",
         "language_model.model.": "language_model.",
@@ -88,14 +87,18 @@ class LlavaMistralBlethchleyV3ForClassification(
             torch.randn(self.config.text_config.hidden_size, dtype=self.dtype)
             * embed_std
         )
-        self.language_model = MistralModel(self.config.text_config)
+        language_model = MistralModel(self.config.text_config)
+        if quant_config_path is not None:
+            quant_config = QuantizationConfig.from_json_file(quant_config_path)
+            ignore_modules = ["lm_head"]
+            self.language_model = quantize_model(
+                language_model, quant_config, ignore_modules=ignore_modules
+            )
+        else:
+            self.language_model = language_model
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.classifier = nn.Linear(self.config.text_config.hidden_size, num_classes)
         self.init_weights()
-
-        if quant_config_path is not None:
-            self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
-            self.quantize(self.quant_config, ignore_modules=["lm_head"])
 
         if freeze_vision_encoder:
             for param in self.vision_tower.parameters():
@@ -217,7 +220,7 @@ class LlavaMistralBlethchleyV3ForClassification(
         Returns:
             torch Output logits.Tensor: tensor of shape (batch_size, sequence_length, vocab_size).
         """
-        vision_outputs = self.vision_tower(pixel_values)
+        vision_outputs = self.vision_tower(pixel_values.to(self.dtype))
         image_embeds = vision_outputs
         image_embeds = self.multi_modal_projector(image_embeds)
         image_embeds = torch.cat(
@@ -451,7 +454,7 @@ class LlavaMistralBlethchleyV3ForGeneration(
         Returns:
             torch Output logits.Tensor: tensor of shape (batch_size, sequence_length, vocab_size).
         """
-        vision_outputs = self.vision_tower(pixel_values)
+        vision_outputs = self.vision_tower(pixel_values.to(self.dtype))
         image_embeds = vision_outputs
         image_embeds = self.multi_modal_projector(image_embeds)
         image_embeds = torch.cat(

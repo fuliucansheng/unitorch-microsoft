@@ -10,6 +10,7 @@ from unitorch_microsoft.webuis.detection import DetectionWebUI
 from unitorch_microsoft.webuis.llm import LLMWebUI
 from unitorch_microsoft.webuis.segmentation import SegmentationWebUI
 from unitorch_microsoft.webuis.selection import SelectionWebUI
+from unitorch_microsoft.webuis.tools import ToolsWebUI
 
 if is_diffusers_available():
     from unitorch_microsoft.webuis.diffusion import DiffusionWebUI
