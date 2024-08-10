@@ -6,4 +6,5 @@ from unitorch.cli.models.diffusers import (
     pretrained_stable_extensions_infos,
 )
 
-pretrained_stable_extensions_infos.update({})
+import unitorch_microsoft.models.diffusers.modeling_controlnet
+import unitorch_microsoft.models.diffusers.modeling_controlnet_xl
