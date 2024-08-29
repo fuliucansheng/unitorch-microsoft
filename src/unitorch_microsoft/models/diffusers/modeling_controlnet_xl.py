@@ -42,6 +42,7 @@ from unitorch.cli.models.diffusers import (
 )
 from unitorch_microsoft import cached_path
 
+
 @register_model(
     "microsoft/model/diffusers/image2image/controlnet_xl", diffusion_model_decorator
 )
@@ -98,7 +99,9 @@ class ControlNetXLForImage2ImageGeneration(GenericStableXLModel):
     @classmethod
     @add_default_section_for_init("microsoft/model/diffusers/image2image/controlnet_xl")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/diffusers/image2image/controlnet_xl")
+        config.set_default_section(
+            "microsoft/model/diffusers/image2image/controlnet_xl"
+        )
         pretrained_name = config.getoption("pretrained_name", "stable-xl-base")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 

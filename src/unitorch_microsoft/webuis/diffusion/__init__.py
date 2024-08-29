@@ -8,6 +8,7 @@ from unitorch.cli.webuis import SimpleWebUI
 from unitorch.cli.webuis.stable import StableWebUI
 from unitorch.cli.webuis.stable_xl import StableXLWebUI
 from unitorch.cli.webuis.stable_3 import Stable3WebUI
+from unitorch.cli.webuis.stable_flux import StableFluxWebUI
 
 
 @register_webui("microsoft/webui/diffusion")
@@ -17,6 +18,7 @@ class DiffusionWebUI(SimpleWebUI):
             StableWebUI(config),
             StableXLWebUI(config),
             Stable3WebUI(config),
+            StableFluxWebUI(config),
         ]
         iface = gr.TabbedInterface(
             [webui.iface for webui in webuis],

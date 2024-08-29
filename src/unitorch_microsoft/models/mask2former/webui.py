@@ -1,4 +1,4 @@
-# Copyright (c) FULIUCANSHENG.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
 import io
@@ -32,7 +32,7 @@ class Mask2FormerWebUI(SimpleWebUI):
     pretrained_names = list(pretrained_mask2former_infos.keys())
     supported_pretrained_names = matched_pretrained_names(
         pretrained_names,
-        ["^mask2former", "^picasso-mask2former"],
+        ["^picasso-mask2former"],
     )
 
     def __init__(self, config: CoreConfigureParser):

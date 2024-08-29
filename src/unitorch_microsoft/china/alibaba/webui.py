@@ -2,11 +2,16 @@
 # Licensed under the MIT License.
 
 import io
+import os
 import torch
 import gc
+import random
+import requests
 import gradio as gr
+import pandas as pd
 from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from unitorch.utils.image_utils import load_from_url
 from unitorch.cli import CoreConfigureParser, GenericWebUI
 from unitorch.cli import register_webui
 from unitorch.cli.webuis import (
@@ -112,3 +117,150 @@ class Ali1688ImageSelectionWebUI(SimpleWebUI):
         assert self._pipe is not None
         result = self._pipe(text, image, topk=topk)
         return result
+
+
+@register_webui("microsoft/china/webui/ali1688/humanlabel")
+class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
+    def __init__(self, config: CoreConfigureParser):
+        names = [
+            "offerid",
+            "offerurl",
+            "imageurl",
+            "title",
+            "1688_images",
+            "image_name",
+            "retrive_image_name",
+            "image_path",
+            "seg_path",
+            "unique_id",
+            "prompt",
+        ]
+        dataset = pd.read_csv(
+            "/data/decu/1688/0805_controlnet_input_with_prompt.tsv",
+            names=names,
+            header=None,
+            sep="\t",
+            quoting=3,
+        )
+        dataset["offerid"] = dataset.offerid.astype(str)
+        self.controlnet_foldeer = "/home/chunchen/1688/res_900_471_0805"
+        dataset["controlnet_image"] = dataset.unique_id + ".png"
+        self.dataset = dataset[
+            ["offerid", "offerurl", "imageurl", "title", "controlnet_image"]
+        ].drop_duplicates()
+        self.dataset["label"] = -2
+
+        if os.path.exists(
+            "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv"
+        ):
+            self.dataset = pd.read_csv(
+                "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv",
+                sep="\t",
+            )
+            self.dataset["offerid"] = self.dataset.offerid.astype(str)
+
+        # create elements
+        offerid = create_element("text", "Offer ID", scale=1)
+        offerurl = create_element("text", "Offer URL")
+        offerimage = create_element("image", "Offer Image")
+        title = create_element("text", "Title")
+        images = create_element("gallery", "Images")
+        images.allow_preview = False
+        best_name = create_element("text", "Best Image Name")
+        best_image = create_element("image", "Best Image Preview")
+        sample = create_element("button", "Sample")
+        submit = create_element("button", "Submit")
+
+        # create blocks
+        top = create_row(create_column(offerid, offerurl, title), offerimage)
+        left = create_column(images)
+        right = create_column(best_name, best_image, create_row(sample, submit))
+        iface = create_blocks(
+            top,
+            create_row(left, right),
+        )
+
+        # create events
+        iface.__enter__()
+
+        def func(data: gr.SelectData):
+            return data.value["image"]["path"], data.value["image"]["orig_name"]
+
+        images.select(func, outputs=[best_image, best_name])
+
+        sample.click(
+            self.sample,
+            inputs=[offerid],
+            outputs=[offerid, offerurl, offerimage, title, images],
+        )
+        submit.click(
+            self.serve,
+            inputs=[offerid, images, best_name],
+            outputs=[
+                offerid,
+                offerurl,
+                offerimage,
+                title,
+                images,
+                best_name,
+                best_image,
+            ],
+        )
+
+        iface.load(
+            fn=self.sample, outputs=[offerid, offerurl, offerimage, title, images]
+        )
+
+        iface.__exit__()
+
+        super().__init__(config, iname="Ali1688ImageHumanLabel", iface=iface)
+
+    def sample(self, offerid=None, topk=40):
+        non_labeled = self.dataset[self.dataset.label == -2]
+        offerset = set(non_labeled.offerid)
+
+        if offerid is None or offerid not in offerset:
+            offerid = random.choice(list(offerset))
+        items = non_labeled[non_labeled.offerid == offerid]
+        if len(items) > topk:
+            items = items.sample(topk)
+
+        offerid, offerurl, imageurl, title = items.iloc[0][
+            ["offerid", "offerurl", "imageurl", "title"]
+        ]
+        images = [
+            self.controlnet_foldeer + f"/{p}" for p in items.controlnet_image.tolist()
+        ]
+        offerimage = load_from_url(imageurl)
+        return offerid, offerurl, offerimage, title, images
+
+    def serve(
+        self,
+        offerid,
+        images,
+        best,
+        topk=40,
+    ):
+        if best is not None and best != "":
+            self.dataset.loc[self.dataset.offerid == str(offerid), "label"] = 1
+            self.dataset.loc[
+                (self.dataset.offerid == str(offerid))
+                & (self.dataset.controlnet_image == best),
+                "label",
+            ] = 2
+        else:
+            images = [os.path.basename(t[0]) for t in images]
+            self.dataset.loc[
+                (self.dataset.offerid == str(offerid))
+                & (self.dataset.controlnet_image.isin(images)),
+                "label",
+            ] = 0
+        print(self.dataset.label.value_counts())
+        self.dataset.to_csv(
+            "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv",
+            sep="\t",
+            index=False,
+        )
+        offerid, offerurl, offerimage, title, images = self.sample(offerid, topk)
+
+        return offerid, offerurl, offerimage, title, images, None, None

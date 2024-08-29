@@ -93,18 +93,31 @@ class SLABCrawler(GenericScript):
                         driver.get(url)
                         break
                     except:
-                        if "ERR_CONNECTION_REFUSED" in driver.page_source:
-                            logging.info(f"ERR_CONNECTION_REFUSED {url}")
-                            driver.quit()
-                            time.sleep(10)
-                            driver = webdriver.Chrome(options=chrome_options)
-                            driver.set_page_load_timeout(90)
+                        driver.quit()
+                        time.sleep(10)
+                        driver = webdriver.Chrome(options=chrome_options)
+                        driver.set_page_load_timeout(90)
+                        # if "ERR_CONNECTION_REFUSED" in driver.page_source:
+                        #     logging.info(f"ERR_CONNECTION_REFUSED {url}")
+                        #     driver.quit()
+                        #     time.sleep(10)
+                        #     driver = webdriver.Chrome(options=chrome_options)
+                        #     driver.set_page_load_timeout(90)
 
-                lptitle = driver.title
-                Q.put({"url": url, "lptitle": lptitle})
+                try:
+                    lptitle = driver.title
+                    links = driver.find_elements(By.TAG_NAME, "a")
+                    suburls = [link.get_attribute("href") for link in links]
+                    suburls = [url for url in suburls if url is not None]
+                    Q.put({"url": url, "lptitle": lptitle, "suburls": suburls})
+                except:
+                    logging.info(f"ERR {url}")
                 time.sleep(1)
 
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                pass
             Q.put("Done")
 
         def write_file(fpath, Q, cnt):
@@ -153,11 +166,12 @@ class SLABCrawler(GenericScript):
         results["obj"] = results.result.map(json.loads)
         results["url"] = results.obj.map(lambda x: x["url"])
         results["lptitle"] = results.obj.map(lambda x: x["lptitle"])
+        results["suburls"] = results.obj.map(lambda x: x["suburls"])
         results.drop(columns=["result", "obj"], inplace=True)
 
         results.to_json(output_file, orient="records", lines=True)
 
         logging.info(
-            f"finish rendering {len(results)} pages, {len(results[results.products != '[]'])} success. "
+            f"finish rendering {len(results)} pages, {len(results[results.lptitle != ''])} success. "
         )
         results.to_csv(result_file, sep="\t", index=False, header=False)

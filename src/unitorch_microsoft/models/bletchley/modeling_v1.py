@@ -17,6 +17,7 @@ from transformers.models.roberta.modeling_roberta import (
 )
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
+from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.cli.models import (
     EmbeddingOutputs,
     LossOutputs,
@@ -728,11 +729,12 @@ class BletchleyForImageClassification(GenericModel):
 
 
 @register_model("microsoft/model/matching/bletchley/v1")
-class BletchleyForMatching(GenericModel):
+class BletchleyForMatching(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,
@@ -805,6 +807,17 @@ class BletchleyForMatching(GenericModel):
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
 
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
         return inst
 
     @autocast()

@@ -13,6 +13,8 @@ pretrained_bletchley_v3_infos = {
 }
 
 import unitorch_microsoft.models.bletchley.modeling_v1
+import unitorch_microsoft.models.bletchley.modeling_peft_v1
 import unitorch_microsoft.models.bletchley.modeling_v3
+import unitorch_microsoft.models.bletchley.modeling_peft_v3
 import unitorch_microsoft.models.bletchley.processing_v1
 import unitorch_microsoft.models.bletchley.processing_v3

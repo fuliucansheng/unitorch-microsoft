@@ -42,6 +42,7 @@ from unitorch.cli.models.diffusers import (
 )
 from unitorch_microsoft import cached_path
 
+
 @register_model(
     "microsoft/model/diffusers/image2image/controlnet", diffusion_model_decorator
 )

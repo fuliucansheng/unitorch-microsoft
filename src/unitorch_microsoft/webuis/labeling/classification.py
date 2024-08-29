@@ -4,12 +4,15 @@
 import os
 import io
 import re
+import socket
 import requests
 import tempfile
 import hashlib
+import subprocess
 import pandas as pd
 import gradio as gr
 from PIL import Image
+from torch.hub import download_url_to_file
 from unitorch import get_temp_home
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import register_webui
@@ -24,6 +27,23 @@ from unitorch.cli.webuis import (
     create_blocks,
 )
 from unitorch.cli.webuis import SimpleWebUI
+
+
+def get_random_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("0.0.0.0", 0))
+        return s.getsockname()[1]
+
+
+def get_host_name():
+    return socket.gethostname()
+
+
+def get_flex_layout(*eles, num_per_row=2):
+    rows = [
+        create_row(*eles[i : i + num_per_row]) for i in range(0, len(eles), num_per_row)
+    ]
+    return create_column(*rows)
 
 
 @register_webui("microsoft/webui/labeling/classification")
@@ -51,16 +71,33 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             sep="\t",
             quoting=3,
         )
-        self.dataset["__index__"] = range(len(self.dataset))
-        self.dataset["__index__"] = self.dataset["__index__"].astype(str)
+        self.dataset["Index"] = self.dataset.index.map(lambda x: f"No.{x}")
         self.result_file = result_file
+
+        # start http server: unitorch-service start services/http_files.ini --daemon_mode False --html_dir /
+        self.http_port = get_random_port()
+        self.http_process = subprocess.Popen(
+            [
+                "unitorch-service",
+                "start",
+                "services/http_files.ini",
+                "--daemon_mode",
+                "False",
+                "--html_dir",
+                "/",
+                "--port",
+                str(self.http_port),
+            ],
+        )
+        self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
 
         # show columns
         self.text_cols = config.getoption("text_cols", None)
         self.image_cols = config.getoption("image_cols", None)
         self.video_cols = config.getoption("video_cols", None)
         self.show_cols = config.getoption("show_cols", None)
-        self.http_url = config.getoption("http_url", "{0}")
+        self.num_images_per_row = config.getoption("num_images_per_row", 4)
+        self.num_videos_per_row = config.getoption("num_videos_per_row", 4)
 
         if self.text_cols is not None:
             if isinstance(self.text_cols, str):
@@ -101,13 +138,13 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.num_video_cols = 0 if self.video_cols is None else len(self.video_cols)
         self.guideline = config.getoption("guideline", None)
         self.choices = config.getoption("choices", None)
-        self.dataset["__user__"] = ""
-        self.dataset["__comment__"] = ""
-        self.dataset["__label__"] = ""
+        self.checkbox = config.getoption("checkbox", False)
+        self.dataset["User"] = ""
+        self.dataset["Comment"] = ""
+        self.dataset["Label"] = ""
 
         if os.path.exists(result_file):
             self.dataset = pd.read_csv(result_file, sep="\t")
-            self.dataset["__index__"] = self.dataset["__index__"].astype(str)
             self.dataset.fillna("", inplace=True)
         else:
             self.dataset.to_csv(result_file, sep="\t", index=False)
@@ -151,10 +188,18 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             )
             for col in self.video_cols
         ]
-        choices = create_element(
-            "radio",
-            label="Label",
-            values=self.choices,
+        choices = (
+            create_element(
+                "radio",
+                label="Label",
+                values=self.choices,
+            )
+            if not self.checkbox
+            else create_element(
+                "checkboxgroup",
+                label="Label",
+                values=self.choices,
+            )
         )
         comment = create_element(
             "text",
@@ -184,7 +229,6 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         download = create_element(
             "download_button",
             label="Download",
-            link=os.path.abspath(self.result_file),
         )
         results = create_element(
             "dataframe",
@@ -194,8 +238,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         # create blocks
         text_layout = create_column(*texts)
-        image_layout = create_row(*images)
-        video_layout = create_row(*videos)
+        image_layout = get_flex_layout(*images, num_per_row=self.num_images_per_row)
+        video_layout = get_flex_layout(*videos, num_per_row=self.num_videos_per_row)
         label_layout = create_row(
             comment, create_column(choices, create_row(random, submit))
         )
@@ -227,7 +271,16 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         submit.click(
             self.serve,
             inputs=[index, user, choices, comment],
-            outputs=[index, progress, choices, comment, *texts, *images, *videos],
+            outputs=[
+                download,
+                index,
+                progress,
+                choices,
+                comment,
+                *texts,
+                *images,
+                *videos,
+            ],
         )
         random.click(
             self.sample,
@@ -263,7 +316,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
     def sample(self):
         total = self.dataset.shape[0]
-        labeled = self.dataset[self.dataset["__label__"] != ""].shape[0]
+        labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
         progress = f"{labeled}/{total}"
 
         if labeled == total:
@@ -271,29 +324,38 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 [None]
                 * (self.num_text_cols + self.num_image_cols + self.num_video_cols)
             )
-        new_one = self.dataset[self.dataset["__label__"] == ""].sample(1).iloc[0]
-        new_index = new_one["__index__"]
+        new_one = self.dataset[self.dataset["Label"] == ""].sample(1).iloc[0]
+        new_index = new_one["Index"]
         new_texts = new_one[self.text_cols].tolist()
         new_images = new_one[self.image_cols].tolist()
 
         def save_url(url):
             if url.startswith("http"):
+                name = os.path.join(
+                    self.temp_folder, hashlib.md5(url.encode()).hexdigest()
+                )
                 try:
-                    response = requests.get(url, stream=True)
-                    name = os.path.join(
-                        self.temp_folder, hashlib.md5(url.encode()).hexdigest()
-                    )
-                    if response.status_code == 200:
-                        with open(name, "wb") as f:
-                            for chunk in response.iter_content(8192):
-                                f.write(chunk)
-                        return name
+                    download_url_to_file(url, name)
+                    return name
                 except Exception as e:
                     print(e)
             return url
 
         new_images = [save_url(p) for p in new_images]
+        new_images_0 = Image.open(new_images[0])
+        # crop to 1.91 : 1
+        width, height = new_images_0.size
+        if width / height > 1.91:
+            new_images_0 = new_images_0.crop(
+                ((width - height * 1.91) / 2, 0, (width + height * 1.91) / 2, height)
+            )
+        elif width / height < 1.91:
+            new_images_0 = new_images_0.crop(
+                (0, (height - width / 1.91) / 2, width, (height + width / 1.91) / 2)
+            )
+        new_images[0] = new_images_0
         new_videos = new_one[self.video_cols].tolist()
+        new_videos = [save_url(p) for p in new_videos]
 
         return (
             (new_index, progress, None, None)
@@ -304,31 +366,26 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
     def show(self):
         total = self.dataset.shape[0]
-        labeled = self.dataset[self.dataset["__label__"] != ""].shape[0]
+        labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
         progress = f"{labeled}/{total}"
 
-        results = self.dataset[self.dataset["__label__"] != ""].copy()
+        results = self.dataset[self.dataset["Label"] != ""].copy()
         for col in self.image_cols:
             results[col] = results[col].map(
-                lambda x: x if x.startswith("http") else self.http_url.format(x)
+                lambda x: x
+                if x.startswith("http")
+                else self.http_url.format(os.path.abspath(x))
             )
             results[col] = results[col].map(lambda x: f'<img src="{x}" width="100%">')
         for col in self.video_cols:
             results[col] = results[col].map(
-                lambda x: x if x.startswith("http") else self.http_url.format(x)
+                lambda x: x
+                if x.startswith("http")
+                else self.http_url.format(os.path.abspath(x))
             )
             results[col] = results[col].map(
                 lambda x: f'<video src="{x}" width="100%" preload="none" controls>'
             )
-        results.rename(
-            columns={
-                "__index__": "Index",
-                "__user__": "User",
-                "__label__": "Label",
-                "__comment__": "Comment",
-            },
-            inplace=True,
-        )
         results = results[
             ["Index"]
             + [
@@ -350,8 +407,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         choice,
         comment,
     ):
-        self.dataset.loc[self.dataset.__index__ == index, "__user__"] = user
-        self.dataset.loc[self.dataset.__index__ == index, "__label__"] = choice
-        self.dataset.loc[self.dataset.__index__ == index, "__comment__"] = comment
+        if isinstance(choice, list) or isinstance(choice, tuple):
+            choice = ",".join(choice) if len(choice) > 0 else "None"
+        self.dataset.loc[self.dataset.Index == index, "User"] = user
+        self.dataset.loc[self.dataset.Index == index, "Label"] = choice
+        self.dataset.loc[self.dataset.Index == index, "Comment"] = comment
         self.dataset.to_csv(self.result_file, sep="\t", index=False)
-        return self.sample()
+        return (os.path.abspath(self.result_file),) + self.sample()
