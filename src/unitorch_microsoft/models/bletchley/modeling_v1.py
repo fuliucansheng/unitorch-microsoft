@@ -866,6 +866,7 @@ class BletchleyForMatching(GenericModel, PeftWeightLoaderMixin):
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
 
+
 @register_model("microsoft/model/matching/bletchley/v1/text")
 class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
@@ -937,7 +938,7 @@ class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
 
         inst = cls(
             query_config_type=query_config_type,
-            doc_config_type = doc_config_type,
+            doc_config_type=doc_config_type,
             projection_dim=projection_dim,
             freeze_base_model=freeze_base_model,
             gradient_checkpointing=gradient_checkpointing,
@@ -1000,7 +1001,7 @@ class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
             doc_embeds = self.doc_projection(doc_embeds)
             doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=doc_embeds)
-        
+
         query_outputs = self.query_encoder(
             input_ids=query_input_ids, attention_mask=query_attention_mask
         )
@@ -1020,6 +1021,7 @@ class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
 
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
+
 
 @register_model("microsoft/model/selection/bletchley/v1/text")
 class BletchleyForTextSelection(GenericModel):

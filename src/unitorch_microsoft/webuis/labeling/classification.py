@@ -95,9 +95,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.text_cols = config.getoption("text_cols", None)
         self.image_cols = config.getoption("image_cols", None)
         self.video_cols = config.getoption("video_cols", None)
+        self.html_cols = config.getoption("html_cols", None)
         self.show_cols = config.getoption("show_cols", None)
         self.num_images_per_row = config.getoption("num_images_per_row", 4)
         self.num_videos_per_row = config.getoption("num_videos_per_row", 4)
+        self.num_html_per_row = config.getoption("num_html_per_row", 4)
 
         if self.text_cols is not None:
             if isinstance(self.text_cols, str):
@@ -136,9 +138,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.num_text_cols = 0 if self.text_cols is None else len(self.text_cols)
         self.num_image_cols = 0 if self.image_cols is None else len(self.image_cols)
         self.num_video_cols = 0 if self.video_cols is None else len(self.video_cols)
+        self.num_html_cols = 0 if self.html_cols is None else len(self.html_cols)
         self.guideline = config.getoption("guideline", None)
         self.choices = config.getoption("choices", None)
         self.checkbox = config.getoption("checkbox", False)
+        self.default_choice = config.getoption("default_choice", "")
         self.dataset["User"] = ""
         self.dataset["Comment"] = ""
         self.dataset["Label"] = ""
@@ -187,6 +191,13 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 label=col,
             )
             for col in self.video_cols
+        ]
+        htmls = [
+            create_element(
+                "html",
+                label=col,
+            )
+            for col in self.html_cols
         ]
         choices = (
             create_element(
@@ -240,6 +251,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         text_layout = create_column(*texts)
         image_layout = get_flex_layout(*images, num_per_row=self.num_images_per_row)
         video_layout = get_flex_layout(*videos, num_per_row=self.num_videos_per_row)
+        html_layout = get_flex_layout(*htmls, num_per_row=self.num_html_per_row)
         label_layout = create_row(
             comment, create_column(choices, create_row(random, submit))
         )
@@ -253,6 +265,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         if self.num_video_cols > 0:
             layouts.append(video_layout)
+
+        if self.num_html_cols > 0:
+            layouts.append(html_layout)
 
         tab1 = create_tab(
             create_row(index, progress, user),
@@ -280,17 +295,36 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 *texts,
                 *images,
                 *videos,
+                *htmls,
             ],
         )
         random.click(
             self.sample,
             inputs=[],
-            outputs=[index, progress, choices, comment, *texts, *images, *videos],
+            outputs=[
+                index,
+                progress,
+                choices,
+                comment,
+                *texts,
+                *images,
+                *videos,
+                *htmls,
+            ],
         )
         iface.load(
             fn=self.sample,
             inputs=[],
-            outputs=[index, progress, choices, comment, *texts, *images, *videos],
+            outputs=[
+                index,
+                progress,
+                choices,
+                comment,
+                *texts,
+                *images,
+                *videos,
+                *htmls,
+            ],
         )
         refresh.click(
             self.show,
@@ -314,6 +348,18 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         super().__init__(config, iname="Human Classification Labeling", iface=iface)
 
+    def postprocess_texts(self, *texts):
+        return texts
+
+    def postprocess_images(self, *images):
+        return images
+
+    def postprocess_videos(self, *videos):
+        return videos
+
+    def postprocess_htmls(self, *htmls):
+        return htmls
+
     def sample(self):
         total = self.dataset.shape[0]
         labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
@@ -327,7 +373,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         new_one = self.dataset[self.dataset["Label"] == ""].sample(1).iloc[0]
         new_index = new_one["Index"]
         new_texts = new_one[self.text_cols].tolist()
-        new_images = new_one[self.image_cols].tolist()
+        new_texts = self.postprocess_texts(*new_texts)
 
         def save_url(url):
             if url.startswith("http"):
@@ -341,27 +387,23 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                     print(e)
             return url
 
+        new_images = new_one[self.image_cols].tolist()
         new_images = [save_url(p) for p in new_images]
-        new_images_0 = Image.open(new_images[0])
-        # crop to 1.91 : 1
-        width, height = new_images_0.size
-        if width / height > 1.91:
-            new_images_0 = new_images_0.crop(
-                ((width - height * 1.91) / 2, 0, (width + height * 1.91) / 2, height)
-            )
-        elif width / height < 1.91:
-            new_images_0 = new_images_0.crop(
-                (0, (height - width / 1.91) / 2, width, (height + width / 1.91) / 2)
-            )
-        new_images[0] = new_images_0
+        new_images = self.postprocess_images(*new_images)
+
         new_videos = new_one[self.video_cols].tolist()
         new_videos = [save_url(p) for p in new_videos]
+        new_videos = self.postprocess_videos(*new_videos)
+
+        new_htmls = new_one[self.html_cols].tolist()
+        new_htmls = self.postprocess_htmls(*new_htmls)
 
         return (
             (new_index, progress, None, None)
             + tuple(new_texts)
             + tuple(new_images)
             + tuple(new_videos)
+            + tuple(new_htmls)
         )
 
     def show(self):
@@ -370,14 +412,14 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         progress = f"{labeled}/{total}"
 
         results = self.dataset[self.dataset["Label"] != ""].copy()
-        for col in self.image_cols:
+        for col in set(self.image_cols):
             results[col] = results[col].map(
                 lambda x: x
                 if x.startswith("http")
                 else self.http_url.format(os.path.abspath(x))
             )
             results[col] = results[col].map(lambda x: f'<img src="{x}" width="100%">')
-        for col in self.video_cols:
+        for col in set(self.video_cols):
             results[col] = results[col].map(
                 lambda x: x
                 if x.startswith("http")
@@ -391,10 +433,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             + [
                 col
                 for col in results.columns
-                if col != "Comment"
-                and col != "User"
-                and col != "Label"
-                and col != "Index"
+                if col not in ["Comment", "User", "Label", "Index"]
             ]
             + ["Label", "Comment"]
         ]
@@ -408,7 +447,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         comment,
     ):
         if isinstance(choice, list) or isinstance(choice, tuple):
-            choice = ",".join(choice) if len(choice) > 0 else "None"
+            choice = ",".join(choice) if len(choice) > 0 else self.default_choice
+        elif choice is None:
+            choice = self.default_choice
         self.dataset.loc[self.dataset.Index == index, "User"] = user
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment

@@ -93,7 +93,8 @@ class BletchleyForMatching(GenericModel):
         text_embeds = self.text_projection(text_embeds)
 
         return (text_embeds, image_embeds)
-    
+
+
 class BletchleyForMatchingText(GenericModel):
     replace_keys_in_state_dict = {
         "query_encoder.projection": "query_projection",
@@ -108,7 +109,9 @@ class BletchleyForMatchingText(GenericModel):
         gradient_checkpointing: Optional[bool] = False,
     ):
         super().__init__()
-        query_config = get_bletchley_text_config(query_config_type, gradient_checkpointing)
+        query_config = get_bletchley_text_config(
+            query_config_type, gradient_checkpointing
+        )
         doc_config = get_bletchley_text_config(doc_config_type, gradient_checkpointing)
 
         self.query_embed_dim = query_config.hidden_size
@@ -117,9 +120,7 @@ class BletchleyForMatchingText(GenericModel):
         self.query_encoder = BletchleyTextEncoder(
             query_config, add_projection_layer=False
         )
-        self.doc_encoder = BletchleyTextEncoder(
-            doc_config, add_projection_layer=False
-        )
+        self.doc_encoder = BletchleyTextEncoder(doc_config, add_projection_layer=False)
 
         self.query_projection = nn.Linear(
             self.query_embed_dim,
@@ -147,8 +148,7 @@ class BletchleyForMatchingText(GenericModel):
         return_dict=None,
     ):
         query_outputs = self.query_encoder(
-            input_ids=query_input_ids,
-            attention_mask=query_attention_mask
+            input_ids=query_input_ids, attention_mask=query_attention_mask
         )
         doc_outputs = self.doc_encoder(
             input_ids=doc_input_ids,
@@ -267,7 +267,7 @@ class BletchleyLoraForMatchingText(GenericPeftModel):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
-    modules_to_save_checkpoints = ["lora","classifier"]
+    modules_to_save_checkpoints = ["lora", "classifier"]
 
     def __init__(
         self,
@@ -289,7 +289,9 @@ class BletchleyLoraForMatchingText(GenericPeftModel):
             target_modules=target_modules,
         )
         self.peft_model = PeftModelForSequenceClassification(
-            BletchleyForMatchingText(query_config_type, doc_config_type, projection_dim=projection_dim),
+            BletchleyForMatchingText(
+                query_config_type, doc_config_type, projection_dim=projection_dim
+            ),
             self.peft_config,
         )
         self.classifier = nn.Linear(1, 1)
@@ -298,9 +300,13 @@ class BletchleyLoraForMatchingText(GenericPeftModel):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/peft/lora/bletchley/v1/text")
+    @add_default_section_for_init(
+        "microsoft/model/matching/peft/lora/bletchley/v1/text"
+    )
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/matching/peft/lora/bletchley/v1/text")
+        config.set_default_section(
+            "microsoft/model/matching/peft/lora/bletchley/v1/text"
+        )
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 1024)

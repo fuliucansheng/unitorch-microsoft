@@ -5,7 +5,7 @@ import os
 import torch
 import random
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 from typing import List, Tuple, Union, Optional
 from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, Compose
 from transformers import SamImageProcessor
@@ -21,6 +21,76 @@ from unitorch.cli import (
 )
 from unitorch.cli.models import SegmentationOutputs, TensorsInputs
 from unitorch.cli.models.sam import pretrained_sam_infos
+
+
+def cv_random_flip(img, label):
+    if random.random() > 0.5:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        label = label.transpose(Image.FLIP_LEFT_RIGHT)
+    return img, label
+
+
+def random_crop(image, label):
+    border = 30
+    image_width = image.size[0]
+    image_height = image.size[1]
+    border = int(min(image_width, image_height) * 0.1)
+    crop_win_width = np.random.randint(image_width - border, image_width)
+    crop_win_height = np.random.randint(image_height - border, image_height)
+    random_region = (
+        (image_width - crop_win_width) >> 1,
+        (image_height - crop_win_height) >> 1,
+        (image_width + crop_win_width) >> 1,
+        (image_height + crop_win_height) >> 1,
+    )
+    return image.crop(random_region), label.crop(random_region)
+
+
+def random_rotate(image, label, angle=15):
+    mode = Image.BICUBIC
+    if random.random() > 0.8:
+        random_angle = np.random.randint(-angle, angle)
+        image = image.rotate(random_angle, mode)
+        label = label.rotate(random_angle, mode)
+    return image, label
+
+
+def color_enhance(image):
+    bright_intensity = random.randint(5, 15) / 10.0
+    image = ImageEnhance.Brightness(image).enhance(bright_intensity)
+    contrast_intensity = random.randint(5, 15) / 10.0
+    image = ImageEnhance.Contrast(image).enhance(contrast_intensity)
+    color_intensity = random.randint(0, 20) / 10.0
+    image = ImageEnhance.Color(image).enhance(color_intensity)
+    sharp_intensity = random.randint(0, 30) / 10.0
+    image = ImageEnhance.Sharpness(image).enhance(sharp_intensity)
+    return image
+
+
+def random_gaussian(image, mean=0.1, sigma=0.35):
+    def gaussianNoisy(im, mean=mean, sigma=sigma):
+        for _i in range(len(im)):
+            im[_i] += random.gauss(mean, sigma)
+        return im
+
+    img = np.asarray(image)
+    width, height = img.shape
+    img = gaussianNoisy(img[:].flatten(), mean, sigma)
+    img = img.reshape([width, height])
+    return Image.fromarray(np.uint8(img))
+
+
+def random_pepper(img, N=0.0015):
+    img = np.array(img)
+    noiseNum = int(N * img.shape[0] * img.shape[1])
+    for i in range(noiseNum):
+        randX = random.randint(0, img.shape[0] - 1)
+        randY = random.randint(0, img.shape[1] - 1)
+        if random.randint(0, 1) == 0:
+            img[randX, randY] = 0
+        else:
+            img[randX, randY] = 255
+    return Image.fromarray(img)
 
 
 def get_random_points(mask: Image.Image, num_points: int):
@@ -88,18 +158,23 @@ class SamProcessor:
         if isinstance(mask, str):
             mask = Image.open(mask)
 
+        image, mask = cv_random_flip(image, mask)
+        image, mask = random_rotate(image, mask)
+        image = color_enhance(image)
+        mask = random_pepper(mask)
+
         pixel_results = self.vision_processor(image)
         pixel_values = torch.tensor(pixel_results.get("pixel_values")[0])
-        original_sizes = pixel_results.get("original_sizes")[0] #h, w
-        reshaped_input_sizes = pixel_results.get("reshaped_input_sizes")[0] #h, w
+        original_sizes = pixel_results.get("original_sizes")[0]  # h, w
+        reshaped_input_sizes = pixel_results.get("reshaped_input_sizes")[0]  # h, w
         height, width = reshaped_input_sizes
         # mask = mask.resize((width, height)).convert("L")
         # pixel_targets = torch.zeros_like(pixel_values[0]).float()
         # pixel_targets[:height, :width] = torch.tensor(np.array(mask)).float() / 255.0
 
-        mask = mask.resize((width, height)).convert("1")
-        pixel_targets = torch.zeros_like(pixel_values[0]).long()
-        pixel_targets[:height, :width] = torch.tensor(np.array(mask)).long()
+        mask = mask.convert("L").resize((width, height))
+        pixel_targets = torch.zeros_like(pixel_values[0]).float()
+        pixel_targets[:height, :width] = torch.tensor(np.array(mask)).long() / 255.0
 
         # input_points = get_random_points(mask, random.randint(1, num_points))
         # input_boxes = torch.tensor([get_mask_box(mask)]).float()
@@ -112,4 +187,3 @@ class SamProcessor:
             pixel_targets=pixel_targets,
             reshaped_input_sizes=torch.tensor(reshaped_input_sizes),
         )
-

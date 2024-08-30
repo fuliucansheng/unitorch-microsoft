@@ -24,7 +24,13 @@ from unitorch.cli import (
     register_model,
 )
 from unitorch.cli.models.sam import pretrained_sam_infos
-from unitorch_microsoft.models.sam.utils import FocalLoss, DiceLoss, SSIMLoss, SSIM, calc_iou
+from unitorch_microsoft.models.sam.utils import (
+    FocalLoss,
+    DiceLoss,
+    SSIMLoss,
+    SSIM,
+    calc_iou,
+)
 
 
 class SamForSegmentation(GenericModel):
@@ -127,7 +133,6 @@ class SamLoraForSegmentation(GenericPeftModel):
         # self.focal_loss = FocalLoss()
         # self.dice_loss = DiceLoss()
         # self.ssim_loss = SSIMLoss()
-        
 
     @classmethod
     @add_default_section_for_init("microsoft/model/segmentation/peft/lora/sam")
@@ -209,15 +214,23 @@ class SamLoraForSegmentation(GenericPeftModel):
             height, width = reshaped_input_size
             pred_mask = pred_mask[:height, :width]
             pixel_target = pixel_target[:height, :width]
-            iou_label = calc_iou(pred_mask, pixel_target)
+            iou_label = calc_iou(pred_mask.sigmoid(), pixel_target)
             # loss_focal += self.focal_loss(pred_mask, pixel_target)
             # loss_dice += self.dice_loss(pred_mask, pixel_target)
             loss_iou += F.mse_loss(iou_score, iou_label, reduction="sum")
-            loss_l1 += F.l1_loss(pred_mask.reshape(-1).sigmoid(), pixel_target.reshape(-1), reduction="mean")
+            loss_l1 += F.l1_loss(
+                pred_mask.reshape(-1).sigmoid(),
+                pixel_target.reshape(-1),
+                reduction="mean",
+            )
             # loss_l2 += F.mse_loss(pred_mask.reshape(-1).sigmoid(), pixel_target.reshape(-1), reduction="mean")
-            loss_bce += F.binary_cross_entropy_with_logits(pred_mask.reshape(-1), pixel_target.reshape(-1).float(), reduction="mean")
+            loss_bce += F.binary_cross_entropy_with_logits(
+                pred_mask.reshape(-1),
+                pixel_target.reshape(-1).float(),
+                reduction="mean",
+            )
             # loss_ssim += self.ssim_loss(pred_mask.sigmoid(), pixel_target)
             loss_ssim += SSIM(pred_mask.sigmoid(), pixel_target)
-        
+
         loss = loss_iou + loss_l1 * 3 + loss_bce * 3 + loss_ssim
         return LossOutputs(loss=loss / len(pred_masks))
