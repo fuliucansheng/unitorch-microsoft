@@ -6,6 +6,7 @@ from unitorch.cli import CoreConfigureParser
 from unitorch.cli import register_webui
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft.models.mask2former.webui import Mask2FormerWebUI
+from unitorch_microsoft.webuis.picasso.video import VideoWebUI
 from unitorch_microsoft.webuis.picasso.tools import ToolsWebUI
 
 
@@ -14,6 +15,7 @@ class PicassoWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         webuis = [
             Mask2FormerWebUI(config),
+            VideoWebUI(config),
             ToolsWebUI(config),
         ]
         iface = gr.TabbedInterface(

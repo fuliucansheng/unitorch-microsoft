@@ -11,7 +11,6 @@ import gradio as gr
 import pandas as pd
 from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from unitorch.utils.image_utils import load_from_url
 from unitorch.cli import CoreConfigureParser, GenericWebUI
 from unitorch.cli import register_webui
 from unitorch.cli.webuis import (
@@ -32,6 +31,19 @@ from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft.china.alibaba.pipeline import (
     BletchleyAli1688ImageSelectionPipeline,
 )
+from unitorch_microsoft.webuis.labeling.classification import (
+    GenericClassificationLabelingWebUI,
+)
+
+load_from_url = lambda url: Image.open(
+    requests.get(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+        },
+        stream=True,
+    ).raw
+).convert("RGB")
 
 
 @register_webui("microsoft/china/webui/ali1688")
@@ -136,14 +148,16 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
             "prompt",
         ]
         dataset = pd.read_csv(
-            "/data/decu/1688/0805_controlnet_input_with_prompt.tsv",
+            # "/data/decu/1688/0805_controlnet_input_with_prompt.tsv",
+            "/path/to/data.tsv",
             names=names,
             header=None,
             sep="\t",
             quoting=3,
         )
         dataset["offerid"] = dataset.offerid.astype(str)
-        self.controlnet_foldeer = "/home/chunchen/1688/res_900_471_0805"
+        # self.controlnet_foldeer = "/home/chunchen/1688/res_900_471_0805"
+        self.controlnet_foldeer = "/path/to/data"
         dataset["controlnet_image"] = dataset.unique_id + ".png"
         self.dataset = dataset[
             ["offerid", "offerurl", "imageurl", "title", "controlnet_image"]
@@ -151,10 +165,12 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
         self.dataset["label"] = -2
 
         if os.path.exists(
-            "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv"
+            # "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv"
+            "/path/to/data.results.tsv"
         ):
             self.dataset = pd.read_csv(
-                "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv",
+                # "/data/decu/1688/0805_controlnet_input_with_prompt.results.tsv",
+                "/path/to/data.results.tsv",
                 sep="\t",
             )
             self.dataset["offerid"] = self.dataset.offerid.astype(str)
@@ -264,3 +280,44 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
         offerid, offerurl, offerimage, title, images = self.sample(offerid, topk)
 
         return offerid, offerurl, offerimage, title, images, None, None
+
+
+@register_webui("microsoft/china/webui/ali1688/flight/image/labeling")
+class FlightImageLabelingWebUI(GenericClassificationLabelingWebUI):
+    def __init__(self, config: CoreConfigureParser):
+        super().__init__(
+            config,
+            default_section="microsoft/china/webui/ali1688/flight/image/labeling",
+        )
+
+    def postprocess_htmls(self, *htmls, info=None):
+        htmls = list(htmls)
+        htmls[
+            0
+        ] = f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{htmls[0]}" alt="" /> </div>"""
+        if info["BackgroundType"] != "White":
+            htmls[1] += "&pcl=f5f5f5"
+        htmls[
+            1
+        ] = f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{htmls[1]}" alt="" /> </div>"""
+        htmls[
+            2
+        ] = f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;filter: blur(90px);background-repeat: no-repeat;;background-position: center;background-size: cover;background-image: url('{htmls[2]}');"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{htmls[2]}&amp;h=157" alt="" /> </div>"""
+        return tuple(htmls)
+
+    def process_show_cols(self, results, show_cols=None):
+        results["CenterCropURL"] = results["CenterCropURL"].map(
+            lambda x: f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{x}" alt="" /> </div>"""
+        )
+        results["FullROIImageURL"] = results.apply(
+            lambda x: x["FullROIImageURL"]
+            + ("" if x["BackgroundType"] == "White" else "&pcl=f5f5f5"),
+            axis=1,
+        )
+        results["FullROIImageURL"] = results["FullROIImageURL"].map(
+            lambda x: f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{x}" alt="" /> </div>"""
+        )
+        results["BlurURL"] = results["BlurURL"].map(
+            lambda x: f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;filter: blur(90px);background-repeat: no-repeat;;background-position: center;background-size: cover;background-image: url('{x}');"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{x}&amp;h=157" alt="" /> </div>"""
+        )
+        return results
