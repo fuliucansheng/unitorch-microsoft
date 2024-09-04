@@ -1,5 +1,5 @@
 sqlparse
 transformers>=4.41.0
-unitorch>=0.0.0.17,<0.0.1.0
+unitorch>=0.0.0.18,<0.0.1.0
 multiprocess<=0.70.14
 importlib_resources
