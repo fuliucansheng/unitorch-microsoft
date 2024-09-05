@@ -260,6 +260,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label="Reset",
             variant="secondary",
         )
+        adv_stats_header = create_element(
+            "markdown",
+            label="## Analytics",
+            interactive=False,
+        )
         adv_stats = create_element(
             "markdown",
             label="",
@@ -319,13 +324,12 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         tab3 = create_tab(
             create_row(
-                create_column(
-                    create_row(adv_index, user),
-                    create_row(adv_load, adv_reset),
-                    scale=2,
-                ),
-                adv_stats,
+                adv_index,
+                adv_load,
+                adv_reset,
             ),
+            adv_stats_header,
+            adv_stats,
             adv_preview,
             *layouts,
             name="Advanced",
@@ -426,25 +430,24 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         super().__init__(config, iname="Human Classification Labeling", iface=iface)
 
-    def postprocess_texts(self, *texts, info=None):
-        return texts
+    def process_sample(self, sample):
+        def save_url(url):
+            if url.startswith("http"):
+                name = os.path.join(
+                    self.temp_folder, hashlib.md5(url.encode()).hexdigest()
+                )
+                try:
+                    download_url_to_file(url, name)
+                    return name
+                except Exception as e:
+                    print(e)
+            return url
 
-    def preprocess_images(self, *images, info=None):
-        return images
+        for col in self.image_cols + self.video_cols:
+            sample[col] = save_url(sample[col])
+        return sample
 
-    def postprocess_images(self, *images, info=None):
-        return images
-
-    def preprocess_videos(self, *videos, info=None):
-        return videos
-
-    def postprocess_videos(self, *videos, info=None):
-        return videos
-
-    def postprocess_htmls(self, *htmls, info=None):
-        return htmls
-
-    def process_show_cols(self, results, show_cols=None):
+    def process_results(self, results):
         return results
 
     def sample(self):
@@ -458,34 +461,12 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 * (self.num_text_cols + self.num_image_cols + self.num_video_cols)
             )
         new_one = self.dataset[self.dataset["Label"] == ""].sample(1).iloc[0]
+        new_one = self.process_sample(new_one)
         new_index = new_one["Index"]
         new_texts = new_one[self.text_cols].tolist()
-        new_texts = self.postprocess_texts(*new_texts, info=new_one)
-
-        def save_url(url):
-            if url.startswith("http"):
-                name = os.path.join(
-                    self.temp_folder, hashlib.md5(url.encode()).hexdigest()
-                )
-                try:
-                    download_url_to_file(url, name)
-                    return name
-                except Exception as e:
-                    print(e)
-            return url
-
         new_images = new_one[self.image_cols].tolist()
-        new_images = self.preprocess_images(*new_images, info=new_one)
-        new_images = [save_url(p) for p in new_images]
-        new_images = self.postprocess_images(*new_images, info=new_one)
-
         new_videos = new_one[self.video_cols].tolist()
-        new_videos = self.preprocess_videos(*new_videos, info=new_one)
-        new_videos = [save_url(p) for p in new_videos]
-        new_videos = self.postprocess_videos(*new_videos, info=new_one)
-
         new_htmls = new_one[self.html_cols].tolist()
-        new_htmls = self.postprocess_htmls(*new_htmls, info=new_one)
 
         return (
             (new_index, progress, None, None)
@@ -501,7 +482,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         progress = f"{labeled}/{total}"
 
         results = self.dataset[self.dataset["Label"] != ""].copy()
-        results = self.process_show_cols(results, show_cols=self.show_cols)
+        results = self.process_results(results)
 
         for col in set(self.image_cols):
             results[col] = results[col].map(
@@ -544,33 +525,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
     def load(self, index):
         new_one = self.dataset[self.dataset["Index"] == index].iloc[0]
+        new_one = self.process_sample(new_one)
         new_texts = new_one[self.text_cols].tolist()
-        new_texts = self.postprocess_texts(*new_texts, info=new_one)
-
-        def save_url(url):
-            if url.startswith("http"):
-                name = os.path.join(
-                    self.temp_folder, hashlib.md5(url.encode()).hexdigest()
-                )
-                try:
-                    download_url_to_file(url, name)
-                    return name
-                except Exception as e:
-                    print(e)
-            return url
-
         new_images = new_one[self.image_cols].tolist()
-        new_images = self.preprocess_images(*new_images, info=new_one)
-        new_images = [save_url(p) for p in new_images]
-        new_images = self.postprocess_images(*new_images, info=new_one)
-
         new_videos = new_one[self.video_cols].tolist()
-        new_videos = self.preprocess_videos(*new_videos, info=new_one)
-        new_videos = [save_url(p) for p in new_videos]
-        new_videos = self.postprocess_videos(*new_videos, info=new_one)
-
         new_htmls = new_one[self.html_cols].tolist()
-        new_htmls = self.postprocess_htmls(*new_htmls, info=new_one)
 
         return (
             (index, None, None)

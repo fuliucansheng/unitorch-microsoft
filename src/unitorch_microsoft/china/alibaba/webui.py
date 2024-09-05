@@ -289,35 +289,28 @@ class FlightImageLabelingWebUI(GenericClassificationLabelingWebUI):
             config,
             default_section="microsoft/china/webui/ali1688/flight/image/labeling",
         )
+        self.card_css = """<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{0}" alt="" /> </div>"""
+        self.blur_css = """<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;filter: blur(90px);background-repeat: no-repeat;;background-position: center;background-size: cover;background-image: url('{0}');"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{0}&amp;h=157" alt="" /> </div>"""
 
-    def postprocess_htmls(self, *htmls, info=None):
-        htmls = list(htmls)
-        htmls[
-            0
-        ] = f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{htmls[0]}" alt="" /> </div>"""
-        if info["BackgroundType"] != "White":
-            htmls[1] += "&pcl=f5f5f5"
-        htmls[
-            1
-        ] = f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{htmls[1]}" alt="" /> </div>"""
-        htmls[
-            2
-        ] = f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;filter: blur(90px);background-repeat: no-repeat;;background-position: center;background-size: cover;background-image: url('{htmls[2]}');"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{htmls[2]}&amp;h=157" alt="" /> </div>"""
-        return tuple(htmls)
+    def process_sample(self, sample):
+        sample["CenterCropURL"] = self.card_css.format(sample["CenterCropURL"])
+        if sample["BackgroundType"] != "White":
+            sample["FullROIImageURL"] += "&pcl=f5f5f5"
+        sample["FullROIImageURL"] = self.card_css.format(sample["FullROIImageURL"])
+        sample["BlurURL"] = self.blur_css.format(sample["BlurURL"])
+        sample = super().process_sample(sample)
+        return sample
 
-    def process_show_cols(self, results, show_cols=None):
+    def process_results(self, results):
         results["CenterCropURL"] = results["CenterCropURL"].map(
-            lambda x: f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{x}" alt="" /> </div>"""
+            lambda x: self.card_css.format(x)
         )
         results["FullROIImageURL"] = results.apply(
-            lambda x: x["FullROIImageURL"]
-            + ("" if x["BackgroundType"] == "White" else "&pcl=f5f5f5"),
+            lambda x: self.card_css.format(
+                x["FullROIImageURL"]
+                + ("" if x["BackgroundType"] == "White" else "&pcl=f5f5f5")
+            ),
             axis=1,
         )
-        results["FullROIImageURL"] = results["FullROIImageURL"].map(
-            lambda x: f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;background-repeat: no-repeat;;background-position: center;background-size: cover"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{x}" alt="" /> </div>"""
-        )
-        results["BlurURL"] = results["BlurURL"].map(
-            lambda x: f"""<div style="height:157px;width:300px;position:relative;overflow:hidden;"> <div style="height: 100%;;filter: blur(90px);background-repeat: no-repeat;;background-position: center;background-size: cover;background-image: url('{x}');"></div> <img style="position: absolute;top: 0px;bottom:0px;left:50%;transform: translateX(-50%);object-fit: contain;max-width: 100%;max-height:100%" src="{x}&amp;h=157" alt="" /> </div>"""
-        )
+        results["BlurURL"] = results["BlurURL"].map(lambda x: self.blur_css.format(x))
         return results
