@@ -12,7 +12,7 @@ import subprocess
 import pandas as pd
 import gradio as gr
 from PIL import Image
-from collections import Counter
+from collections import Counter, defaultdict
 from torch.hub import download_url_to_file
 from unitorch import get_temp_home
 from unitorch.cli import CoreConfigureParser
@@ -53,6 +53,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self,
         config: CoreConfigureParser,
         default_section: str = "microsoft/webui/labeling/classification",
+        default_name: str = "Human Classification Labeling",
     ):
         self._config = config
         config.set_default_section(default_section)
@@ -97,19 +98,15 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
 
         # show columns
-        self.text_cols = config.getoption("text_cols", None)
-        self.image_cols = config.getoption("image_cols", None)
-        self.video_cols = config.getoption("video_cols", None)
-        self.html_cols = config.getoption("html_cols", None)
+        self.text_cols = config.getoption("text_cols", [])
+        self.image_cols = config.getoption("image_cols", [])
+        self.video_cols = config.getoption("video_cols", [])
+        self.html_cols = config.getoption("html_cols", [])
         self.show_cols = config.getoption("show_cols", None)
+        self.group_col = config.getoption("group_col", None)
         self.num_images_per_row = config.getoption("num_images_per_row", 4)
         self.num_videos_per_row = config.getoption("num_videos_per_row", 4)
         self.num_html_per_row = config.getoption("num_html_per_row", 4)
-
-        self.text_cols = [] if self.text_cols is None else self.text_cols
-        self.image_cols = [] if self.image_cols is None else self.image_cols
-        self.video_cols = [] if self.video_cols is None else self.video_cols
-        self.html_cols = [] if self.html_cols is None else self.html_cols
 
         if self.text_cols is not None:
             if isinstance(self.text_cols, str):
@@ -159,6 +156,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         self.choices = [c.replace(",", " ").strip() for c in self.choices]
         self.default_choice = self.default_choice.replace(",", " ").strip()
+        if self.default_choice not in self.choices and self.default_choice != "":
+            self.choices = self.choices + [self.default_choice]
 
         if os.path.exists(result_file):
             self.dataset = pd.read_csv(result_file, sep="\t")
@@ -172,15 +171,29 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label="Index",
             interactive=False,
         )
+        group_values = [" - "]
+        if self.group_col is not None:
+            group_values += self.dataset[self.group_col].unique().tolist()
+        group = create_element(
+            "dropdown",
+            label="Group",
+            default=" - ",
+            values=group_values,
+        )
         user = create_element(
             "text",
             label="User",
             interactive=False,
             scale=2,
         )
+        guideline_header = create_element(
+            "markdown",
+            label="# <div style='margin-top:10px'>Guideline</div>",
+            interactive=False,
+        )
         guideline = create_element(
             "markdown",
-            label=f"# Guideline \n {self.guideline}",
+            label=f"{self.guideline}",
             interactive=False,
         )
         texts = [
@@ -243,6 +256,12 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label="Progress",
             interactive=False,
             scale=2,
+        )
+        res_label = create_element(
+            "dropdown",
+            label="Label",
+            default=" - ",
+            values=[" - "] + self.choices,
         )
 
         adv_index = create_element(
@@ -314,13 +333,15 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             layouts.append(html_layout)
 
         tab1 = create_tab(
-            create_row(index, progress, user),
+            create_row(index, group, progress, user),
             *layouts,
             label_layout,
             name="Labeling",
         )
         tab2 = create_tab(
-            create_row(progress, refresh, download), results, name="Results"
+            create_row(progress, group, res_label, refresh, download),
+            results,
+            name="Results",
         )
         tab3 = create_tab(
             create_row(
@@ -335,18 +356,19 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             name="Advanced",
         )
         tabs = create_tabs(tab1, tab2, tab3)
-        iface = create_blocks(guideline, tabs)
+        iface = create_blocks(guideline_header, guideline, tabs)
 
         # create events
         iface.__enter__()
         submit.click(
             self.label,
-            inputs=[index, user, choices, comment],
+            inputs=[index, group, user, choices, comment],
             outputs=[
                 download,
                 adv_stats,
                 index,
                 progress,
+                group,
                 choices,
                 comment,
                 *texts,
@@ -357,10 +379,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         random.click(
             self.sample,
-            inputs=[],
+            inputs=[group],
             outputs=[
                 index,
                 progress,
+                group,
                 choices,
                 comment,
                 *texts,
@@ -368,6 +391,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+        )
+        refresh.click(
+            self.show,
+            inputs=[group, res_label],
+            outputs=[progress, results],
         )
         adv_load.click(
             self.load,
@@ -395,10 +423,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         iface.load(
             fn=self.sample,
-            inputs=[],
+            inputs=[group],
             outputs=[
                 index,
                 progress,
+                group,
                 choices,
                 comment,
                 *texts,
@@ -406,11 +435,6 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
-        )
-        refresh.click(
-            self.show,
-            inputs=[],
-            outputs=[progress, results],
         )
         iface.load(
             fn=lambda: tuple(self.show())
@@ -428,7 +452,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Human Classification Labeling", iface=iface)
+        super().__init__(config, iname=default_name, iface=iface)
 
     def process_sample(self, sample):
         def save_url(url):
@@ -450,17 +474,28 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
     def process_results(self, results):
         return results
 
-    def sample(self):
+    def sample(self, group=None):
         total = self.dataset.shape[0]
-        labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
-        progress = f"{labeled}/{total}"
+        if group is not None and group not in ["", " - "]:
+            labeled = self.dataset[
+                (self.dataset[self.group_col] == group) & (self.dataset["Label"] != "")
+            ]
+            non_labeled = self.dataset[
+                (self.dataset[self.group_col] == group) & (self.dataset["Label"] == "")
+            ]
+        else:
+            labeled = self.dataset[self.dataset["Label"] != ""]
+            non_labeled = self.dataset[self.dataset["Label"] == ""]
+        progress = f"{len(labeled)}/{total}"
 
-        if labeled == total:
+        if len(labeled) == total:
             return (None, progress, None, None) + tuple(
                 [None]
                 * (self.num_text_cols + self.num_image_cols + self.num_video_cols)
             )
-        new_one = self.dataset[self.dataset["Label"] == ""].sample(1).iloc[0]
+        if len(non_labeled) == 0:
+            non_labeled = self.dataset[self.dataset["Label"] == ""]
+        new_one = non_labeled.sample(1).iloc[0]
         new_one = self.process_sample(new_one)
         new_index = new_one["Index"]
         new_texts = new_one[self.text_cols].tolist()
@@ -469,37 +504,48 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         new_htmls = new_one[self.html_cols].tolist()
 
         return (
-            (new_index, progress, None, None)
+            (new_index, progress, group, None, None)
             + tuple(new_texts)
             + tuple(new_images)
             + tuple(new_videos)
             + tuple(new_htmls)
         )
 
-    def show(self):
+    def show(self, group=None, choice=None):
         total = self.dataset.shape[0]
-        labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
-        progress = f"{labeled}/{total}"
+        if choice is not None and choice not in ["", " - "]:
+            labeled = self.dataset[self.dataset["Label"].map(lambda x: choice in x)]
+        else:
+            labeled = self.dataset[self.dataset["Label"] != ""]
 
-        results = self.dataset[self.dataset["Label"] != ""].copy()
-        results = self.process_results(results)
+        if group is not None:
+            labeled = labeled[labeled[self.group_col] == group]
+        progress = f"{len(labeled)}/{total}"
 
-        for col in set(self.image_cols):
-            results[col] = results[col].map(
-                lambda x: x
-                if x.startswith("http")
-                else self.http_url.format(os.path.abspath(x))
-            )
-            results[col] = results[col].map(lambda x: f'<img src="{x}" width="100%">')
-        for col in set(self.video_cols):
-            results[col] = results[col].map(
-                lambda x: x
-                if x.startswith("http")
-                else self.http_url.format(os.path.abspath(x))
-            )
-            results[col] = results[col].map(
-                lambda x: f'<video src="{x}" width="100%" preload="none" controls>'
-            )
+        if len(labeled) > 0:
+            results = labeled.copy()
+            results = self.process_results(results)
+
+            for col in set(self.image_cols):
+                results[col] = results[col].map(
+                    lambda x: x
+                    if x.startswith("http")
+                    else self.http_url.format(os.path.abspath(x))
+                )
+                results[col] = results[col].map(
+                    lambda x: f'<img src="{x}" width="100%">'
+                )
+            for col in set(self.video_cols):
+                results[col] = results[col].map(
+                    lambda x: x
+                    if x.startswith("http")
+                    else self.http_url.format(os.path.abspath(x))
+                )
+                results[col] = results[col].map(
+                    lambda x: f'<video src="{x}" width="100%" preload="none" controls>'
+                )
+        else:
+            results = labeled.copy()
 
         results = results[
             ["Index"]
@@ -540,37 +586,70 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
 
     def stats(self):
-        labeled = self.dataset[self.dataset["Label"] != ""]
+        dataset = self.dataset.copy()
+        dataset["Num"] = 1
+        labeled = dataset[dataset["Label"] != ""]
         choices = self.choices
-        if self.default_choice not in choices and self.default_choice != "":
-            choices = choices + [self.default_choice]
 
-        counter = Counter()
-        for labels in labeled["Label"].tolist():
-            counter.update(labels.split(","))
-        stats = pd.DataFrame(
-            {"Label": choices, "Count": [counter[choice] for choice in choices]}
+        labeled["Label"] = labeled["Label"].map(
+            lambda x: x.split(",") if x != "" else []
         )
-        stats["Percentage"] = stats["Count"] / (len(labeled) if len(labeled) > 0 else 1)
-        stats["Percentage"] = stats["Percentage"].map(lambda x: f"{x:.2%}")
-        stats = pd.concat(
-            [
-                stats,
-                pd.DataFrame(
-                    {
-                        "Label": ["Total"],
-                        "Count": [f"{len(labeled)} / {len(self.dataset)}"],
-                        "Percentage": [f"{len(labeled) / len(self.dataset):.2%}"],
-                    }
-                ),
+        labeled_exploded = labeled.explode("Label")
+
+        percent = lambda x, y: f"{x / (y if y > 0 else 1):.2%}"
+
+        if self.group_col is not None:
+            group = labeled.groupby(self.group_col)["Num"].count().to_dict()
+
+            stats = labeled_exploded.groupby([self.group_col, "Label"])["Num"].count()
+            stats = [
+                {
+                    "Group": g,
+                    "Label": c,
+                    "Count": f"{stats.get((g, c), 0)} / {group[g]}",
+                    "Percentage": percent(stats.get((g, c), 0), group[g]),
+                }
+                for g in group.keys()
+                for c in choices
             ]
-        )
+            stats = pd.DataFrame(stats)
+            stats = stats.append(
+                {
+                    "Group": "-",
+                    "Label": "Total",
+                    "Count": f"{len(labeled)} / {len(dataset)}",
+                    "Percentage": percent(len(labeled), len(dataset)),
+                },
+                ignore_index=True,
+            )
+
+        else:
+            stats = labeled_exploded.groupby("Label")["Num"].count()
+            stats = [
+                {
+                    "Label": c,
+                    "Count": stats.get(c, 0),
+                    "Percentage": percent(stats.get(c, 0), len(labeled)),
+                }
+                for c in choices
+            ]
+            stats = pd.DataFrame(stats)
+            stats = stats.append(
+                {
+                    "Label": "Total",
+                    "Count": len(labeled),
+                    "Percentage": percent(len(labeled), len(dataset)),
+                },
+                ignore_index=True,
+            )
+
         stats = stats.to_markdown(index=False)
         return stats
 
     def label(
         self,
         index,
+        group,
         user,
         choice,
         comment,
@@ -583,4 +662,4 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment
         self.dataset.to_csv(self.result_file, sep="\t", index=False)
-        return (os.path.abspath(self.result_file), self.stats()) + self.sample()
+        return (os.path.abspath(self.result_file), self.stats()) + self.sample(group)
