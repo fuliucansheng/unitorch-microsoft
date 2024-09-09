@@ -101,6 +101,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.text_cols = config.getoption("text_cols", [])
         self.image_cols = config.getoption("image_cols", [])
         self.video_cols = config.getoption("video_cols", [])
+        self.url_cols = config.getoption("url_cols", [])
         self.html_cols = config.getoption("html_cols", [])
         self.show_cols = config.getoption("show_cols", None)
         self.group_col = config.getoption("group_col", None)
@@ -150,6 +151,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.choices = config.getoption("choices", None)
         self.checkbox = config.getoption("checkbox", False)
         self.default_choice = config.getoption("default_choice", "")
+        self.html_styles = config.getoption("html_styles", {})
         self.dataset["User"] = ""
         self.dataset["Comment"] = ""
         self.dataset["Label"] = ""
@@ -225,19 +227,12 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             )
             for col in self.html_cols
         ]
-        choices = (
-            create_element(
-                "radio",
-                label="Label",
-                values=self.choices,
-            )
-            if not self.checkbox
-            else create_element(
-                "checkboxgroup",
-                label="Label",
-                values=self.choices,
-            )
+        choices = create_element(
+            "radio" if not self.checkbox else "checkboxgroup",
+            label="Label",
+            values=self.choices,
         )
+
         comment = create_element(
             "text",
             label="Comment",
@@ -469,9 +464,45 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         for col in self.image_cols + self.video_cols:
             sample[col] = save_url(sample[col])
+
+        url = (
+            lambda x: x
+            if x.startswith("http")
+            else self.http_url.format(os.path.abspath(x))
+        )
+        for col in self.url_cols:
+            sample[col] = url(sample[col])
+
+        for col in self.html_cols:
+            sample[col] = self.html_styles.get(sample[col], "{0}").format(sample[col])
         return sample
 
     def process_results(self, results):
+        url = (
+            lambda x: x
+            if x.startswith("http")
+            else self.http_url.format(os.path.abspath(x))
+        )
+        for col in set(self.image_cols):
+            results[col] = results[col].map(url)
+            results[col] = results[col].map(lambda x: f'<img src="{x}" width="100%">')
+        for col in set(self.video_cols):
+            results[col] = results[col].map(
+                lambda x: x
+                if x.startswith("http")
+                else self.http_url.format(os.path.abspath(x))
+            )
+            results[col] = results[col].map(
+                lambda x: f'<video src="{x}" width="100%" preload="none" controls>'
+            )
+
+        for col in self.url_cols:
+            sample[col] = url(sample[col])
+
+        for col in set(self.html_cols):
+            results[col] = results[col].map(
+                lambda x: self.html_styles.get(x, "{0}").format(x)
+            )
         return results
 
     def sample(self, group=None):
@@ -486,7 +517,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         else:
             labeled = self.dataset[self.dataset["Label"] != ""]
             non_labeled = self.dataset[self.dataset["Label"] == ""]
-        progress = f"{len(labeled)}/{total}"
+        progress = f"{len(labeled)} / {total}"
 
         if len(labeled) == total:
             return (None, progress, None, None) + tuple(
@@ -518,34 +549,14 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         else:
             labeled = self.dataset[self.dataset["Label"] != ""]
 
-        if group is not None:
+        if group is not None and group not in [" - "]:
             labeled = labeled[labeled[self.group_col] == group]
-        progress = f"{len(labeled)}/{total}"
 
-        if len(labeled) > 0:
-            results = labeled.copy()
+        progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
+
+        results = labeled.copy()
+        if len(results) > 0:
             results = self.process_results(results)
-
-            for col in set(self.image_cols):
-                results[col] = results[col].map(
-                    lambda x: x
-                    if x.startswith("http")
-                    else self.http_url.format(os.path.abspath(x))
-                )
-                results[col] = results[col].map(
-                    lambda x: f'<img src="{x}" width="100%">'
-                )
-            for col in set(self.video_cols):
-                results[col] = results[col].map(
-                    lambda x: x
-                    if x.startswith("http")
-                    else self.http_url.format(os.path.abspath(x))
-                )
-                results[col] = results[col].map(
-                    lambda x: f'<video src="{x}" width="100%" preload="none" controls>'
-                )
-        else:
-            results = labeled.copy()
 
         results = results[
             ["Index"]
@@ -565,7 +576,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset.to_csv(self.result_file, sep="\t", index=False)
         total = self.dataset.shape[0]
         labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
-        progress = f"{labeled}/{total}"
+        progress = f"{labeled} / {total}"
         gr.Info(f"Reset {index} Success.")
         return None, progress
 

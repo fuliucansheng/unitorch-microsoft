@@ -204,7 +204,7 @@ class SamLoraForSegmentation(GenericPeftModel):
         # loss_focal = torch.tensor(0.0, device=pred_masks.device)
         # loss_dice = torch.tensor(0.0, device=pred_masks.device)
         loss_iou = torch.tensor(0.0, device=pred_masks.device)
-        loss_l1 = torch.tensor(0.0, device=pred_masks.device)
+        # loss_l1 = torch.tensor(0.0, device=pred_masks.device)
         # loss_l2 = torch.tensor(0.0, device=pred_masks.device)
         loss_bce = torch.tensor(0.0, device=pred_masks.device)
         loss_ssim = torch.tensor(0.0, device=pred_masks.device)
@@ -218,11 +218,11 @@ class SamLoraForSegmentation(GenericPeftModel):
             # loss_focal += self.focal_loss(pred_mask, pixel_target)
             # loss_dice += self.dice_loss(pred_mask, pixel_target)
             loss_iou += F.mse_loss(iou_score, iou_label, reduction="sum")
-            loss_l1 += F.l1_loss(
-                pred_mask.reshape(-1).sigmoid(),
-                pixel_target.reshape(-1),
-                reduction="mean",
-            )
+            # loss_l1 += F.l1_loss(
+            #     pred_mask.reshape(-1).sigmoid(),
+            #     pixel_target.reshape(-1),
+            #     reduction="mean",
+            # )
             # loss_l2 += F.mse_loss(pred_mask.reshape(-1).sigmoid(), pixel_target.reshape(-1), reduction="mean")
             loss_bce += F.binary_cross_entropy_with_logits(
                 pred_mask.reshape(-1),
@@ -232,5 +232,5 @@ class SamLoraForSegmentation(GenericPeftModel):
             # loss_ssim += self.ssim_loss(pred_mask.sigmoid(), pixel_target)
             loss_ssim += SSIM(pred_mask.sigmoid(), pixel_target)
 
-        loss = loss_iou + loss_l1 * 3 + loss_bce * 3 + loss_ssim
+        loss = 0.5 * loss_iou + loss_bce * 5 + loss_ssim
         return LossOutputs(loss=loss / len(pred_masks))
