@@ -497,7 +497,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             )
 
         for col in self.url_cols:
-            sample[col] = url(sample[col])
+            results[col] = results[col].map(url)
 
         for col in set(self.html_cols):
             results[col] = results[col].map(
@@ -519,10 +519,15 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             non_labeled = self.dataset[self.dataset["Label"] == ""]
         progress = f"{len(labeled)} / {total}"
 
-        if len(labeled) == total:
-            return (None, progress, None, None) + tuple(
+        if len(self.dataset[self.dataset["Label"] != ""]) == total:
+            return (None, progress, group, None, None) + tuple(
                 [None]
-                * (self.num_text_cols + self.num_image_cols + self.num_video_cols)
+                * (
+                    self.num_text_cols
+                    + self.num_image_cols
+                    + self.num_video_cols
+                    + self.num_html_cols
+                )
             )
         if len(non_labeled) == 0:
             non_labeled = self.dataset[self.dataset["Label"] == ""]
