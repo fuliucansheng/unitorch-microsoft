@@ -8,3 +8,4 @@ from unitorch.cli.models.diffusers import (
 
 import unitorch_microsoft.models.diffusers.modeling_controlnet
 import unitorch_microsoft.models.diffusers.modeling_controlnet_xl
+import unitorch_microsoft.models.diffusers.modeling_stable_flux

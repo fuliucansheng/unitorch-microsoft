@@ -485,7 +485,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         for col in set(self.image_cols):
             results[col] = results[col].map(url)
-            results[col] = results[col].map(lambda x: f'<img src="{x}" width="100%">')
+            results[col] = results[col].map(
+                lambda x: f'<img src="{x}" style="max-height: 100px;">'
+            )
         for col in set(self.video_cols):
             results[col] = results[col].map(
                 lambda x: x
@@ -493,7 +495,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 else self.http_url.format(os.path.abspath(x))
             )
             results[col] = results[col].map(
-                lambda x: f'<video src="{x}" width="100%" preload="none" controls>'
+                lambda x: f'<video src="{x}" style="max-height: 100px;" preload="none" controls>'
             )
 
         for col in self.url_cols:
