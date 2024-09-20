@@ -4,10 +4,12 @@
 import os
 import re
 import cv2
+import base64
 import hashlib
 import numpy as np
 import pandas as pd
 from torch.hub import download_url_to_file
+from unitorch import mktempfile
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 
@@ -65,15 +67,19 @@ class OpenCVScript(GenericScript):
         config.set_default_section("microsoft/picasso/script/video/opencv")
 
         data_file = config.getoption("data_file", None)
+        http_url = config.getoption("http_url", None)
         names = config.getoption("names", None)
         if isinstance(names, str) and names.strip() == "*":
             names = None
         if isinstance(names, str):
             names = re.split(r"[,;]", names)
             names = [n.strip() for n in names]
+        index_col = config.getoption("index_col", None)
         image_col = config.getoption("image_col", None)
         bboxes_col = config.getoption("bboxes_col", None)
         num_frames = config.getoption("num_frames", 60)
+        download_folder = config.getoption("download_folder", None)
+        output_format = config.getoption("output_format", "base64")
         output_folder = config.getoption("output_folder", "./output")
 
         os.makedirs(output_folder, exist_ok=True)
@@ -86,16 +92,28 @@ class OpenCVScript(GenericScript):
             header=None,
         )
 
+        assert index_col in data.columns, f"Column {index_col} not found in data file"
         assert image_col in data.columns, f"Column {image_col} not found in data file"
         assert bboxes_col in data.columns, f"Column {bboxes_col} not found in data file"
 
+        indexes, videos = [], []
         for _, row in data.iterrows():
             image_path = row[image_col]
-            if image_path.startswith("http"):
-                image_path = os.path.join(
-                    output_folder, hashlib.md5(image_path.encode()).hexdigest() + ".jpg"
+            if image_path.startswith("http") or http_url is not None:
+                if download_folder is not None:
+                    image_path = os.path.join(
+                        download_folder,
+                        hashlib.md5(image_path.encode()).hexdigest() + ".jpg",
+                    )
+                else:
+                    image_path = mktempfile(suffix=".jpg")
+                url = (
+                    row[image_col]
+                    if image_path.startswith("http")
+                    else http_url.format(row[image_col])
                 )
-                download_url_to_file(row[image_col], image_path)
+                download_url_to_file(url, image_path, progress=False)
+
             image_bboxes = row[bboxes_col]
             image = cv2.imread(image_path)
             h, w = image.shape[:2]
@@ -123,8 +141,22 @@ class OpenCVScript(GenericScript):
                     )
                 end_coords = (x1, y1, x2 - x1, y2 - y1)
                 output_video = os.path.join(
-                    output_folder, f"{os.path.basename(image_path)}_{image_bbox}.mp4"
+                    output_folder,
+                    f"{os.path.basename(image_path)}_{image_bbox.replace(',', '_')}.mp4",
                 )
                 zoom_in_effect(
                     image, start_coords, end_coords, output_video, num_frames=num_frames
                 )
+                indexes.append(row[index_col])
+                if output_format == "base64":
+                    with open(output_video, "rb") as f:
+                        videos.append(base64.b64encode(f.read()).decode("utf-8"))
+                else:
+                    videos.append(output_video)
+        results = pd.DataFrame({"index": indexes, "video": videos})
+        results.to_csv(
+            os.path.join(output_folder, "results.tsv"),
+            index=False,
+            sep="\t",
+            header=False,
+        )

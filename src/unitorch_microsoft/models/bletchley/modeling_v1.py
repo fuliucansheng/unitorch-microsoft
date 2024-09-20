@@ -225,7 +225,7 @@ class BletchleyImageEncoder(PreTrainedModel):
 
 
 @register_model("microsoft/model/pretrain/bletchley/v1")
-class BletchleyForPretrain(GenericModel):
+class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
@@ -304,6 +304,18 @@ class BletchleyForPretrain(GenericModel):
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
 
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
         return inst
 
     def all_gather(self, input):
@@ -351,7 +363,7 @@ class BletchleyForPretrain(GenericModel):
 
 
 @register_model("microsoft/model/pretrain/bletchley/v1/text")
-class BletchleyForTextPretrain(GenericModel):
+class BletchleyForTextPretrain(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
@@ -436,6 +448,18 @@ class BletchleyForTextPretrain(GenericModel):
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
 
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
         return inst
 
     def from_pretrained(self, weight_path):
@@ -511,7 +535,7 @@ class BletchleyForTextPretrain(GenericModel):
 
 
 @register_model("microsoft/model/classification/bletchley/v1")
-class BletchleyForClassification(GenericModel):
+class BletchleyForClassification(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
@@ -599,7 +623,7 @@ class BletchleyForClassification(GenericModel):
 
 
 @register_model("microsoft/model/classification/bletchley/v1/text")
-class BletchleyForTextClassification(GenericModel):
+class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
     }
@@ -650,6 +674,18 @@ class BletchleyForTextClassification(GenericModel):
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
 
         return inst
 
@@ -717,6 +753,18 @@ class BletchleyForImageClassification(GenericModel):
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
 
         return inst
 

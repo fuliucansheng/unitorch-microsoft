@@ -10,6 +10,8 @@ from unitorch.cli.webuis.llama import LlamaWebUI
 from unitorch.cli.webuis.mistral import MistralWebUI
 from unitorch.cli.webuis.llava import LLAVAWebUI
 
+import unitorch_microsoft.models.bloom
+
 
 @register_webui("microsoft/webui/llm")
 class LLMWebUI(SimpleWebUI):
