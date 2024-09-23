@@ -57,14 +57,14 @@ def zoom_in_effect(image, start_coords, end_coords, output_video, num_frames=60)
     out.release()
 
 
-@register_script("microsoft/picasso/script/video/opencv")
-class OpenCVScript(GenericScript):
+@register_script("microsoft/picasso/script/video/opencv/zoom_in")
+class OpenCVZoomInScript(GenericScript):
     def __init__(self, config: CoreConfigureParser):
         self.config = config
 
     def launch(self, **kwargs):
         config = self.config
-        config.set_default_section("microsoft/picasso/script/video/opencv")
+        config.set_default_section("microsoft/picasso/script/video/opencv/zoom_in")
 
         data_file = config.getoption("data_file", None)
         http_url = config.getoption("http_url", None)
@@ -96,7 +96,7 @@ class OpenCVScript(GenericScript):
         assert image_col in data.columns, f"Column {image_col} not found in data file"
         assert bboxes_col in data.columns, f"Column {bboxes_col} not found in data file"
 
-        indexes, videos = [], []
+        indexes, names, videos = [], [], []
         for _, row in data.iterrows():
             image_path = row[image_col]
             if image_path.startswith("http") or http_url is not None:
@@ -148,12 +148,13 @@ class OpenCVScript(GenericScript):
                     image, start_coords, end_coords, output_video, num_frames=num_frames
                 )
                 indexes.append(row[index_col])
+                names.append(os.path.basename(output_video))
                 if output_format == "base64":
                     with open(output_video, "rb") as f:
                         videos.append(base64.b64encode(f.read()).decode("utf-8"))
                 else:
                     videos.append(output_video)
-        results = pd.DataFrame({"index": indexes, "video": videos})
+        results = pd.DataFrame({"index": indexes, "name": names, "video": videos})
         results.to_csv(
             os.path.join(output_folder, "results.tsv"),
             index=False,
