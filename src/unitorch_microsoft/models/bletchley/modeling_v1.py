@@ -230,6 +230,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,
@@ -368,6 +369,7 @@ class BletchleyForTextPretrain(GenericModel, PeftWeightLoaderMixin):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,
@@ -540,6 +542,7 @@ class BletchleyForClassification(GenericModel, PeftWeightLoaderMixin):
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,
@@ -627,6 +630,7 @@ class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,

@@ -323,6 +323,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,
