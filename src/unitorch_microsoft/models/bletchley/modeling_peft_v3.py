@@ -11,7 +11,11 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 from peft import LoraConfig
 from unitorch.models import GenericModel
-from unitorch.models.peft import GenericPeftModel, PeftModelForSequenceClassification, PeftWeightLoaderMixin
+from unitorch.models.peft import (
+    GenericPeftModel,
+    PeftModelForSequenceClassification,
+    PeftWeightLoaderMixin,
+)
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.cli.models import (
     EmbeddingOutputs,
@@ -176,7 +180,10 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
-    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
+    replace_keys_in_peft_state_dict = {
+        ".weight": ".base_layer.weight",
+        ".bias": ".base_layer.bias",
+    }
 
     def __init__(
         self,
@@ -242,7 +249,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
-        
+
         pretrained_lora_weight_path = config.getoption(
             "pretrained_lora_weight_path", None
         )
@@ -301,7 +308,10 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         "image_encoder.projection": "image_projection",
     }
     modules_to_save_checkpoints = ["lora", "classifier"]
-    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}    
+    replace_keys_in_peft_state_dict = {
+        ".weight": ".base_layer.weight",
+        ".bias": ".base_layer.bias",
+    }
 
     def __init__(
         self,
@@ -403,7 +413,10 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
-    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
+    replace_keys_in_peft_state_dict = {
+        ".weight": ".base_layer.weight",
+        ".bias": ".base_layer.bias",
+    }
 
     def __init__(
         self,
@@ -550,7 +563,10 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
         "doc_encoder.projection": "doc_projection",
     }
     modules_to_save_checkpoints = ["lora", "classifier"]
-    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
+    replace_keys_in_peft_state_dict = {
+        ".weight": ".base_layer.weight",
+        ".bias": ".base_layer.bias",
+    }
 
     def __init__(
         self,
