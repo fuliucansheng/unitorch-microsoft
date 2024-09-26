@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.cuda.amp import autocast
 from peft import LoraConfig
 from unitorch.models import GenericModel
-from unitorch.models.peft import GenericPeftModel, PeftModelForSequenceClassification
+from unitorch.models.peft import GenericPeftModel, PeftModelForSequenceClassification, PeftWeightLoaderMixin
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.cli.models import (
     EmbeddingOutputs,
@@ -165,7 +165,7 @@ class BletchleyForTextMatching(GenericModel):
 
 
 @register_model("microsoft/model/pretrain/peft/lora/bletchley/v1")
-class BletchleyLoraForPretrain(GenericPeftModel):
+class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
     prefix_keys_in_state_dict = {
         "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
     }
@@ -177,6 +177,7 @@ class BletchleyLoraForPretrain(GenericPeftModel):
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
+    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
 
     def __init__(
         self,
@@ -243,6 +244,18 @@ class BletchleyLoraForPretrain(GenericPeftModel):
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
 
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
         return inst
 
     def all_gather(self, input):
@@ -278,7 +291,7 @@ class BletchleyLoraForPretrain(GenericPeftModel):
 
 
 @register_model("microsoft/model/matching/peft/lora/bletchley/v1")
-class BletchleyLoraForMatching(GenericPeftModel):
+class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
     prefix_keys_in_state_dict = {
         "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
     }
@@ -291,6 +304,7 @@ class BletchleyLoraForMatching(GenericPeftModel):
         "image_encoder.projection": "image_projection",
     }
     modules_to_save_checkpoints = ["lora", "classifier"]
+    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
 
     def __init__(
         self,
@@ -344,6 +358,17 @@ class BletchleyLoraForMatching(GenericPeftModel):
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
 
         return inst
 
@@ -370,7 +395,7 @@ class BletchleyLoraForMatching(GenericPeftModel):
 
 
 @register_model("microsoft/model/pretrain/peft/lora/bletchley/v1/text")
-class BletchleyLoraForTextPretrain(GenericPeftModel):
+class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
     prefix_keys_in_state_dict = {
         "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
     }
@@ -382,6 +407,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
+    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
 
     def __init__(
         self,
@@ -456,6 +482,18 @@ class BletchleyLoraForTextPretrain(GenericPeftModel):
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
 
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
         return inst
 
     def from_pretrained(self, weight_path):
@@ -506,7 +544,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel):
 
 
 @register_model("microsoft/model/matching/peft/lora/bletchley/v1/text")
-class BletchleyLoraForTextMatching(GenericPeftModel):
+class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
     prefix_keys_in_state_dict = {
         "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
     }
@@ -519,6 +557,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel):
         "doc_encoder.projection": "doc_projection",
     }
     modules_to_save_checkpoints = ["lora", "classifier"]
+    replace_keys_in_peft_state_dict = {".weight":".base_layer.weight", ".bias":".base_layer.bias"}
 
     def __init__(
         self,
@@ -580,6 +619,17 @@ class BletchleyLoraForTextMatching(GenericPeftModel):
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
             inst.from_pretrained(pretrained_weight_path)
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
 
         return inst
 

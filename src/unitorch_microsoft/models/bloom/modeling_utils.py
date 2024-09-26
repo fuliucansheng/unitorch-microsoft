@@ -16,8 +16,8 @@ from transformers.models.bloom.modeling_bloom import (
     LayerNorm,
     BloomMLP,
     PreTrainedModel,
-    _prepare_4d_causal_attention_mask,
 )
+from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 
 
 class BloomAttention(transformers.models.bloom.modeling_bloom.BloomAttention):

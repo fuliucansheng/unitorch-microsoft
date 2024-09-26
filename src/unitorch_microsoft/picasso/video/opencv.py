@@ -121,7 +121,9 @@ class OpenCVZoomInScript(GenericScript):
             for image_bbox in image_bboxes.split(";"):
                 bbox = image_bbox.split(",")
                 if all([float(b) < 1 for b in bbox]):
-                    bbox = [int(b * w if i % 2 == 0 else b * h) for i, b in enumerate(bbox)]
+                    bbox = [
+                        int(b * w if i % 2 == 0 else b * h) for i, b in enumerate(bbox)
+                    ]
                 x1, y1, x2, y2 = [int(b) for b in bbox]
                 new_w, new_h = x2 - x1, y2 - y1
                 ratio, new_ratio = w / h, new_w / new_h
