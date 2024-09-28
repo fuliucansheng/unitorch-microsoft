@@ -40,7 +40,7 @@ def get_host_name():
     return socket.gethostname()
 
 
-def get_flex_layout(*eles, num_per_row=2):
+def create_flex_layout(*eles, num_per_row=2):
     rows = [
         create_row(*eles[i : i + num_per_row]) for i in range(0, len(eles), num_per_row)
     ]
@@ -307,9 +307,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         # create blocks
         text_layout = create_column(*texts)
-        image_layout = get_flex_layout(*images, num_per_row=self.num_images_per_row)
-        video_layout = get_flex_layout(*videos, num_per_row=self.num_videos_per_row)
-        html_layout = get_flex_layout(*htmls, num_per_row=self.num_html_per_row)
+        image_layout = create_flex_layout(*images, num_per_row=self.num_images_per_row)
+        video_layout = create_flex_layout(*videos, num_per_row=self.num_videos_per_row)
+        html_layout = create_flex_layout(*htmls, num_per_row=self.num_html_per_row)
         label_layout = create_row(
             comment, create_column(choices, create_row(random, submit))
         )
