@@ -11,7 +11,6 @@ from transformers.utils import is_remote_url
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import (
     import_library,
-    set_global_config,
     registered_task,
     registered_script,
     init_registered_module,
@@ -35,10 +34,7 @@ def launch(config_path: str, **kwargs):
             k1 = k
         params.append((k0, k1, v))
 
-    if config_path is not None:
-        config = CoreConfigureParser(config_path, params=params)
-    else:
-        config = CoreConfigureParser(params=params)
+    config = CoreConfigureParser(config_path, params=params)
 
     depends_libraries = config.getdefault("core/cli", "depends_libraries", None)
     script_name = config.getdefault("core/cli", "script_name", None)

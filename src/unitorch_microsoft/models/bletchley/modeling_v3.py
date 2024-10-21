@@ -440,6 +440,258 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
         return LossOutputs(loss=loss)
 
 
+@register_model("microsoft/model/classification/bletchley/v3")
+class BletchleyForClassification(GenericModel, PeftWeightLoaderMixin):
+    replace_keys_in_state_dict = {
+        "text_encoder.projection": "text_projection",
+        "image_encoder.projection": "image_projection",
+    }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 1024,
+        num_classes: Optional[int] = 1,
+        freeze_base_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+    ):
+        super().__init__()
+        self.text_encoder = BletchleyTextEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+
+        self.projection_dim = projection_dim
+        self.text_embed_dim = self.text_encoder.hidden_size
+        self.image_embed_dim = self.image_encoder.hidden_size
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            self.projection_dim,
+        )
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            self.projection_dim,
+        )
+
+        self.classifier = nn.Linear(self.projection_dim * 2, num_classes)
+        self.init_weights()
+
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/classification/bletchley/v3")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/classification/bletchley/v3")
+        config_type = config.getoption("config_type", "0.8B")
+        projection_dim = config.getoption("projection_dim", 1024)
+        num_classes = config.getoption("num_classes", 1)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            num_classes=num_classes,
+            freeze_base_model=freeze_base_model,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        return inst
+
+    @autocast()
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        images: torch.Tensor,
+    ):
+        text_outputs = self.text_encoder(input_ids, attention_mask)
+        text_embeds = self.text_projection(text_outputs[:, 0])
+
+        image_outputs = self.image_encoder(images)
+        image_embeds = self.image_projection(image_outputs[:, 0])
+        outputs = self.classifier(
+            F.relu(torch.cat([image_embeds, text_embeds], axis=1))
+        )
+        return ClassificationOutputs(outputs=outputs)
+
+
+@register_model("microsoft/model/classification/bletchley/v3/text")
+class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
+    replace_keys_in_state_dict = {
+        "text_encoder.projection": "text_projection",
+    }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 1024,
+        num_classes: Optional[int] = 1,
+        freeze_base_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+    ):
+        super().__init__()
+        self.text_encoder = BletchleyTextEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+
+        self.projection_dim = projection_dim
+        self.text_embed_dim = self.text_encoder.hidden_size
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            self.projection_dim,
+        )
+
+        self.classifier = nn.Linear(self.projection_dim, num_classes)
+        self.init_weights()
+
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/classification/bletchley/v3/text")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/classification/bletchley/v3/text")
+        config_type = config.getoption("config_type", "0.8B")
+        projection_dim = config.getoption("projection_dim", 1024)
+        num_classes = config.getoption("num_classes", 1)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            num_classes=num_classes,
+            freeze_base_model=freeze_base_model,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
+        return inst
+
+    @autocast()
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ):
+        text_outputs = self.text_encoder(input_ids, attention_mask)
+        text_embeds = self.text_projection(text_outputs[:, 0])
+        outputs = self.classifier(F.relu(text_embeds))
+        return ClassificationOutputs(outputs=outputs)
+
+
+@register_model("microsoft/model/classification/bletchley/v3/image")
+class BletchleyForImageClassification(GenericModel):
+    replace_keys_in_state_dict = {
+        "image_encoder.projection": "image_projection",
+    }
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 1024,
+        num_classes: Optional[int] = 1,
+        freeze_base_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+    ):
+        super().__init__()
+        self.image_encoder = BletchleyImageEncoder(
+            config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+
+        self.projection_dim = projection_dim
+        self.image_embed_dim = self.image_encoder.hidden_size
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            self.projection_dim,
+        )
+
+        self.classifier = nn.Linear(self.projection_dim, num_classes)
+        self.init_weights()
+
+        if freeze_base_model:
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/classification/bletchley/v3/image")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/classification/bletchley/v3/image")
+        config_type = config.getoption("config_type", "0.8B")
+        projection_dim = config.getoption("projection_dim", 1024)
+        num_classes = config.getoption("num_classes", 1)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            num_classes=num_classes,
+            freeze_base_model=freeze_base_model,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
+        return inst
+
+    @autocast()
+    def forward(self, images: torch.Tensor):
+        image_outputs = self.image_encoder(images)
+        image_embeds = self.image_projection(image_outputs[:, 0])
+        outputs = self.classifier(F.relu(image_embeds))
+        return ClassificationOutputs(outputs=outputs)
+
+
 @register_model("microsoft/model/matching/bletchley/v3")
 class BletchleyForMatching(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {

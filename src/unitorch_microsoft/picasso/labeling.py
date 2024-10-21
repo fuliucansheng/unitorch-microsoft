@@ -23,6 +23,7 @@ from unitorch.cli.webuis import (
     create_accordion,
     create_row,
     create_column,
+    create_flex_layout,
     create_group,
     create_tab,
     create_tabs,
@@ -30,7 +31,6 @@ from unitorch.cli.webuis import (
 )
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft.webuis.labeling.classification import (
-    create_flex_layout,
     GenericClassificationLabelingWebUI,
 )
 

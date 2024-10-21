@@ -22,6 +22,7 @@ from unitorch.cli.webuis import (
     create_accordion,
     create_row,
     create_column,
+    create_flex_layout,
     create_group,
     create_tab,
     create_tabs,
@@ -40,13 +41,6 @@ def get_host_name():
     return socket.gethostname()
 
 
-def create_flex_layout(*eles, num_per_row=2):
-    rows = [
-        create_row(*eles[i : i + num_per_row]) for i in range(0, len(eles), num_per_row)
-    ]
-    return create_column(*rows)
-
-
 @register_webui("microsoft/webui/labeling/classification")
 class GenericClassificationLabelingWebUI(SimpleWebUI):
     def __init__(
@@ -54,6 +48,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         config: CoreConfigureParser,
         default_section: str = "microsoft/webui/labeling/classification",
         default_name: str = "Human Classification Labeling",
+        http_url: str = None,
     ):
         self._config = config
         config.set_default_section(default_section)
@@ -81,21 +76,24 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.result_file = result_file
 
         # start http server: unitorch-service start services/http_files.ini --daemon_mode False --html_dir /
-        self.http_port = get_random_port()
-        self.http_process = subprocess.Popen(
-            [
-                "unitorch-service",
-                "start",
-                "services/http_files.ini",
-                "--daemon_mode",
-                "False",
-                "--html_dir",
-                "/",
-                "--port",
-                str(self.http_port),
-            ],
-        )
-        self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
+        if http_url is not None:
+            self.http_url = http_url
+        else:
+            self.http_port = get_random_port()
+            self.http_process = subprocess.Popen(
+                [
+                    "unitorch-service",
+                    "start",
+                    "services/http_files.ini",
+                    "--daemon_mode",
+                    "False",
+                    "--html_dir",
+                    "/",
+                    "--port",
+                    str(self.http_port),
+                ],
+            )
+            self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
 
         # show columns
         self.text_cols = config.getoption("text_cols", [])
@@ -107,6 +105,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.group_col = config.getoption("group_col", None)
         self.num_images_per_row = config.getoption("num_images_per_row", 4)
         self.num_videos_per_row = config.getoption("num_videos_per_row", 4)
+        self.num_mix_images_videos_per_row = config.getoption(
+            "num_mix_images_videos_per_row", 4
+        )
         self.num_html_per_row = config.getoption("num_html_per_row", 4)
 
         if self.text_cols is not None:
@@ -307,8 +308,22 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         # create blocks
         text_layout = create_column(*texts)
-        image_layout = create_flex_layout(*images, num_per_row=self.num_images_per_row)
-        video_layout = create_flex_layout(*videos, num_per_row=self.num_videos_per_row)
+        if (
+            self.num_image_cols + self.num_video_cols
+            > self.num_mix_images_videos_per_row
+        ):
+            image_layout = create_flex_layout(
+                *images, num_per_row=self.num_images_per_row
+            )
+            video_layout = create_flex_layout(
+                *videos, num_per_row=self.num_videos_per_row
+            )
+            mix_image_video_layout = None
+        else:
+            mix_image_video_layout = create_flex_layout(
+                *images, *videos, num_per_row=self.num_mix_images_videos_per_row
+            )
+            image_layout, video_layout = None, None
         html_layout = create_flex_layout(*htmls, num_per_row=self.num_html_per_row)
         label_layout = create_row(
             comment, create_column(choices, create_row(random, submit))
@@ -318,11 +333,14 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if self.num_text_cols > 0:
             layouts.append(text_layout)
 
-        if self.num_image_cols > 0:
+        if self.num_image_cols > 0 and image_layout is not None:
             layouts.append(image_layout)
 
-        if self.num_video_cols > 0:
+        if self.num_video_cols > 0 and video_layout is not None:
             layouts.append(video_layout)
+
+        if mix_image_video_layout is not None:
+            layouts.append(mix_image_video_layout)
 
         if self.num_html_cols > 0:
             layouts.append(html_layout)

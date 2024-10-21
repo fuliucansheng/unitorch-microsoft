@@ -186,6 +186,8 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         ".bias": ".base_layer.bias",
     }
 
+    modules_to_save_checkpoints = ["lora", "output_projection"]
+
     def __init__(
         self,
         config_type: str,
@@ -195,6 +197,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout: Optional[float] = 0.05,
         fan_in_fan_out: Optional[bool] = True,
         target_modules: Optional[Union[List[str], str]] = ["query", "value"],
+        output_embed_dim: Optional[int] = None,
         use_all_gather: Optional[bool] = True,
         logit_scale_init_value: Optional[float] = 2.6592,
         gradient_checkpointing: Optional[bool] = False,
@@ -215,6 +218,14 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
             ),
             self.peft_config,
         )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
         self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init_value)
         self.use_all_gather = use_all_gather
         self.init_weights()
@@ -231,6 +242,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout = config.getoption("lora_dropout", 0.05)
         fan_in_fan_out = config.getoption("fan_in_fan_out", True)
         target_modules = config.getoption("target_modules", ["query", "value"])
+        output_embed_dim = config.getoption("output_embed_dim", None)
         use_all_gather = config.getoption("use_all_gather", True)
         logit_scale_init_value = config.getoption("logit_scale_init_value", 2.6592)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
@@ -243,6 +255,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
             lora_dropout=lora_dropout,
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
+            output_embed_dim=output_embed_dim,
             use_all_gather=use_all_gather,
             logit_scale_init_value=logit_scale_init_value,
             gradient_checkpointing=gradient_checkpointing,
@@ -283,6 +296,9 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
             attention_mask=attention_mask,
             return_dict=False,
         )
+        if self.output_projection is not None:
+            text_embeds = self.output_projection(text_embeds)
+            image_embeds = self.output_projection(image_embeds)
 
         text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
         image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
@@ -310,7 +326,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         "text_encoder.projection": "text_projection",
         "image_encoder.projection": "image_projection",
     }
-    modules_to_save_checkpoints = ["lora", "classifier"]
+    modules_to_save_checkpoints = ["lora", "output_projection", "classifier"]
     replace_keys_in_peft_state_dict = {
         ".weight": ".base_layer.weight",
         ".bias": ".base_layer.bias",
@@ -325,6 +341,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout: Optional[float] = 0.05,
         fan_in_fan_out: Optional[bool] = True,
         target_modules: Optional[Union[List[str], str]] = ["query", "value"],
+        output_embed_dim: Optional[int] = None,
     ):
         super().__init__()
         self.peft_config = LoraConfig(
@@ -338,6 +355,14 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
             BletchleyForMatching(config_type, projection_dim=projection_dim),
             self.peft_config,
         )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
         self.classifier = nn.Linear(1, 1)
 
         self.init_weights()
@@ -355,6 +380,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout = config.getoption("lora_dropout", 0.05)
         fan_in_fan_out = config.getoption("fan_in_fan_out", True)
         target_modules = config.getoption("target_modules", ["query", "value"])
+        output_embed_dim = config.getoption("output_embed_dim", None)
 
         inst = cls(
             config_type=config_type,
@@ -364,6 +390,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
             lora_dropout=lora_dropout,
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
+            output_embed_dim=output_embed_dim,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
@@ -395,6 +422,9 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
             attention_mask=attention_mask,
             return_dict=False,
         )
+        if self.output_projection is not None:
+            text_embeds = self.output_projection(text_embeds)
+            image_embeds = self.output_projection(image_embeds)
 
         text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
         image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
@@ -421,6 +451,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         ".weight": ".base_layer.weight",
         ".bias": ".base_layer.bias",
     }
+    modules_to_save_checkpoints = ["lora", "output_projection"]
 
     def __init__(
         self,
@@ -432,6 +463,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout: Optional[float] = 0.05,
         fan_in_fan_out: Optional[bool] = True,
         target_modules: Optional[Union[List[str], str]] = ["query", "value"],
+        output_embed_dim: Optional[int] = None,
         use_all_gather: Optional[bool] = True,
         logit_scale_init_value: Optional[float] = 2.6592,
         gradient_checkpointing: Optional[bool] = False,
@@ -453,6 +485,14 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
             ),
             self.peft_config,
         )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
         self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init_value)
         self.use_all_gather = use_all_gather
 
@@ -474,6 +514,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout = config.getoption("lora_dropout", 0.05)
         fan_in_fan_out = config.getoption("fan_in_fan_out", True)
         target_modules = config.getoption("target_modules", ["query", "value"])
+        output_embed_dim = config.getoption("output_embed_dim", None)
         use_all_gather = config.getoption("use_all_gather", True)
         logit_scale_init_value = config.getoption("logit_scale_init_value", 2.6592)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
@@ -487,6 +528,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
             lora_dropout=lora_dropout,
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
+            output_embed_dim=output_embed_dim,
             use_all_gather=use_all_gather,
             logit_scale_init_value=logit_scale_init_value,
             gradient_checkpointing=gradient_checkpointing,
@@ -542,6 +584,9 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
             doc_attention_mask=doc_attention_mask,
             return_dict=False,
         )
+        if self.output_projection is not None:
+            query_embeds = self.output_projection(query_embeds)
+            doc_embeds = self.output_projection(doc_embeds)
 
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
@@ -569,7 +614,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
         "query_encoder.projection": "query_projection",
         "doc_encoder.projection": "doc_projection",
     }
-    modules_to_save_checkpoints = ["lora", "classifier"]
+    modules_to_save_checkpoints = ["lora", "output_projection", "classifier"]
     replace_keys_in_peft_state_dict = {
         ".weight": ".base_layer.weight",
         ".bias": ".base_layer.bias",
@@ -585,6 +630,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout: Optional[float] = 0.05,
         fan_in_fan_out: Optional[bool] = True,
         target_modules: Optional[Union[List[str], str]] = ["query", "value"],
+        output_embed_dim: Optional[int] = None,
     ):
         super().__init__()
         self.peft_config = LoraConfig(
@@ -600,6 +646,14 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
             ),
             self.peft_config,
         )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
         self.classifier = nn.Linear(1, 1)
 
         self.init_weights()
@@ -621,6 +675,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
         lora_dropout = config.getoption("lora_dropout", 0.05)
         fan_in_fan_out = config.getoption("fan_in_fan_out", True)
         target_modules = config.getoption("target_modules", ["query", "value"])
+        output_embed_dim = config.getoption("output_embed_dim", None)
 
         inst = cls(
             query_config_type=query_config_type,
@@ -631,6 +686,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
             lora_dropout=lora_dropout,
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
+            output_embed_dim=output_embed_dim,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
@@ -677,6 +733,9 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
             doc_attention_mask=doc_attention_mask,
             return_dict=False,
         )
+        if self.output_projection is not None:
+            query_embeds = self.output_projection(query_embeds)
+            doc_embeds = self.output_projection(doc_embeds)
 
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)

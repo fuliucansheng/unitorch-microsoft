@@ -11,7 +11,6 @@ from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 
 from unitorch.cli import (
-    get_global_config,
     add_default_section_for_init,
     add_default_section_for_function,
 )

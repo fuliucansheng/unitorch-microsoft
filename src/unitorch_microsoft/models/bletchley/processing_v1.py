@@ -106,7 +106,7 @@ class BletchleyProcessor:
         )
         if isinstance(image, str):
             image = Image.open(image)
-        image = self.image_transform(image)
+        image = self.image_transform(image.convert("RGB"))
 
         outputs = self._tokenize(
             text=text,
@@ -157,7 +157,7 @@ class BletchleyProcessor:
     ):
         if isinstance(image, str):
             image = Image.open(image)
-        image = self.image_transform(image)
+        image = self.image_transform(image.convert("RGB"))
         inputs = dict(
             images=image,
         )
