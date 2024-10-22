@@ -239,6 +239,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
         freeze_base_model: Optional[bool] = True,
         logit_scale_init_value: Optional[float] = 2.6592,
         gradient_checkpointing: Optional[bool] = False,
+        output_embed_dim: Optional[int] = None,
         use_all_gather: Optional[bool] = True,
         output_text_embed: Optional[bool] = False,
         output_image_embed: Optional[bool] = False,
@@ -267,6 +268,15 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
             self.image_embed_dim,
             self.projection_dim,
         )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
+
         self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init_value)
 
         self.init_weights()
@@ -287,6 +297,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
         freeze_base_model = config.getoption("freeze_base_model", True)
         logit_scale_init_value = config.getoption("logit_scale_init_value", 2.6592)
         gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        output_embed_dim = config.getoption("output_embed_dim", None)
         use_all_gather = config.getoption("use_all_gather", True)
         output_text_embed = config.getoption("output_text_embed", False)
         output_image_embed = config.getoption("output_image_embed", False)
@@ -297,6 +308,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
             freeze_base_model=freeze_base_model,
             logit_scale_init_value=logit_scale_init_value,
             gradient_checkpointing=gradient_checkpointing,
+            output_embed_dim=output_embed_dim,
             use_all_gather=use_all_gather,
             output_text_embed=output_text_embed,
             output_image_embed=output_image_embed,
@@ -348,6 +360,10 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
 
         image_outputs = self.image_encoder(images)
         image_embeds = self.image_projection(image_outputs[:, 0])
+
+        if self.output_projection is not None:
+            text_embeds = self.output_projection(text_embeds)
+            image_embeds = self.output_projection(image_embeds)
 
         image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
         text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
