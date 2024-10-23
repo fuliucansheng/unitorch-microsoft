@@ -743,3 +743,194 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
+
+@register_model("microsoft/model/matching/peft/lora/bletchley/v1/text/distill")
+class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixin):
+    prefix_keys_in_state_dict = {
+        "^(?!peft_model\.base_model\.model\.|teacher).*": "peft_model.base_model.model."
+    }
+    replace_keys_in_state_dict = {
+        r"^(peft_model.*?)query\.weight": r"\1query.base_layer.weight",
+        r"^(peft_model.*?)query\.bias": r"\1query.base_layer.bias",
+        r"^(peft_model.*?)value\.weight": r"\1value.base_layer.weight",
+        r"^(peft_model.*?)value\.bias": r"\1value.base_layer.bias",
+        "query_encoder.projection": "query_projection",
+        "doc_encoder.projection": "doc_projection",
+        "teacher_query_encoder.projection": "teacher_query_projection",
+    }
+    modules_to_save_checkpoints = ["lora", "classifier"]
+
+    def __init__(
+        self,
+        query_config_type: str,
+        doc_config_type: str,
+        projection_dim: Optional[int] = 1024,
+        lora_r: Optional[int] = 16,
+        lora_alpha: Optional[int] = 32,
+        lora_dropout: Optional[float] = 0.05,
+        fan_in_fan_out: Optional[bool] = True,
+        target_modules: Optional[Union[List[str], str]] = ["query", "value"],
+        momentum: Optional[float] = 1.0,
+        distill_weight: Optional[float] = 0.5,
+    ):
+        super().__init__()
+        self.momentum = momentum
+        self.distill_weight = distill_weight
+
+        self.peft_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+        )
+        self.peft_model = PeftModelForSequenceClassification(
+            BletchleyForTextMatching(
+                query_config_type, doc_config_type, projection_dim=projection_dim
+            ),
+            self.peft_config,
+        )
+        self.classifier = nn.Linear(1, 1)
+
+        query_config = get_bletchley_text_config(
+            query_config_type
+        )
+        self.teacher_query_encoder = BletchleyTextEncoder(
+            query_config, add_projection_layer=False
+        )
+        self.teacher_query_projection = nn.Linear(
+            query_config.hidden_size,
+            projection_dim,
+        )
+
+        self.init_weights()
+        self.classifier.weight.data.fill_(5.0)
+
+        for p in self.teacher_query_encoder.parameters():
+            p.requires_grad = False
+        for p in self.teacher_query_projection.parameters():
+            p.requires_grad = False
+
+
+    @classmethod
+    @add_default_section_for_init(
+        "microsoft/model/matching/peft/lora/bletchley/v1/text/distill"
+    )
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section(
+            "microsoft/model/matching/peft/lora/bletchley/v1/text/distill"
+        )
+        query_config_type = config.getoption("query_config_type", "0.8B")
+        doc_config_type = config.getoption("doc_config_type", "0.8B")
+        projection_dim = config.getoption("projection_dim", 1024)
+        lora_r = config.getoption("lora_r", 16)
+        lora_alpha = config.getoption("lora_alpha", 32)
+        lora_dropout = config.getoption("lora_dropout", 0.05)
+        fan_in_fan_out = config.getoption("fan_in_fan_out", True)
+        target_modules = config.getoption("target_modules", ["query", "value"])
+        momentum = config.getoption("momentum", 1.0)
+        distill_weight = config.getoption("distill_weight", 0.5)
+
+        inst = cls(
+            query_config_type=query_config_type,
+            doc_config_type=doc_config_type,
+            projection_dim=projection_dim,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            momentum=momentum,
+            distill_weight=distill_weight
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
+        return inst
+
+    def from_pretrained(self, weight_path):
+        weight_path = cached_path(weight_path)
+        if not os.path.exists(weight_path):
+            return
+        state_dict = torch.load(weight_path, map_location="cpu")
+        _keys = [key for key in state_dict.keys() if key.startswith("text_encoder")]
+        for _key in _keys:
+            _value = state_dict.pop(_key)
+            state_dict["query_encoder" + _key[12:]] = _value
+            state_dict["doc_encoder" + _key[12:]] = _value
+
+        _keys = [key for key in state_dict.keys() if key.startswith("query_encoder")]
+        for _key in _keys:
+            state_dict["teacher_"+_key] = state_dict[_key].clone()
+
+        super().from_pretrained(state_dict=state_dict)
+    
+    @torch.no_grad()        
+    def _momentum_update(self):          
+        for param, param_m in zip(self.peft_model.query_encoder.parameters(), self.teacher_query_encoder.parameters()):
+            print(param)
+            print(param_m)
+            param_m.data = param_m.data * self.momentum + param.data * (1. - self.momentum)
+        for param, param_m in zip(self.peft_model.query_projection.parameters(), self.teacher_query_projection.parameters()):
+                param_m.data = param_m.data * self.momentum + param.data * (1. - self.momentum)        
+
+
+    @autocast()
+    def forward(
+        self,
+        query_input_ids=None,
+        query_attention_mask=None,
+        doc_input_ids=None,
+        doc_attention_mask=None,
+        labels=None,
+    ):
+        query_embeds, doc_embeds = self.peft_model(
+            query_input_ids=query_input_ids,
+            query_attention_mask=query_attention_mask,
+            doc_input_ids=doc_input_ids,
+            doc_attention_mask=doc_attention_mask,
+            return_dict=False,
+        )
+
+        #self._momentum_update()
+        query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
+        doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
+        scores = torch.sum(query_embeds * doc_embeds, dim=-1, keepdim=True)
+        outputs = self.classifier(scores)
+
+        teacher_query_outputs = self.teacher_query_encoder(
+            input_ids=query_input_ids, attention_mask=query_attention_mask
+        )
+
+        teacher_query_embeds = teacher_query_outputs[:, 0]
+        teacher_query_embeds = self.teacher_query_projection(teacher_query_embeds)
+        teacher_query_embeds = teacher_query_embeds / teacher_query_embeds.norm(dim=-1, keepdim=True)
+
+        if self.training:
+            loss1 = (            
+                nn.MSELoss(reduction="none")(teacher_query_embeds, query_embeds)
+                .sum(dim=-1)
+                .mean()
+            )
+            loss2 = (            
+                nn.MSELoss(reduction="none")(outputs, labels.unsqueeze(1))
+                .sum(dim=-1)
+                .mean()
+            )
+            loss = self.distill_weight*loss1 + (1-self.distill_weight)*loss2
+            return LossOutputs(loss = loss)
+
+        return ClassificationOutputs(outputs=outputs)
