@@ -7,7 +7,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch import autocast
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.activations import silu as SiLUActivation, gelu, gelu_new
@@ -113,7 +113,7 @@ class TULRV6ForClassification(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,

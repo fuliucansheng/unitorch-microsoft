@@ -2,9 +2,12 @@
 # Licensed under the MIT License.
 
 import math
+import random
 import numpy as np
+from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from PIL import Image, ImageOps, ImageFile, ImageFilter, ImageChops
+from PIL import Image, ImageOps, ImageFile, ImageFilter, ImageChops, ImageDraw
+from random import randint, shuffle, choice
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -197,3 +200,75 @@ class PicassoDiffusionProcessor:
         down, right = pad_h - h - up, pad_w - w - left
         result = get_pad_image(image, left, up, right, down).resize((new_w, new_h))
         return result
+
+    @register_process("microsoft/picasso/diffusion/process/random_mask")
+    def _random_mask(
+        self,
+        image: Union[Image.Image, str],
+        ratio: Optional[float] = 1.0,
+        mask_full_image: Optional[bool] = False,
+    ):
+        im_shape = image.size
+        mask = Image.new("L", im_shape, 0)
+        draw = ImageDraw.Draw(mask)
+        size = (
+            random.randint(0, int(im_shape[0] * ratio)),
+            random.randint(0, int(im_shape[1] * ratio)),
+        )
+        # use this to always mask the whole image
+        if mask_full_image:
+            size = (int(im_shape[0] * ratio), int(im_shape[1] * ratio))
+        limits = (im_shape[0] - size[0] // 2, im_shape[1] - size[1] // 2)
+        center = (
+            random.randint(size[0] // 2, limits[0]),
+            random.randint(size[1] // 2, limits[1]),
+        )
+        draw_type = random.randint(0, 1)
+        if draw_type == 0 or mask_full_image:
+            draw.rectangle(
+                (
+                    center[0] - size[0] // 2,
+                    center[1] - size[1] // 2,
+                    center[0] + size[0] // 2,
+                    center[1] + size[1] // 2,
+                ),
+                fill=255,
+            )
+        else:
+            draw.ellipse(
+                (
+                    center[0] - size[0] // 2,
+                    center[1] - size[1] // 2,
+                    center[0] + size[0] // 2,
+                    center[1] + size[1] // 2,
+                ),
+                fill=255,
+            )
+        return mask
+
+    @register_process("microsoft/picasso/diffusion/process/dominate_color")
+    def _dominate_color(
+        self,
+        image: Image.Image,
+        topk: Optional[int] = 5,
+        return_image: Optional[bool] = False,
+    ):
+        image = image.convert("RGB")
+        quantized_image = image.quantize(colors=topk, method=2)
+        palette = quantized_image.getpalette()
+        palette_colors = [tuple(palette[i : i + 3]) for i in range(0, len(palette), 3)]
+
+        color_counts = Counter(quantized_image.getdata())
+        topk_colors = [
+            palette_colors[color] for color, count in color_counts.most_common(topk)
+        ]
+        if return_image:
+            stripe_height = image.height // len(topk_colors)
+            new_image = Image.new("RGB", image.size)
+            for i, color in enumerate(topk_colors):
+                new_image.paste(
+                    color, (0, i * stripe_height, image.width, (i + 1) * stripe_height)
+                )
+            return new_image
+
+        return topk_colors

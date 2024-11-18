@@ -7,7 +7,7 @@ import transformers
 import torch.nn as nn
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.nn import functional as F
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.utils import is_remote_url
 from transformers import BloomModel, BloomConfig
 from transformers.models.bloom.modeling_bloom import (

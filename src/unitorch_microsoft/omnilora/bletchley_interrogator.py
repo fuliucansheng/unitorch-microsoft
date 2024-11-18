@@ -1,4 +1,4 @@
-# Copyright (c) FULIUCANSHENG.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
 import re
@@ -11,6 +11,7 @@ from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 
 from unitorch.cli import (
+    hf_endpoint_url,
     cached_path,
     add_default_section_for_init,
     add_default_section_for_function,
@@ -45,37 +46,49 @@ class BletchleyInterrogatorPipeline(BletchleyForPretrain):
 
         artists = read_file(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/artists.txt"
+                hf_endpoint_url(
+                    "/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/artists.txt"
+                )
             ),
             lines=True,
         )
         flavors = read_file(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/flavors.txt"
+                hf_endpoint_url(
+                    "/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/flavors.txt"
+                )
             ),
             lines=True,
         )
         mediums = read_file(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/mediums.txt"
+                hf_endpoint_url(
+                    "/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/mediums.txt"
+                )
             ),
             lines=True,
         )
         movements = read_file(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/movements.txt"
+                hf_endpoint_url(
+                    "/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/movements.txt"
+                )
             ),
             lines=True,
         )
         negative = read_file(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/negative.txt"
+                hf_endpoint_url(
+                    "/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/negative.txt"
+                )
             ),
             lines=True,
         )
         sites = read_file(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/sites.txt"
+                hf_endpoint_url(
+                    "/datasets/fuliucansheng/hubfiles/raw/main/clip-interrogator/sites.txt"
+                )
             ),
             lines=True,
         )
@@ -118,7 +131,6 @@ class BletchleyInterrogatorPipeline(BletchleyForPretrain):
         pretrained_weight_path = config.getoption(
             "pretrained_weight_path", pretrained_weight_path
         )
-
         inst = cls(
             config_type=config_type,
             projection_dim=projection_dim,

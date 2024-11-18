@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers import PreTrainedModel, XLMRobertaConfig
 from transformers.activations import quick_gelu
 from transformers.models.roberta.modeling_roberta import (
@@ -18,6 +18,7 @@ from transformers.models.roberta.modeling_roberta import (
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.models.peft import PeftWeightLoaderMixin
+from unitorch.cli import hf_endpoint_url
 from unitorch.cli.models import (
     EmbeddingOutputs,
     LossOutputs,
@@ -47,7 +48,7 @@ def get_bletchley_text_config(
     ], "Invalid config passed"
     # config = XLMRobertaConfig.from_pretrained("xlm-roberta-large")
     config_path = cached_path(
-        "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/config.json"
+        hf_endpoint_url("/FacebookAI/xlm-roberta-large/resolve/main/config.json")
     )
     config = XLMRobertaConfig.from_json_file(config_path)
     config.num_hidden_layers = 12
@@ -83,7 +84,7 @@ def get_bletchley_image_config(
     assert config_type in ["0.3B", "0.8B", "2.5B", None], "Invalid config passed"
     # config = XLMRobertaConfig.from_pretrained("xlm-roberta-large")
     config_path = cached_path(
-        "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/config.json"
+        hf_endpoint_url("/FacebookAI/xlm-roberta-large/resolve/main/config.json")
     )
     config = XLMRobertaConfig.from_json_file(config_path)
     config.hidden_dropout_prob = 0.0
@@ -336,7 +337,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -498,7 +499,7 @@ class BletchleyForTextPretrain(GenericModel, PeftWeightLoaderMixin):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -623,7 +624,7 @@ class BletchleyForClassification(GenericModel, PeftWeightLoaderMixin):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -709,7 +710,7 @@ class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -788,7 +789,7 @@ class BletchleyForImageClassification(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(self, images: torch.Tensor):
         image_outputs = self.image_encoder(images)
         image_embeds = self.image_projection(image_outputs[:, 0])
@@ -888,7 +889,7 @@ class BletchleyForMatching(GenericModel, PeftWeightLoaderMixin):
             )
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -1043,7 +1044,7 @@ class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
 
         super().from_pretrained(state_dict=state_dict)
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -1197,7 +1198,7 @@ class BletchleyForTextSelection(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,

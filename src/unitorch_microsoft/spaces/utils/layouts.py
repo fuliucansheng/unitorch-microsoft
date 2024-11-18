@@ -66,7 +66,7 @@ def create_toper_menus():
     return create_row(
         create_column(left, scale=1),
         create_column(
-            middle, scale=2, elem_classes="ut-bg-transparent ut-ms-place-holder-block"
+            middle, scale=1, elem_classes="ut-bg-transparent ut-ms-place-holder-block"
         ),
         create_column(right, scale=1),
         elem_classes="ut-bg-transparent ut-ms-toper ut-ms-vh-center-bottom",
@@ -168,7 +168,7 @@ def create_cards_group(header, cards, elem_classes=None):
         create_card(card.title, card.desc, card.link, elem_classes="ut-ms-card-item")
         for card in cards
     ]
-    layout = create_row(*cards)
+    layout = create_row(*cards, elem_classes="ut-ms-card-item ut-bg-transparent")
     return create_column(
         header,
         layout,

@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from peft import LoraConfig
 from unitorch.models import GenericModel
 from unitorch.models.peft import (
@@ -73,7 +73,7 @@ class BletchleyForMatching(GenericModel):
 
         self.init_weights()
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids=None,
@@ -139,7 +139,7 @@ class BletchleyForTextMatching(GenericModel):
 
         self.init_weights()
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -281,7 +281,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -406,7 +406,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -563,7 +563,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -711,7 +711,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         super().from_pretrained(state_dict=state_dict)
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,

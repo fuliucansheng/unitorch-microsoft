@@ -10,6 +10,8 @@ from unitorch.cli.webuis.sam import SamWebUI
 from unitorch.cli.webuis.mask2former import Mask2FormerWebUI
 from unitorch.cli.webuis.segformer import SegformerWebUI
 
+import unitorch_microsoft.models.sam
+
 
 @register_webui("microsoft/webui/segmentation")
 class SegmentationWebUI(SimpleWebUI):

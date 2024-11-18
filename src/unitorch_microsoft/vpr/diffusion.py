@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 import diffusers.schedulers as schedulers
 from transformers import CLIPTextConfig, CLIPTextModel
 from transformers.models.bert.modeling_bert import BertModel, BertConfig
@@ -161,7 +161,7 @@ class StableForArgusGeneration(GenericModel):
         inst.from_pretrained(weight_path, state_dict=state_dict)
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         argus_embeds: torch.Tensor,
@@ -397,7 +397,7 @@ class StableForArgusGenerationV2(GenericModel):
         inst.from_pretrained(weight_path, state_dict=state_dict)
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         argus_embeds: torch.Tensor,

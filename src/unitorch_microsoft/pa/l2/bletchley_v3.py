@@ -9,7 +9,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
@@ -156,7 +156,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
 
         super().from_pretrained(state_dict=state_dict)
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: torch.Tensor,
@@ -370,7 +370,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
 
         super().from_pretrained(state_dict=state_dict)
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: torch.Tensor,

@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.utils import is_remote_url
 from unitorch.utils import pop_value, nested_dict_value
 from transformers import MistralConfig, MistralForCausalLM, MistralModel

@@ -9,7 +9,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
@@ -138,7 +138,7 @@ class BletchleyForGeneImageRelevance(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -301,7 +301,7 @@ class BletchleyForImageRankingPosition(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -448,7 +448,7 @@ class BletchleyForImageRankingPositionEmbeddingScore(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,

@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
 from unitorch.modules.classifier import reslayer
@@ -258,7 +258,7 @@ class MMDNNBletchleyForClassification(GenericModel):
             image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
         return image_embeds
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -375,7 +375,7 @@ class MMDNNBletchleyForDistillation(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -669,7 +669,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
 
         return offer_embeds
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: torch.Tensor = None,
@@ -987,7 +987,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
 
         return offer_embeds
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: torch.Tensor = None,
@@ -1302,7 +1302,7 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
 
         return offer_embeds
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: torch.Tensor = None,

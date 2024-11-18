@@ -7,7 +7,7 @@ import logging
 import torch.nn as nn
 import torch.distributed as dist
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.models.visual_bert.modeling_visual_bert import (
     VisualBertConfig,
     VisualBertModel,
@@ -117,7 +117,7 @@ class VisualBertForPretrainV2(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: torch.Tensor,
@@ -260,7 +260,7 @@ class VisualBertForClassificationV2(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids: Optional[torch.Tensor] = None,

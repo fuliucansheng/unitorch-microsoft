@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.models.bert.modeling_bert import (
     BertConfig,
     BertEmbeddings,
@@ -506,7 +506,7 @@ class TribertForClassification(GenericModel):
             inst.from_pretrained(weight_path)
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         task,

@@ -8,7 +8,7 @@ import logging
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from torch.cuda.amp import autocast
+from torch import autocast
 from unitorch.utils import pop_value, nested_dict_value
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from transformers.models.mask2former.modeling_mask2former import (
@@ -81,7 +81,7 @@ class Mask2FormerForSegmentation(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(self):
         """
         Performs a forward pass of the SamForSegmentation model.

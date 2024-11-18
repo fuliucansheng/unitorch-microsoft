@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from peft import LoraConfig
 from unitorch.models import GenericModel
 from unitorch.models.peft import (
@@ -73,7 +73,7 @@ class BletchleyForMatching(GenericModel):
 
         self.init_weights()
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids=None,
@@ -138,7 +138,7 @@ class BletchleyForTextMatching(GenericModel):
 
         self.init_weights()
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -283,7 +283,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -409,7 +409,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor = None,
@@ -569,7 +569,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -718,7 +718,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         super().from_pretrained(state_dict=state_dict)
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -743,6 +743,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
+
 
 @register_model("microsoft/model/matching/peft/lora/bletchley/v1/text/distill")
 class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixin):
@@ -792,9 +793,7 @@ class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixi
         )
         self.classifier = nn.Linear(1, 1)
 
-        query_config = get_bletchley_text_config(
-            query_config_type
-        )
+        query_config = get_bletchley_text_config(query_config_type)
         self.teacher_query_encoder = BletchleyTextEncoder(
             query_config, add_projection_layer=False
         )
@@ -810,7 +809,6 @@ class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixi
             p.requires_grad = False
         for p in self.teacher_query_projection.parameters():
             p.requires_grad = False
-
 
     @classmethod
     @add_default_section_for_init(
@@ -841,7 +839,7 @@ class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixi
             fan_in_fan_out=fan_in_fan_out,
             target_modules=target_modules,
             momentum=momentum,
-            distill_weight=distill_weight
+            distill_weight=distill_weight,
         )
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         if pretrained_weight_path is not None:
@@ -874,21 +872,30 @@ class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixi
 
         _keys = [key for key in state_dict.keys() if key.startswith("query_encoder")]
         for _key in _keys:
-            state_dict["teacher_"+_key] = state_dict[_key].clone()
+            state_dict["teacher_" + _key] = state_dict[_key].clone()
 
         super().from_pretrained(state_dict=state_dict)
-    
-    @torch.no_grad()        
-    def _momentum_update(self):          
-        for param, param_m in zip(self.peft_model.query_encoder.parameters(), self.teacher_query_encoder.parameters()):
+
+    @torch.no_grad()
+    def _momentum_update(self):
+        for param, param_m in zip(
+            self.peft_model.query_encoder.parameters(),
+            self.teacher_query_encoder.parameters(),
+        ):
             print(param)
             print(param_m)
-            param_m.data = param_m.data * self.momentum + param.data * (1. - self.momentum)
-        for param, param_m in zip(self.peft_model.query_projection.parameters(), self.teacher_query_projection.parameters()):
-                param_m.data = param_m.data * self.momentum + param.data * (1. - self.momentum)        
+            param_m.data = param_m.data * self.momentum + param.data * (
+                1.0 - self.momentum
+            )
+        for param, param_m in zip(
+            self.peft_model.query_projection.parameters(),
+            self.teacher_query_projection.parameters(),
+        ):
+            param_m.data = param_m.data * self.momentum + param.data * (
+                1.0 - self.momentum
+            )
 
-
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -905,7 +912,7 @@ class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixi
             return_dict=False,
         )
 
-        #self._momentum_update()
+        # self._momentum_update()
         query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
         doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
         scores = torch.sum(query_embeds * doc_embeds, dim=-1, keepdim=True)
@@ -917,20 +924,22 @@ class BletchleyLoraForTextMatchingDistill(GenericPeftModel, PeftWeightLoaderMixi
 
         teacher_query_embeds = teacher_query_outputs[:, 0]
         teacher_query_embeds = self.teacher_query_projection(teacher_query_embeds)
-        teacher_query_embeds = teacher_query_embeds / teacher_query_embeds.norm(dim=-1, keepdim=True)
+        teacher_query_embeds = teacher_query_embeds / teacher_query_embeds.norm(
+            dim=-1, keepdim=True
+        )
 
         if self.training:
-            loss1 = (            
+            loss1 = (
                 nn.MSELoss(reduction="none")(teacher_query_embeds, query_embeds)
                 .sum(dim=-1)
                 .mean()
             )
-            loss2 = (            
+            loss2 = (
                 nn.MSELoss(reduction="none")(outputs, labels.unsqueeze(1))
                 .sum(dim=-1)
                 .mean()
             )
-            loss = self.distill_weight*loss1 + (1-self.distill_weight)*loss2
-            return LossOutputs(loss = loss)
+            loss = self.distill_weight * loss1 + (1 - self.distill_weight) * loss2
+            return LossOutputs(loss=loss)
 
         return ClassificationOutputs(outputs=outputs)

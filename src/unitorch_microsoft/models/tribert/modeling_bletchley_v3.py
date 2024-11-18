@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
 from unitorch.modules.classifier import reslayer

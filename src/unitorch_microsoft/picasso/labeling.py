@@ -100,12 +100,14 @@ class DashboardWebUI(SimpleWebUI):
             fn=self.filter_data,
             inputs=[start, end],
             outputs=[monitor.plot for monitor in monitors],
+            trigger_mode="once",
         )
 
         refresh.click(
             self.refresh_data,
             outputs=[monitor.plot for monitor in monitors]
             + [monitor.table for monitor in monitors],
+            trigger_mode="once",
         )
         iface.load(
             fn=self.refresh_data,

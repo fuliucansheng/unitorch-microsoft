@@ -7,7 +7,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch import autocast
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from peft import LoraConfig, PeftModelForCausalLM
 from transformers.models.llava_next.modeling_llava_next import (
@@ -224,7 +224,7 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -476,7 +476,7 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -564,7 +564,7 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
         "microsoft/model/generation/peft/lora/llava/mistral_bletchley_v3",
     )
     @torch.no_grad()
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def generate(
         self,
         input_ids: torch.Tensor,

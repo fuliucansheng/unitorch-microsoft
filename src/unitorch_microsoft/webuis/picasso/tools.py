@@ -63,6 +63,7 @@ class CopyWebUI(SimpleWebUI):
             fn=self.copy,
             inputs=[product_image, background_image, height, width, threshold],
             outputs=[output_image],
+            trigger_mode="once",
         )
 
         iface.__exit__()
@@ -118,6 +119,7 @@ class BlurWebUI(SimpleWebUI):
             fn=self.blur,
             inputs=[image, radius],
             outputs=[output_image],
+            trigger_mode="once",
         )
 
         iface.__exit__()
@@ -162,6 +164,7 @@ class BrightnessWebUI(SimpleWebUI):
             fn=self.brightness,
             inputs=[image, factor],
             outputs=[output_image],
+            trigger_mode="once",
         )
 
         iface.__exit__()
@@ -335,6 +338,7 @@ class ControlNetWebUI(SimpleWebUI):
             fn=self.serve,
             inputs=[image, cate, width, height],
             outputs=[output_image],
+            trigger_mode="once",
         )
 
         iface.__exit__()

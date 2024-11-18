@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from peft import LoraConfig
 from transformers.models.sam.modeling_sam import SamConfig, SamModel
 from unitorch.utils import pop_value, nested_dict_value
@@ -180,7 +180,7 @@ class SamLoraForSegmentation(GenericPeftModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         pixel_values: torch.Tensor,

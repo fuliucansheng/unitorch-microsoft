@@ -90,15 +90,15 @@ class BletchleyMatchingWebUI(SimpleWebUI):
         score = create_element("text", "Output Score", lines=1)
 
         # create blocks
-        left = create_column(lora_layout, text, generate)
-        right = create_column(image, score)
+        left = create_column(lora_layout, text, image, max_seq_length, generate)
+        right = create_column(score)
         iface = create_blocks(pretrain_layout, create_row(left, right))
 
         # create events
         iface.__enter__()
 
-        start.click(self.start, inputs=[name], outputs=[status])
-        stop.click(self.stop, outputs=[status])
+        start.click(self.start, inputs=[name], outputs=[status], trigger_mode="once")
+        stop.click(self.stop, outputs=[status], trigger_mode="once")
 
         for lora in loras:
             lora.checkpoint.change(
@@ -118,6 +118,7 @@ class BletchleyMatchingWebUI(SimpleWebUI):
                 *lora_params,
             ],
             outputs=[score],
+            trigger_mode="once",
         )
 
         iface.load(
@@ -137,7 +138,7 @@ class BletchleyMatchingWebUI(SimpleWebUI):
         self._name = pretrained_name
         self._pipe = BletchleyForMatchingPipeline.from_core_configure(
             self._config,
-            pretrained_name=pretrained_name,
+            config_type=pretrained_name,
         )
         self._status = "Running"
         return self._status

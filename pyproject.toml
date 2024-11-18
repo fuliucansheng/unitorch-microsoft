@@ -34,7 +34,7 @@ detection = ["mmyolo>=0.6.0"]
 quantization = ["bitsandbytes>=0.41.1"]
 docs = ["mkdocstrings[python]>=0.18", "mkdocs-material", "markdown-exec", "mkdocs-gen-files", "mkdocs-coverage"]
 fastapi = ["fastapi>=0.103.1"]
-webui = ["gradio>=4.31.4", "gradio_client>=0.16.4"]
+webui = ["gradio>=4.31.4", "faiss-cpu"]
 azure = ["azure-storage-blob"]
 all = ["unitorch_microsoft[deepspeed,diffusers,quantization,azure]"]
 

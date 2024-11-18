@@ -68,9 +68,14 @@ class GettyImageSelectionWebUI(SimpleWebUI):
         # create events
         iface.__enter__()
 
-        start.click(self.start, inputs=[name], outputs=[status])
-        stop.click(self.stop, outputs=[status])
-        search.click(self.serve, inputs=[text, image, topk], outputs=[result])
+        start.click(self.start, inputs=[name], outputs=[status], trigger_mode="once")
+        stop.click(self.stop, outputs=[status], trigger_mode="once")
+        search.click(
+            self.serve,
+            inputs=[text, image, topk],
+            outputs=[result],
+            trigger_mode="once",
+        )
 
         iface.load(
             fn=lambda: [gr.update(value=self._name), gr.update(value=self._status)],

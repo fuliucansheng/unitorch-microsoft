@@ -96,11 +96,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
 
         # show columns
-        self.text_cols = config.getoption("text_cols", [])
-        self.image_cols = config.getoption("image_cols", [])
-        self.video_cols = config.getoption("video_cols", [])
-        self.url_cols = config.getoption("url_cols", [])
-        self.html_cols = config.getoption("html_cols", [])
+        self.text_cols = config.getoption("text_cols", None)
+        self.image_cols = config.getoption("image_cols", None)
+        self.video_cols = config.getoption("video_cols", None)
+        self.url_cols = config.getoption("url_cols", None)
+        self.html_cols = config.getoption("html_cols", None)
         self.show_cols = config.getoption("show_cols", None)
         self.group_col = config.getoption("group_col", None)
         self.num_images_per_row = config.getoption("num_images_per_row", 4)
@@ -110,6 +110,16 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         self.num_html_per_row = config.getoption("num_html_per_row", 4)
 
+        # css settings
+        self.min_image_width = config.getoption("min_image_width", "none")
+        self.min_image_height = config.getoption("min_image_height", "none")
+        self.max_image_width = config.getoption("max_image_width", "none")
+        self.max_image_height = config.getoption("max_image_height", "100px")
+        self.min_video_width = config.getoption("min_video_width", "none")
+        self.min_video_height = config.getoption("min_video_height", "none")
+        self.max_video_width = config.getoption("max_video_width", "none")
+        self.max_video_height = config.getoption("max_video_height", "100px")
+
         if self.text_cols is not None:
             if isinstance(self.text_cols, str):
                 self.text_cols = re.split(r"[,;]", self.text_cols)
@@ -117,6 +127,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             assert all(
                 [col in self.dataset.columns for col in self.text_cols]
             ), f"text_cols {self.text_cols} not found in dataset"
+        else:
+            self.text_cols = []
 
         if self.image_cols is not None:
             if isinstance(self.image_cols, str):
@@ -125,6 +137,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             assert all(
                 [col in self.dataset.columns for col in self.image_cols]
             ), f"image_cols {self.image_cols} not found in dataset"
+        else:
+            self.image_cols = []
 
         if self.video_cols is not None:
             if isinstance(self.video_cols, str):
@@ -133,6 +147,28 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             assert all(
                 [col in self.dataset.columns for col in self.video_cols]
             ), f"video_cols {self.video_cols} not found in dataset"
+        else:
+            self.video_cols = []
+
+        if self.url_cols is not None:
+            if isinstance(self.url_cols, str):
+                self.url_cols = re.split(r"[,;]", self.url_cols)
+                self.url_cols = [n.strip() for n in self.url_cols]
+            assert all(
+                [col in self.dataset.columns for col in self.url_cols]
+            ), f"url_cols {self.url_cols} not found in dataset"
+        else:
+            self.url_cols = []
+
+        if self.html_cols is not None:
+            if isinstance(self.html_cols, str):
+                self.html_cols = re.split(r"[,;]", self.html_cols)
+                self.html_cols = [n.strip() for n in self.html_cols]
+            assert all(
+                [col in self.dataset.columns for col in self.html_cols]
+            ), f"html_cols {self.html_cols} not found in dataset"
+        else:
+            self.html_cols = []
 
         if self.show_cols is not None:
             if isinstance(self.show_cols, str):
@@ -157,6 +193,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset["Comment"] = ""
         self.dataset["Label"] = ""
 
+        if isinstance(self.choices, str):
+            self.choices = re.split(r"[,;]", self.choices)
+            self.choices = [c.strip() for c in self.choices]
         self.choices = [c.replace(",", " ").strip() for c in self.choices]
         self.default_choice = self.default_choice.replace(",", " ").strip()
         if self.default_choice not in self.choices and self.default_choice != "":
@@ -389,6 +428,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+            trigger_mode="once",
         )
         random.click(
             self.sample,
@@ -404,11 +444,13 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+            trigger_mode="once",
         )
         refresh.click(
             self.show,
             inputs=[group, res_label],
             outputs=[progress, results],
+            trigger_mode="once",
         )
         adv_load.click(
             self.load,
@@ -422,11 +464,13 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+            trigger_mode="once",
         )
         adv_reset.click(
             self.reset,
             inputs=[adv_index],
             outputs=[adv_index, progress],
+            trigger_mode="once",
         )
         index.change(
             fn=lambda x: x,
@@ -474,7 +518,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                     self.temp_folder, hashlib.md5(url.encode()).hexdigest()
                 )
                 try:
-                    download_url_to_file(url, name)
+                    if not os.path.exists(name):
+                        download_url_to_file(url, name)
                     return name
                 except Exception as e:
                     print(e)
@@ -504,7 +549,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         for col in set(self.image_cols):
             results[col] = results[col].map(url)
             results[col] = results[col].map(
-                lambda x: f'<img src="{x}" style="max-height: 100px;">'
+                lambda x: f'<img src="{x}" style="min-width: {self.min_image_width}; max-width: {self.max_image_width}; min-height: {self.min_image_height}; max-height: {self.max_image_height};">'
             )
         for col in set(self.video_cols):
             results[col] = results[col].map(
@@ -513,7 +558,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 else self.http_url.format(os.path.abspath(x))
             )
             results[col] = results[col].map(
-                lambda x: f'<video src="{x}" style="max-height: 100px;" preload="none" controls>'
+                lambda x: f'<video src="{x}" style="min-width: {self.min_video_width}; max-width: {self.max_video_width}; min-height: {self.min_video_height}; max-height: {self.max_video_height};" preload="none" controls>'
             )
 
         for col in self.url_cols:
@@ -606,6 +651,16 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         return None, progress
 
     def load(self, index):
+        if len(self.dataset[self.dataset["Index"] == index]) == 0:
+            return (index, None, None) + tuple(
+                [None]
+                * (
+                    self.num_text_cols
+                    + self.num_image_cols
+                    + self.num_video_cols
+                    + self.num_html_cols
+                )
+            )
         new_one = self.dataset[self.dataset["Index"] == index].iloc[0]
         new_one = self.process_sample(new_one)
         new_texts = new_one[self.text_cols].tolist()

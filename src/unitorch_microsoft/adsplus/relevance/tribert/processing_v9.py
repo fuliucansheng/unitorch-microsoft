@@ -15,8 +15,8 @@ from unitorch.cli.models import (
     GenerationOutputs,
     GenerationTargets,
 )
+from unitorch.cli.models.bert import pretrained_bert_infos
 from unitorch.cli.models.bert import BertProcessor
-from unitorch_microsoft.adsplus.relevance.tribert import pretrained_bert_infos
 
 
 class TribertV9Processor(BertProcessor):

@@ -22,6 +22,19 @@ VERSION = "0.0.0.1"
 logger = logging.getLogger()
 
 
+UNITORCH_MS_ENDPOINT = os.environ.get(
+    "UNITORCH_MS_ENDPOINT", "https://unitorchazureblob.blob.core.windows.net"
+)
+
+
+def ms_endpoint_url(url):
+    if is_remote_url(url):
+        return url
+    if url.startswith("/"):
+        url = url[1:]
+    return f"{UNITORCH_MS_ENDPOINT}/{url}"
+
+
 @replace(unitorch.cli.cached_path)
 def cached_path(
     url_or_filename,
@@ -77,6 +90,7 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.models.culr
     import unitorch_microsoft.models.llama
     import unitorch_microsoft.models.mmdnn
+    import unitorch_microsoft.models.sam
     import unitorch_microsoft.models.tnlr
     import unitorch_microsoft.models.tribert
     import unitorch_microsoft.models.tulg

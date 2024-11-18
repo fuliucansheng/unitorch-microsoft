@@ -58,12 +58,14 @@ class ZoomInWebUI(SimpleWebUI):
             lambda x: (x, []),
             inputs=[origin_input_image],
             outputs=[input_image, boxes_points],
+            trigger_mode="once",
         )
 
         generate.click(
             fn=self.serve,
             inputs=[origin_input_image, frames, boxes_points],
             outputs=[output_video],
+            trigger_mode="once",
         )
 
         iface.__exit__()

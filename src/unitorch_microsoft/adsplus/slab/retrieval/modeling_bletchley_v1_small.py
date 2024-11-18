@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from transformers.activations import quick_gelu
 
 from unitorch_microsoft.models.bletchley.modeling_v1 import (
@@ -209,7 +209,7 @@ class BletchleyV1ForSLABRetrievalPairwiseSmall(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,
@@ -537,7 +537,7 @@ class BletchleyV1ForSLABRetrievalSmallPretrain(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids=None,

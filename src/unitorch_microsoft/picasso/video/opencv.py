@@ -112,7 +112,8 @@ class OpenCVZoomInScript(GenericScript):
                     if image_path.startswith("http")
                     else http_url.format(row[image_col])
                 )
-                download_url_to_file(url, image_path, progress=False)
+                if not os.path.exists(image_path):
+                    download_url_to_file(url, image_path, progress=False)
 
             image_bboxes = row[bboxes_col]
             image = cv2.imread(image_path)

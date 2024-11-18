@@ -13,6 +13,7 @@ from transformers import XLMRobertaTokenizer
 from unitorch.utils import pop_value, truncate_sequence_pair
 from unitorch.models import GenericOutputs
 from unitorch.cli import (
+    hf_endpoint_url,
     add_default_section_for_init,
     add_default_section_for_function,
     register_process,
@@ -45,7 +46,9 @@ class BletchleyProcessor:
         )
         # self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-large")
         vocab_path = cached_path(
-            "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/main/sentencepiece.bpe.model"
+            hf_endpoint_url(
+                "/FacebookAI/xlm-roberta-large/resolve/main/sentencepiece.bpe.model"
+            )
         )
         self.tokenizer = XLMRobertaTokenizer(vocab_path)
         self.pad_token = self.tokenizer.pad_token

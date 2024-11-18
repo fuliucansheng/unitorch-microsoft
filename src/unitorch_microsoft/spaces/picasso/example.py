@@ -387,6 +387,7 @@ class ExampleWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+            trigger_mode="once",
         )
         random.click(
             self.sample,
@@ -402,11 +403,13 @@ class ExampleWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+            trigger_mode="once",
         )
         refresh.click(
             self.show,
             inputs=[group, res_label],
             outputs=[progress, results],
+            trigger_mode="once",
         )
         adv_load.click(
             self.load,
@@ -420,11 +423,13 @@ class ExampleWebUI(SimpleWebUI):
                 *videos,
                 *htmls,
             ],
+            trigger_mode="once",
         )
         adv_reset.click(
             self.reset,
             inputs=[adv_index],
             outputs=[adv_index, progress],
+            trigger_mode="once",
         )
         index.change(
             fn=lambda x: x,
@@ -472,7 +477,8 @@ class ExampleWebUI(SimpleWebUI):
                     self.temp_folder, hashlib.md5(url.encode()).hexdigest()
                 )
                 try:
-                    download_url_to_file(url, name)
+                    if not os.path.exists(name):
+                        download_url_to_file(url, name)
                     return name
                 except Exception as e:
                     print(e)

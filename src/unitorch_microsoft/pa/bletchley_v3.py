@@ -9,7 +9,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.cli.models import (
@@ -108,7 +108,7 @@ class BletchleyForPretrain(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids,
@@ -245,7 +245,7 @@ class BletchleyForPretrainV2(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids,
@@ -378,7 +378,7 @@ class BletchleyTextForPretrainV2(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids,

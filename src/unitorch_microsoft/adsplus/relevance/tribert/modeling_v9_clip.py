@@ -5,7 +5,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch import autocast
 import torch.distributed as dist
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 from transformers.models.bert.modeling_bert import (
@@ -32,8 +32,8 @@ from unitorch.cli.models import (
     LossOutputs,
     ClassificationOutputs,
 )
+from unitorch.cli.models.bert import pretrained_bert_infos
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.adsplus.relevance.tribert import pretrained_bert_infos
 
 
 class AttentionLayer(nn.Module):
@@ -188,7 +188,7 @@ class TribertClipForPretrain(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         task,

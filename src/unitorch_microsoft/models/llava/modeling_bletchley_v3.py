@@ -7,7 +7,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch import autocast
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from transformers.models.llava_next.modeling_llava_next import (
     LlavaNextConfig,
@@ -202,7 +202,7 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -436,7 +436,7 @@ class LlavaMistralBlethchleyV3ForGeneration(
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -524,7 +524,7 @@ class LlavaMistralBlethchleyV3ForGeneration(
         "microsoft/model/generation/llava/mistral_bletchley_v3"
     )
     @torch.no_grad()
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def generate(
         self,
         input_ids: torch.Tensor,

@@ -3,7 +3,7 @@
 
 import torch
 import torch.nn as nn
-from torch.cuda.amp import autocast
+from torch import autocast
 from unitorch.models import GenericModel
 from unitorch.cli import (
     add_default_section_for_init,
@@ -40,7 +40,7 @@ class TribertForClassification(GenericModel):
             inst.from_pretrained(weight_path)
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         query_input_ids,

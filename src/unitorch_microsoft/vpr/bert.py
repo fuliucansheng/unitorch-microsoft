@@ -7,7 +7,7 @@ import logging
 import torch.nn as nn
 import torch.distributed as dist
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
-from torch.cuda.amp import autocast
+from torch import autocast
 
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
@@ -92,7 +92,7 @@ class BertForPretrain(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -214,7 +214,7 @@ class BertForPretrainV2(GenericModel):
         output = output.view(-1, *(output.shape[2:]))
         return output
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -329,7 +329,7 @@ class BertForClassification(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -439,7 +439,7 @@ class BertForClassificationV2(GenericModel):
 
         return inst
 
-    @autocast()
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,

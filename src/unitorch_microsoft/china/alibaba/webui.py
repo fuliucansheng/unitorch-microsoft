@@ -85,9 +85,14 @@ class Ali1688ImageSelectionWebUI(SimpleWebUI):
         # create events
         iface.__enter__()
 
-        start.click(self.start, inputs=[name], outputs=[status])
-        stop.click(self.stop, outputs=[status])
-        search.click(self.serve, inputs=[text, image, topk], outputs=[result])
+        start.click(self.start, inputs=[name], outputs=[status], trigger_mode="once")
+        stop.click(self.stop, outputs=[status], trigger_mode="once")
+        search.click(
+            self.serve,
+            inputs=[text, image, topk],
+            outputs=[result],
+            trigger_mode="once",
+        )
 
         iface.load(
             fn=lambda: [gr.update(value=self._name), gr.update(value=self._status)],
@@ -208,6 +213,7 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
             self.sample,
             inputs=[offerid],
             outputs=[offerid, offerurl, offerimage, title, images],
+            trigger_mode="once",
         )
         submit.click(
             self.serve,
@@ -221,6 +227,7 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
                 best_name,
                 best_image,
             ],
+            trigger_mode="once",
         )
 
         iface.load(
