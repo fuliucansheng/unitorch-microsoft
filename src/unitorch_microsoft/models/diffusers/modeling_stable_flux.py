@@ -251,7 +251,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
 
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=torch.bfloat16,
+        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
     )
     def forward(
         self,
@@ -373,7 +373,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=torch.bfloat16,
+        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
     )
     def generate(
         self,
@@ -671,7 +671,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
 
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=torch.bfloat16,
+        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
     )
     def forward(
         self,
@@ -793,7 +793,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=torch.bfloat16,
+        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
     )
     def generate(
         self,
