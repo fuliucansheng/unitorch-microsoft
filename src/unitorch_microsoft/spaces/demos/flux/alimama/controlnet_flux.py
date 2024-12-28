@@ -15,7 +15,7 @@ from diffusers.utils import (
     scale_lora_layers,
     unscale_lora_layers,
 )
-from diffusers.models.controlnet import BaseOutput, zero_module
+from diffusers.models.controlnets.controlnet import BaseOutput, zero_module
 from diffusers.models.embeddings import (
     CombinedTimestepGuidanceTextProjEmbeddings,
     CombinedTimestepTextProjEmbeddings,

@@ -205,9 +205,10 @@ class PicassoDiffusionProcessor:
     def _random_mask(
         self,
         image: Union[Image.Image, str],
-        ratio: Optional[float] = 1.0,
+        ratios: Optional[List[float]] = [0.8, 1.0],
         mask_full_image: Optional[bool] = False,
     ):
+        ratio = np.random.choice(ratios)
         im_shape = image.size
         mask = Image.new("L", im_shape, 0)
         draw = ImageDraw.Draw(mask)
@@ -244,6 +245,273 @@ class PicassoDiffusionProcessor:
                 ),
                 fill=255,
             )
+        return mask
+
+    @register_process("microsoft/picasso/diffusion/process/random_lama_mask")
+    def _random_lama_mask(
+        self,
+        image: Union[Image.Image, str],
+        max_angle: Optional[int] = 180,
+        max_length: Optional[int] = 60,
+        max_width: Optional[int] = 20,
+        min_times: Optional[int] = 0,
+        max_times: Optional[int] = 10,
+        choice_probs: Optional[List[float]] = None,
+    ):
+        choices = ["line", "circle", "square"]
+        if choice_probs is None:
+            choice_probs = [0.38, 0.24, 0.38]
+        im_shape = image.size
+        mask = Image.new("L", im_shape, 0)
+        draw = ImageDraw.Draw(mask)
+        for t in range(random.randint(min_times, max_times + 1)):
+            choice_type = np.random.choice(choices, p=choice_probs)
+            for _ in range(1 + random.randint(0, 5)):
+                if choice_type == "line":
+                    start = (
+                        random.randint(0, im_shape[0]),
+                        random.randint(0, im_shape[1]),
+                    )
+                    angle = random.randint(0, max_angle)
+                    if t % 2 == 0:
+                        angle = 360 - angle
+                    length = 10 + random.randint(0, max_length)
+                    width = 5 + random.randint(0, max_width)
+                    end = (
+                        start[0] + int(math.cos(math.radians(angle)) * length),
+                        start[1] + int(math.sin(math.radians(angle)) * length),
+                    )
+                    draw.line([start, end], fill=255, width=width)
+                elif choice_type == "circle":
+                    center = (
+                        random.randint(0, im_shape[0]),
+                        random.randint(0, im_shape[1]),
+                    )
+                    radius = random.randint(0, max_length)
+                    draw.ellipse(
+                        (
+                            center[0] - radius,
+                            center[1] - radius,
+                            center[0] + radius,
+                            center[1] + radius,
+                        ),
+                        fill=255,
+                    )
+                elif choice_type == "square":
+                    center = (
+                        random.randint(0, im_shape[0]),
+                        random.randint(0, im_shape[1]),
+                    )
+                    length = random.randint(0, max_length)
+                    draw.rectangle(
+                        (
+                            center[0] - length,
+                            center[1] - length,
+                            center[0] + length,
+                            center[1] + length,
+                        ),
+                        fill=255,
+                    )
+
+        return mask
+
+    @register_process("microsoft/picasso/diffusion/process/random_object_mask")
+    def _random_object_mask(
+        self,
+        obj_mask: Image.Image,
+        choice_probs: Optional[List[float]] = None,
+        mask_background: Optional[bool] = False,
+    ):
+        inv_obj_mask = ImageOps.invert(obj_mask)
+        im_shape = obj_mask.size
+        mask = Image.new("L", im_shape, 0)
+        draw = ImageDraw.Draw(mask)
+        choices = ["object", "circle", "square"]
+        if choice_probs is None:
+            choice_probs = [0.6, 0.2, 0.2]
+        choice_type = np.random.choice(choices, p=choice_probs)
+        x1, y1, x2, y2 = obj_mask.getbbox()
+        if choice_type == "object":
+            if not mask_background:
+                mask.paste(obj_mask, (0, 0), obj_mask)
+            else:
+                mask.paste(inv_obj_mask, (0, 0), inv_obj_mask)
+        if choice_type == "circle":
+            if not mask_background:
+                center = (
+                    random.randint(x1, x2),
+                    random.randint(y1, y2),
+                )
+                min_radius = max(
+                    x2 - center[0], y2 - center[1], center[0] - x1, center[1] - y1
+                )
+                radius = random.randint(
+                    max(x2 - center[0], y2 - center[1], center[0] - x1, center[1] - y1),
+                    max(
+                        min_radius + 1,
+                        min(
+                            center[0],
+                            center[1],
+                            im_shape[0] - center[0],
+                            im_shape[1] - center[1],
+                        ),
+                    ),
+                )
+                draw.ellipse(
+                    (
+                        center[0] - radius,
+                        center[1] - radius,
+                        center[0] + radius,
+                        center[1] + radius,
+                    ),
+                    fill=255,
+                )
+            else:
+                regions = [
+                    [(0, x1), (0, y1)],
+                    [(0, x1), (y2, im_shape[1])],
+                    [(x2, im_shape[0]), (0, y1)],
+                    [(x2, im_shape[0]), (y2, im_shape[1])],
+                    [(x1, x2), (0, y1)],
+                    [(x1, x2), (y2, im_shape[1])],
+                    [(0, x1), (y1, y2)],
+                    [(x2, im_shape[0]), (y1, y2)],
+                ]
+                centers = [
+                    (random.randint(*r[0]), random.randint(*r[1])) for r in regions
+                ]
+                radiuss = [
+                    (
+                        random.randint(
+                            min(
+                                20,
+                                c[0] - r[0][0],
+                                r[0][1] - c[0],
+                                c[1] - r[1][0],
+                                r[1][1] - c[1],
+                            ),
+                            min(
+                                c[0] - r[0][0],
+                                r[0][1] - c[0],
+                                c[1] - r[1][0],
+                                r[1][1] - c[1],
+                            ),
+                        )
+                    )
+                    for c, r in zip(centers, regions)
+                ]
+                # filter the centers that are too close to the object
+                for center, radius in zip(centers, radiuss):
+                    if radius < 10:
+                        continue
+                    draw.ellipse(
+                        (
+                            center[0] - radius,
+                            center[1] - radius,
+                            center[0] + radius,
+                            center[1] + radius,
+                        ),
+                        fill=255,
+                    )
+        if choice_type == "square":
+            if not mask_background:
+                center = (
+                    random.randint(x1, x2),
+                    random.randint(y1, y2),
+                )
+                min_length = max(
+                    x2 - center[0], y2 - center[1], center[0] - x1, center[1] - y1
+                )
+                length = random.randint(
+                    max(x2 - center[0], y2 - center[1], center[0] - x1, center[1] - y1),
+                    max(
+                        min_length + 1,
+                        min(
+                            center[0],
+                            center[1],
+                            im_shape[0] - center[0],
+                            im_shape[1] - center[1],
+                        ),
+                    ),
+                )
+                draw.rectangle(
+                    (
+                        center[0] - length,
+                        center[1] - length,
+                        center[0] + length,
+                        center[1] + length,
+                    ),
+                    fill=255,
+                )
+            else:
+                regions = [
+                    [(0, x1), (0, y1)],
+                    [(0, x1), (y2, im_shape[1])],
+                    [(x2, im_shape[0]), (0, y1)],
+                    [(x2, im_shape[0]), (y2, im_shape[1])],
+                    [(x1, x2), (0, y1)],
+                    [(x1, x2), (y2, im_shape[1])],
+                    [(0, x1), (y1, y2)],
+                    [(x2, im_shape[0]), (y1, y2)],
+                ]
+                centers = [
+                    (random.randint(*r[0]), random.randint(*r[1])) for r in regions
+                ]
+                lengths = [
+                    (
+                        random.randint(
+                            min(
+                                20,
+                                c[0] - r[0][0],
+                                r[0][1] - c[0],
+                                c[1] - r[1][0],
+                                r[1][1] - c[1],
+                            ),
+                            min(
+                                c[0] - r[0][0],
+                                r[0][1] - c[0],
+                                c[1] - r[1][0],
+                                r[1][1] - c[1],
+                            ),
+                        )
+                    )
+                    for c, r in zip(centers, regions)
+                ]
+                # filter the centers that are too close to the object
+                for center, length in zip(centers, lengths):
+                    if length < 20:
+                        continue
+                    draw.rectangle(
+                        (
+                            center[0] - length,
+                            center[1] - length,
+                            center[0] + length,
+                            center[1] + length,
+                        ),
+                        fill=255,
+                    )
+        return mask
+
+    @register_process("microsoft/picasso/diffusion/process/outpainting/random_mask")
+    def _outpainting_random_mask(
+        self,
+        image: Union[Image.Image, str],
+        ratios: Optional[List[float]] = [0.5, 0.8, 0.9],
+    ):
+        ratio = random.choice(ratios)
+        im_shape = image.size
+        mask = Image.new("L", im_shape, 255)
+        draw = ImageDraw.Draw(mask)
+        center_size = (int(im_shape[0] * ratio), int(im_shape[1] * ratio))
+        draw.rectangle(
+            (
+                (im_shape[0] - center_size[0]) // 2,
+                (im_shape[1] - center_size[1]) // 2,
+                (im_shape[0] + center_size[0]) // 2,
+                (im_shape[1] + center_size[1]) // 2,
+            ),
+            fill=0,
+        )
         return mask
 
     @register_process("microsoft/picasso/diffusion/process/dominate_color")

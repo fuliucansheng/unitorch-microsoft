@@ -76,7 +76,6 @@ class AddObjWebUI(SimpleWebUI):
 
         left = create_column(create_row(image, mask_image), prompt, generate)
         right = create_column(output_image)
-        iface = create_blocks()
 
         iface = create_blocks(
             toper_menus,

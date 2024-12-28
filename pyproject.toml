@@ -29,14 +29,12 @@ dynamic = ["version", "dependencies"]
 
 [project.optional-dependencies]
 deepspeed = ["deepspeed>=0.11.0"]
-diffusers = ["diffusers>=0.29.0", "xformers>=0.0.25", "torchsde>=0.2.6"]
-detection = ["mmyolo>=0.6.0"]
+diffusers = ["diffusers>=0.29.0", "torchsde>=0.2.6"]
 quantization = ["bitsandbytes>=0.41.1"]
 docs = ["mkdocstrings[python]>=0.18", "mkdocs-material", "markdown-exec", "mkdocs-gen-files", "mkdocs-coverage"]
-fastapi = ["fastapi>=0.103.1"]
-webui = ["gradio>=4.31.4", "faiss-cpu"]
+others = ["gradio>=4.31.4", "fastapi>=0.103.1", "onnxruntime", "faiss-cpu"]
 azure = ["azure-storage-blob"]
-all = ["unitorch_microsoft[deepspeed,diffusers,quantization,azure]"]
+all = ["unitorch_microsoft[deepspeed,diffusers,quantization,others,azure]"]
 
 [project.scripts]
 unitorch-train = "unitorch_microsoft.consoles.train:cli_main"

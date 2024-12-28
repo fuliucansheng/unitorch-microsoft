@@ -45,6 +45,7 @@ def launch(config_path: str, **kwargs):
         for library in depends_libraries:
             import_library(library)
 
+    assert script_name in registered_script, f"{script_name} not found"
     main_script_cls = registered_script.get(script_name)
     if main_script_cls is None:
         raise ValueError(f"script {script_name} not found")

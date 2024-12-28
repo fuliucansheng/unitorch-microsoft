@@ -26,7 +26,12 @@ from diffusers.training_utils import (
     compute_loss_weighting_for_sd3,
     compute_density_for_timestep_sampling,
 )
-from unitorch.utils import pop_value, nested_dict_value
+from unitorch.utils import (
+    pop_value,
+    nested_dict_value,
+    is_bfloat16_available,
+    is_cuda_available,
+)
 from unitorch.models import (
     GenericModel,
     GenericOutputs,
@@ -251,7 +256,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
 
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
+        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def forward(
         self,
@@ -353,7 +358,6 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
             width=latents.shape[3] * vae_scale_factor,
             vae_scale_factor=vae_scale_factor,
         )
-        outputs = outputs[:, :16]
 
         weighting = compute_loss_weighting_for_sd3(
             weighting_scheme="none", sigmas=sigmas
@@ -373,7 +377,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
+        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def generate(
         self,
@@ -671,7 +675,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
 
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
+        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def forward(
         self,
@@ -773,7 +777,6 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
             width=latents.shape[3] * vae_scale_factor,
             vae_scale_factor=vae_scale_factor,
         )
-        outputs = outputs[:, :16]
 
         weighting = compute_loss_weighting_for_sd3(
             weighting_scheme="none", sigmas=sigmas
@@ -793,7 +796,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32),
+        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def generate(
         self,

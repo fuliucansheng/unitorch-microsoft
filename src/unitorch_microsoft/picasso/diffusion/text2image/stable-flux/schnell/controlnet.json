@@ -13,7 +13,7 @@
   "joint_attention_dim": 4096,
   "num_attention_heads": 24,
   "num_layers": 5,
-  "num_mode": 10,
+  "num_mode": null,
   "num_single_layers": 10,
   "patch_size": 1,
   "pooled_projection_dim": 768

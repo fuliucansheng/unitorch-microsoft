@@ -10,11 +10,6 @@ import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
 from transformers import AutoModelForImageSegmentation
 
-# from diffusers import (
-#     FluxInpaintPipeline,
-#     FluxControlNetInpaintPipeline,
-#     FluxControlNetModel,
-# )
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
@@ -22,7 +17,9 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
 
-# from unitorch.cli.pipelines.stable_flux import StableFluxForImageInpaintingPipeline
+from unitorch.cli.fastapis.stable_flux.inpainting import (
+    StableFluxForImageInpaintingFastAPIPipeline,
+)
 from unitorch.cli.pipelines.tools import depth, canny
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
@@ -41,11 +38,6 @@ from unitorch_microsoft.spaces import (
     create_card,
     create_dashboard_cards_group,
     create_cards_group,
-)
-from unitorch_microsoft.spaces.demos.flux.alimama import (
-    FluxControlNetModel as AliFluxControlNetModel,
-    FluxTransformer2DModel as AliFluxTransformer2DModel,
-    FluxControlNetInpaintingPipeline as AliFluxControlNetInpaintingPipeline,
 )
 
 
@@ -109,7 +101,6 @@ class RemoveObjWebUI(SimpleWebUI):
 
         left = create_tabs(click_tab, brush_tab)
         right = create_column(output_image)
-        iface = create_blocks()
 
         iface = create_blocks(
             toper_menus,
@@ -203,34 +194,13 @@ class RemoveObjWebUI(SimpleWebUI):
         )
         self._pipe.to("cuda")
         self._pipe.eval()
-        controlnet = AliFluxControlNetModel.from_pretrained(
-            "alimama-creative/FLUX.1-dev-Controlnet-Inpainting-Beta",
-            torch_dtype=torch.bfloat16,
+
+        self._diff_pipe = (
+            StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
+                config=self._config,
+                pretrained_name="stable-flux-dev-fill",
+            )
         )
-        transformer = AliFluxTransformer2DModel.from_pretrained(
-            "black-forest-labs/FLUX.1-dev",
-            subfolder="transformer",
-            torch_dytpe=torch.bfloat16,
-        )
-        self._diff_pipe = AliFluxControlNetInpaintingPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-dev",
-            controlnet=controlnet,
-            transformer=transformer,
-            torch_dtype=torch.bfloat16,
-            safety_checker=None,
-        )
-        self._diff_pipe.transformer.to(torch.bfloat16)
-        self._diff_pipe.controlnet.to(torch.bfloat16)
-        self._diff_pipe.enable_model_cpu_offload("1")
-        # self._diff_pipe = FluxInpaintPipeline.from_pretrained(
-        #     "black-forest-labs/FLUX.1-schnell",
-        #     torch_dtype=torch.bfloat16,
-        #     safety_checker=None,
-        # )
-        # self._diff_pipe.enable_model_cpu_offload("1")
-        # self._diff_pipe = StableFluxForImageInpaintingPipeline.from_core_configure(
-        #     config=self._config, pretrained_name="stable-v1.5-dreamshaper-8-inpainting",
-        # )
         self._status = "Running"
         return self._status
 
@@ -301,41 +271,18 @@ class RemoveObjWebUI(SimpleWebUI):
         neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
 
         result = self._diff_pipe(
-            control_image=image,
-            control_mask=mask,
-            prompt=pos_prompt,
-            # negative_prompt=neg_prompt,
+            pos_prompt,
+            image,
+            mask,
+            neg_prompt,
             width=image.width // 8 * 8,
             height=image.height // 8 * 8,
-            guidance_scale=3.5,
-            controlnet_conditioning_scale=0.9,
-            generator=torch.Generator(device=self._diff_pipe.device).manual_seed(42),
-            num_inference_steps=28,
-            num_images_per_prompt=1,
-            true_guidance_scale=3.5,
-        ).images[0]
-        # result = self._diff_pipe(
-        #     pos_prompt,
-        #     image,
-        #     mask,
-        #     neg_prompt,
-        #     width=image.width,
-        #     height=image.height,
-        #     guidance_scale=7.5,
-        #     strength=0.6,
-        #     num_timesteps=25,
-        #     seed=42,
-        #     scheduler="DEIC++",
-        #     freeu_params=(0.9, 0.2, 1.2, 1.4),
-        #     controlnet_checkpoints=[],
-        #     controlnet_images=[],
-        #     controlnet_guidance_scales=[],
-        #     lora_checkpoints=[],
-        #     lora_weights=[],
-        #     lora_alphas=[],
-        #     lora_urls=[],
-        #     lora_files=[],
-        # )
+            guidance_scale=30,
+            strength=1.0,
+            num_timesteps=50,
+            seed=42,
+        )
+
         # new_image = image.resize(result.size).convert("RGB")
         # result = result.convert("RGB")
         # mask = mask.resize(result.size)

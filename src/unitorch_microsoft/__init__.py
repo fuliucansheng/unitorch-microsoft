@@ -35,6 +35,29 @@ def ms_endpoint_url(url):
     return f"{UNITORCH_MS_ENDPOINT}/{url}"
 
 
+# faiss
+_faiss_available = importlib.util.find_spec("faiss") is not None
+if _faiss_available:
+    logging.debug(f"Successfully imported faiss")
+
+
+def is_faiss_available():
+    return _faiss_available
+
+
+# openai
+_openai_available = importlib.util.find_spec("openai") is not None
+try:
+    _openai_version = importlib_metadata.version("openai")
+    logging.debug(f"Successfully imported openai version {_openai_version}")
+except importlib_metadata.PackageNotFoundError:
+    _openai_available = False
+
+
+def is_openai_available():
+    return _openai_available
+
+
 @replace(unitorch.cli.cached_path)
 def cached_path(
     url_or_filename,
@@ -75,8 +98,6 @@ import unitorch_microsoft.modules
 import unitorch_microsoft.scripts
 import unitorch_microsoft.services
 
-# import unitorch_microsoft.webuis
-
 UNITORCH_DEBUG = os.environ.get("UNITORCH_DEBUG", "INFO").upper()
 
 if UNITORCH_DEBUG == "ALL":
@@ -99,7 +120,6 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.pa
     import unitorch_microsoft.pa.intl
     import unitorch_microsoft.pa.l2
-    import unitorch_microsoft.tools
     import unitorch_microsoft.utils
     import unitorch_microsoft.vpr
     import unitorch_microsoft.webuis
