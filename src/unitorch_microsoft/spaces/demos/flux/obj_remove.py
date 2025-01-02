@@ -101,7 +101,6 @@ class RemoveObjWebUI(SimpleWebUI):
 
         left = create_tabs(click_tab, brush_tab)
         right = create_column(output_image)
-
         iface = create_blocks(
             toper_menus,
             create_row(

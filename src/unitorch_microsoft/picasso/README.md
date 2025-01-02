@@ -17,9 +17,8 @@ sudo netfilter-persistent reload
 ```bash
 mkdir -p ~/my
 cd ~/my
-git clone https://github.com/fuliucansheng/unitorch && cd unitorch && git pull origin up1125 && pip3 install -e .
-git clone https://dev.azure.com/decui/unitorch-microsoft/_git/unitorch-microsoft && cd unitorch-microsoft && git pull origin up1125 && pip3 install -e .
-git clone https://github.com/huggingface/diffusers && cd diffusers && pip3 install -e .
+git clone https://github.com/fuliucansheng/unitorch && cd unitorch && pip3 install -e .
+git clone https://dev.azure.com/decui/unitorch-microsoft/_git/unitorch-microsoft && cd unitorch-microsoft && pip3 install -e .
 pip3 install gradio==4.40.0 fastapi
 ```
 

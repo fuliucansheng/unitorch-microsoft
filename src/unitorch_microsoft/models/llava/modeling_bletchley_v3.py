@@ -198,6 +198,7 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
                 lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -432,6 +433,7 @@ class LlavaMistralBlethchleyV3ForGeneration(
                 lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst

@@ -203,6 +203,7 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
                 lora_weight_path,
                 lora_weights=lora_weight,
                 lora_alphas=lora_alpha,
+                save_base_state=False,
             )
 
         self.to(device=self._device)

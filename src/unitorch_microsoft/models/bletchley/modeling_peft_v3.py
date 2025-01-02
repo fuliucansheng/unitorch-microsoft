@@ -169,6 +169,68 @@ class BletchleyForTextMatching(GenericModel):
         return (query_embeds, doc_embeds)
 
 
+class BletchleyForImageMatching(GenericModel):
+    replace_keys_in_state_dict = {
+        "query_encoder.projection": "query_projection",
+        "doc_encoder.projection": "doc_projection",
+    }
+
+    def __init__(
+        self,
+        query_config_type: str,
+        doc_config_type: str,
+        projection_dim: Optional[int] = 1024,
+        gradient_checkpointing: Optional[bool] = False,
+    ):
+        super().__init__()
+        self.query_encoder = BletchleyImageEncoder(
+            query_config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+        self.doc_encoder = BletchleyImageEncoder(
+            doc_config_type,
+            add_projection_layer=False,
+            gradient_checkpointing=gradient_checkpointing,
+        )
+
+        self.query_embed_dim = self.query_encoder.hidden_size
+        self.doc_embed_dim = self.doc_encoder.hidden_size
+
+        self.query_projection = nn.Linear(
+            self.query_embed_dim,
+            projection_dim,
+        )
+        self.doc_projection = nn.Linear(
+            self.doc_embed_dim,
+            projection_dim,
+        )
+
+        self.init_weights()
+
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
+    def forward(
+        self,
+        query_images=None,
+        doc_images=None,
+        input_ids=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        query_outputs = self.query_encoder(images=query_images)
+        doc_outputs = self.doc_encoder(images=doc_images)
+
+        query_embeds = query_outputs[:, 0]
+        query_embeds = self.query_projection(query_embeds)
+        doc_embeds = doc_outputs[:, 0]
+        doc_embeds = self.doc_projection(doc_embeds)
+
+        return (query_embeds, doc_embeds)
+
+
 @register_model("microsoft/model/pretrain/peft/lora/bletchley/v3")
 class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
     prefix_keys_in_state_dict = {
@@ -272,6 +334,7 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -402,6 +465,7 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -541,6 +605,7 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -694,6 +759,7 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -724,6 +790,145 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
             query_attention_mask=query_attention_mask,
             doc_input_ids=doc_input_ids,
             doc_attention_mask=doc_attention_mask,
+            return_dict=False,
+        )
+        if self.output_projection is not None:
+            query_embeds = self.output_projection(query_embeds)
+            doc_embeds = self.output_projection(doc_embeds)
+
+        query_embeds = query_embeds / query_embeds.norm(dim=-1, keepdim=True)
+        doc_embeds = doc_embeds / doc_embeds.norm(dim=-1, keepdim=True)
+        scores = torch.sum(query_embeds * doc_embeds, dim=-1, keepdim=True)
+
+        outputs = self.classifier(scores)
+        return ClassificationOutputs(outputs=outputs)
+
+
+@register_model("microsoft/model/matching/peft/lora/bletchley/v3/image")
+class BletchleyLoraForImageMatching(GenericPeftModel, PeftWeightLoaderMixin):
+    prefix_keys_in_state_dict = {
+        "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
+    }
+    replace_keys_in_state_dict = {
+        "attn.proj.weight": "attn.proj.base_layer.weight",
+        "attn.proj.bias": "attn.proj.base_layer.bias",
+        "query_encoder.projection": "query_projection",
+        "doc_encoder.projection": "doc_projection",
+    }
+    modules_to_save_checkpoints = ["lora", "output_projection", "classifier"]
+    replace_keys_in_peft_state_dict = {
+        ".weight": ".base_layer.weight",
+        ".bias": ".base_layer.bias",
+    }
+
+    def __init__(
+        self,
+        query_config_type: str,
+        doc_config_type: str,
+        projection_dim: Optional[int] = 1024,
+        lora_r: Optional[int] = 16,
+        lora_alpha: Optional[int] = 32,
+        lora_dropout: Optional[float] = 0.05,
+        fan_in_fan_out: Optional[bool] = True,
+        target_modules: Optional[Union[List[str], str]] = ["attn.proj"],
+        output_embed_dim: Optional[int] = None,
+    ):
+        super().__init__()
+        self.peft_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+        )
+        self.peft_model = PeftModelForSequenceClassification(
+            BletchleyForImageMatching(
+                query_config_type, doc_config_type, projection_dim=projection_dim
+            ),
+            self.peft_config,
+        )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
+        self.classifier = nn.Linear(1, 1)
+
+        self.init_weights()
+        self.classifier.weight.data.fill_(5.0)
+
+    @classmethod
+    @add_default_section_for_init(
+        "microsoft/model/matching/peft/lora/bletchley/v3/image"
+    )
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section(
+            "microsoft/model/matching/peft/lora/bletchley/v3/image"
+        )
+        query_config_type = config.getoption("query_config_type", "0.8B")
+        doc_config_type = config.getoption("doc_config_type", "0.8B")
+        projection_dim = config.getoption("projection_dim", 1024)
+        lora_r = config.getoption("lora_r", 16)
+        lora_alpha = config.getoption("lora_alpha", 32)
+        lora_dropout = config.getoption("lora_dropout", 0.05)
+        fan_in_fan_out = config.getoption("fan_in_fan_out", True)
+        target_modules = config.getoption("target_modules", ["attn.proj"])
+        output_embed_dim = config.getoption("output_embed_dim", None)
+
+        inst = cls(
+            query_config_type=query_config_type,
+            doc_config_type=doc_config_type,
+            projection_dim=projection_dim,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            output_embed_dim=output_embed_dim,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+            )
+
+        return inst
+
+    def from_pretrained(self, weight_path):
+        weight_path = cached_path(weight_path)
+        if not os.path.exists(weight_path):
+            return
+        state_dict = torch.load(weight_path, map_location="cpu")
+        _keys = [key for key in state_dict.keys() if key.startswith("image_encoder")]
+        for _key in _keys:
+            _value = state_dict.pop(_key)
+            state_dict["query_encoder" + _key[13:]] = _value
+            state_dict["doc_encoder" + _key[13:]] = _value
+
+        super().from_pretrained(state_dict=state_dict)
+
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
+    def forward(
+        self,
+        query_images=None,
+        doc_images=None,
+    ):
+        query_embeds, doc_embeds = self.peft_model(
+            query_images=query_images,
+            doc_images=doc_images,
             return_dict=False,
         )
         if self.output_projection is not None:

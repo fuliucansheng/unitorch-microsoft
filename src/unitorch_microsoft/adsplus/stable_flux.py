@@ -20,7 +20,12 @@ from diffusers.models import (
 from diffusers.pipelines import (
     FluxPipeline,
 )
-from unitorch.utils import pop_value, nested_dict_value
+from unitorch.utils import (
+    pop_value,
+    nested_dict_value,
+    is_bfloat16_available,
+    is_cuda_available,
+)
 from unitorch.models import (
     GenericModel,
     GenericOutputs,
@@ -221,7 +226,10 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
         )
         if lora_weights_path is not None:
             inst.load_lora_weights(
-                lora_weights_path, pretrained_lora_weights, replace_keys={}
+                lora_weights_path,
+                pretrained_lora_weights,
+                replace_keys={},
+                save_base_state=False,
             )
         return inst
 

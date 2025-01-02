@@ -36,6 +36,14 @@ pretrained_bletchley_v3_extensions_infos = {
         "text": "#### Prompt: blurry \n #### Max Sequence: 36",
         "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.blurry.2409.bin",
     },
+    "lora-2.5B-picasso-bg-blurry-image-quality": {
+        "text": "#### Prompt: led lights around the place, out of focus, disgusting, blurry \n #### Max Sequence: 36",
+        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.bg.blurry.2412.bin",
+    },
+    "lora-2.5B-picasso-aesthetics-image-quality": {
+        "text": "#### Prompt: draft, disgusting, blurry, disfigured \n #### Max Sequence: 36",
+        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.aesthetics.tad66k.2412.bin",
+    },
     "lora-0.8B-picasso-watermark": {
         "text": "#### Prompt: watermarked, no watermark signature, brand logo \n #### Max Sequence: 36",
         "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.0.8B.lora4.watermark.2410.bin",

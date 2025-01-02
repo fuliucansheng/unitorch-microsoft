@@ -209,7 +209,6 @@ class AddObjWebUI(SimpleWebUI):
         #     num_timesteps=25,
         #     seed=42,
         #     scheduler="DEIC++",
-        #     freeu_params=(0.9, 0.2, 1.2, 1.4),
         #     controlnet_checkpoints=[],
         #     controlnet_images=[],
         #     controlnet_guidance_scales=[],

@@ -21,7 +21,6 @@ from unitorch.cli.webuis import (
     create_blocks,
     create_pretrain_layout,
     create_lora_layout,
-    create_freeu_layout,
 )
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft.models.bletchley.pipeline_v1 import (

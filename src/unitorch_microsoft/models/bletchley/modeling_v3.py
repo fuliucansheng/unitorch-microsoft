@@ -415,6 +415,7 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -613,6 +614,7 @@ class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -695,6 +697,7 @@ class BletchleyForImageClassification(GenericModel):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -865,6 +868,7 @@ class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -947,6 +951,7 @@ class BletchleyForImageClassification(GenericModel):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
 
         return inst
@@ -1050,6 +1055,7 @@ class BletchleyForMatching(GenericModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
         return inst
 
@@ -1180,6 +1186,7 @@ class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
                 pretrained_lora_weight_path,
                 lora_weights=pretrained_lora_weight,
                 lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
             )
         return inst
 

@@ -77,7 +77,6 @@ class ChangeBGWebUI(SimpleWebUI):
 
         left = create_column(input_image, prompt, generate)
         right = create_column(output_image)
-
         iface = create_blocks(
             toper_menus,
             create_row(
@@ -236,7 +235,6 @@ class ChangeBGWebUI(SimpleWebUI):
         #     num_timesteps=25,
         #     seed=42,
         #     scheduler="UniPC++",
-        #     freeu_params=(0.9, 0.2, 1.2, 1.4),
         #     controlnet_checkpoints=["stable-v1.5-controlnet-canny", "stable-v1.5-controlnet-depth"],
         #     controlnet_images=[canny_image, depth_image],
         #     controlnet_guidance_scales=[0.4, 0.1],

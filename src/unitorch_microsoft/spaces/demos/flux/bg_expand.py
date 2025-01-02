@@ -80,7 +80,6 @@ class ExpandBGWebUI(SimpleWebUI):
 
         left = create_column(input_image, prompt, width, height, generate)
         right = create_column(output_image)
-
         iface = create_blocks(
             toper_menus,
             create_row(

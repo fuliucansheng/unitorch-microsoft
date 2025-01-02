@@ -250,7 +250,10 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
         )
         if lora_weights_path is not None:
             inst.load_lora_weights(
-                lora_weights_path, pretrained_lora_weights, replace_keys={}
+                lora_weights_path,
+                pretrained_lora_weights,
+                replace_keys={},
+                save_base_state=False,
             )
         return inst
 
@@ -669,7 +672,10 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         )
         if lora_weights_path is not None:
             inst.load_lora_weights(
-                lora_weights_path, pretrained_lora_weights, replace_keys={}
+                lora_weights_path,
+                pretrained_lora_weights,
+                replace_keys={},
+                save_base_state=False,
             )
         return inst
 

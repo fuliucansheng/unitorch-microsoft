@@ -173,7 +173,6 @@ class ExpandBGWebUI(SimpleWebUI):
             strength=1.0,
             num_timesteps=25,
             seed=42,
-            freeu_params=None,
             controlnet_images=[],
             controlnet_guidance_scales=[],
             inpaint_controlnet_image=new_image,

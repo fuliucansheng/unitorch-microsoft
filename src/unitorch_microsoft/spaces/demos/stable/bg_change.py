@@ -190,7 +190,6 @@ class ChangeBGWebUI(SimpleWebUI):
             strength=1.0,
             num_timesteps=25,
             seed=42,
-            freeu_params=None,
             controlnet_images=[canny_image],
             controlnet_guidance_scales=[0.8],
             inpaint_controlnet_image=image,
