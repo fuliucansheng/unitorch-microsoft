@@ -655,6 +655,7 @@ def outpainting(
         record = {
             "prompt": prompt,
             "image": row[image_col],
+            "style": style_prompt
         }
         for ratio in [0.5, 1, 2]:
             p_image, p_mask_image = process_func(raw_image, ratio)
@@ -680,7 +681,7 @@ def outpainting(
                         "prompt": prompt,
                     },
                 )
-                result = response.data[0].url
+                result = response['data'][0]['url']
                 record[f"result_{ratio}"] = save_image_from_url(cache_dir, result)
             except:
                 pass
