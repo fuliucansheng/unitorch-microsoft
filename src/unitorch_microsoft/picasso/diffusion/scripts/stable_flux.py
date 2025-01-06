@@ -11,7 +11,7 @@ import logging
 import hashlib
 import requests
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from multiprocessing import Process, Queue
 from unitorch.models import GenericOutputs
@@ -164,11 +164,13 @@ def text2image(
 
 
 # inpainting processing images
-def __in_processing_image(image, mask_image):
+def __in_processing_image(image, mask_image, reversed_mask=False):
     if isinstance(image, str):
         image = Image.open(image)
     if isinstance(mask_image, str):
         mask_image = Image.open(mask_image)
+    if reversed_mask:
+        mask_image = ImageOps.invert(mask_image)
 
     # process your image/mask_image here
 
@@ -187,6 +189,7 @@ def inpainting(
     guidance_scale: Optional[float] = 30.0,
     num_timesteps: Optional[int] = 50,
     seed: Optional[int] = 1123,
+    reversed_mask: Optional[str] = False,
     lora_name: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
@@ -271,7 +274,9 @@ def inpainting(
                 "mask_image": row[mask_image_col],
             }
 
-            image, mask_image = process_func(image, mask_image)
+            image, mask_image = process_func(
+                image, mask_image, reversed_mask=reversed_mask
+            )
             image_buffer = io.BytesIO()
             image.save(image_buffer, format="JPEG")
             mask_image_buffer = io.BytesIO()

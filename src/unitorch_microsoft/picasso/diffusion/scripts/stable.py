@@ -10,16 +10,18 @@ import json
 import hashlib
 import requests
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from multiprocessing import Process, Queue
 from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 from unitorch.cli import CoreConfigureParser
+from unitorch.cli.pipelines.tools import controlnet_processes
 from unitorch.cli.fastapis.stable import (
     StableForText2ImageFastAPIPipeline,
     StableForImageInpaintingFastAPIPipeline,
 )
+from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
 
 
 def save_image(folder, image):
@@ -122,11 +124,13 @@ def text2image(
 
 
 # inpainting processing images
-def __in_processing_image(image, mask_image):
+def __in_processing_image(image, mask_image, reversed_mask=False):
     if isinstance(image, str):
         image = Image.open(image)
     if isinstance(mask_image, str):
         mask_image = Image.open(mask_image)
+    if reversed_mask:
+        mask_image = ImageOps.invert(mask_image)
 
     # process your image/mask_image here
 
@@ -142,11 +146,17 @@ def inpainting(
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
     pretrained_name: Optional[str] = "stable-v1.5-realistic-v5.1-inpainting",
+    pretrained_controlnet_names: Optional[str] = None,
+    controlnet_process_names: Optional[str] = None,
+    controlnet_guidance_scales: Optional[float] = None,
+    pretrained_inpainting_controlnet_name: Optional[str] = None,
+    inpaint_controlnet_guidance_scale: Optional[float] = 0.8,
     neg_prompt_text: Optional[str] = None,
     guidance_scale: Optional[float] = 7.5,
     num_timesteps: Optional[int] = 50,
     seed: Optional[int] = 1123,
     pad_token: Optional[str] = "<|endoftext|>",
+    reversed_mask: Optional[str] = False,
     weight_path: Optional[str] = None,
     lora_weight_path: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
@@ -154,16 +164,48 @@ def inpainting(
     device: Optional[Union[str, int]] = "cpu",
     processor_name: Optional[str] = "default",
 ):
-    pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
-        config=CoreConfigureParser(),
-        pretrained_name=pretrained_name,
-        pad_token=pad_token,
-        pretrained_weight_path=weight_path,
-        pretrained_lora_weights_path=lora_weight_path,
-        pretrained_lora_weights=lora_weight,
-        pretrained_lora_alphas=lora_alpha,
-        device=device,
-    )
+    if (
+        pretrained_controlnet_names is None
+        and pretrained_inpainting_controlnet_name is None
+    ):
+        pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
+            config=CoreConfigureParser(),
+            pretrained_name=pretrained_name,
+            pad_token=pad_token,
+            pretrained_weight_path=weight_path,
+            pretrained_lora_weights_path=lora_weight_path,
+            pretrained_lora_weights=lora_weight,
+            pretrained_lora_alphas=lora_alpha,
+            device=device,
+        )
+        is_controlnet_inpainting = False
+    else:
+        pretrained_controlnet_names = re.split(r"[,;]", pretrained_controlnet_names)
+        pretrained_controlnet_names = [n.strip() for n in pretrained_controlnet_names]
+        controlnet_process_names = re.split(r"[,;]", controlnet_process_names)
+        controlnet_process_names = [n.strip() for n in controlnet_process_names]
+        if isinstance(controlnet_guidance_scales, str):
+            controlnet_guidance_scales = re.split(r"[,;]", controlnet_guidance_scales)
+            controlnet_guidance_scales = [
+                float(n.strip()) for n in controlnet_guidance_scales
+            ]
+        if isinstance(controlnet_guidance_scales, float) or isinstance(
+            controlnet_guidance_scales, int
+        ):
+            controlnet_guidance_scales = [controlnet_guidance_scales]
+        pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
+            config=CoreConfigureParser(),
+            pretrained_name=pretrained_name,
+            pretrained_controlnet_names=pretrained_controlnet_names,
+            pretrained_inpainting_controlnet_name=pretrained_inpainting_controlnet_name,
+            pad_token=pad_token,
+            pretrained_weight_path=weight_path,
+            pretrained_lora_weights_path=lora_weight_path,
+            pretrained_lora_weights=lora_weight,
+            pretrained_lora_alphas=lora_alpha,
+            device=device,
+        )
+        is_controlnet_inpainting = True
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
@@ -219,16 +261,40 @@ def inpainting(
             prompt = prompt_text if prompt_text is not None else row[prompt_col]
             image = row[image_col]
             mask_image = row[mask_image_col]
-            p_image, p_mask_image = process_func(image, mask_image)
-            result = pipe(
-                prompt,
-                p_image,
-                p_mask_image,
-                neg_prompt_text,
-                guidance_scale=guidance_scale,
-                num_timesteps=num_timesteps,
-                seed=seed,
+            p_image, p_mask_image = process_func(
+                image, mask_image, reversed_mask=reversed_mask
             )
+            if is_controlnet_inpainting:
+                new_image = Image.new("RGBA", p_image.size, (0, 0, 0, 0))
+                new_image.paste(p_image, (0, 0), ImageOps.invert(p_mask_image))
+                new_image = new_image.convert("RGB")
+                controlnet_images = [
+                    controlnet_processes.get(p)(new_image)
+                    for p in controlnet_process_names
+                ]
+                result = pipe(
+                    prompt,
+                    p_image,
+                    p_mask_image,
+                    neg_prompt_text,
+                    guidance_scale=guidance_scale,
+                    num_timesteps=num_timesteps,
+                    seed=seed,
+                    controlnet_images=controlnet_images,
+                    controlnet_guidance_scales=controlnet_guidance_scales,
+                    inpaint_controlnet_image=p_image,
+                    inpaint_controlnet_guidance_scale=inpaint_controlnet_guidance_scale,
+                )
+            else:
+                result = pipe(
+                    prompt,
+                    p_image,
+                    p_mask_image,
+                    neg_prompt_text,
+                    guidance_scale=guidance_scale,
+                    num_timesteps=num_timesteps,
+                    seed=seed,
+                )
             record = {
                 "prompt": prompt,
                 "image": image,
@@ -242,15 +308,38 @@ def inpainting(
             prompt = prompt_text if prompt_text is not None else row[prompt_col]
             image = row[image_col]
             mask_image = row[mask_image_col]
-            p_image, p_mask_image = process_func(image, mask_image)
-            result = pipe(
-                prompt,
-                p_image,
-                p_mask_image,
-                guidance_scale=guidance_scale,
-                num_timesteps=num_timesteps,
-                seed=seed,
+            p_image, p_mask_image = process_func(
+                image, mask_image, reversed_mask=reversed_mask
             )
+            if is_controlnet_inpainting:
+                new_image = Image.new("RGBA", p_image.size, (0, 0, 0, 0))
+                new_image.paste(p_image, (0, 0), ImageOps.invert(p_mask_image))
+                new_image = new_image.convert("RGB")
+                controlnet_images = [
+                    controlnet_processes.get(p)(new_image)
+                    for p in controlnet_process_names
+                ]
+                result = pipe(
+                    prompt,
+                    p_image,
+                    p_mask_image,
+                    guidance_scale=guidance_scale,
+                    num_timesteps=num_timesteps,
+                    seed=seed,
+                    controlnet_images=controlnet_images,
+                    controlnet_guidance_scales=controlnet_guidance_scales,
+                    inpaint_controlnet_image=p_image,
+                    inpaint_controlnet_guidance_scale=inpaint_controlnet_guidance_scale,
+                )
+            else:
+                result = pipe(
+                    prompt,
+                    p_image,
+                    p_mask_image,
+                    guidance_scale=guidance_scale,
+                    num_timesteps=num_timesteps,
+                    seed=seed,
+                )
             record = {
                 "prompt": prompt,
                 "image": image,
@@ -259,6 +348,82 @@ def inpainting(
             }
             writer.write(json.dumps(record) + "\n")
             writer.flush()
+
+
+# remove background
+def remove_background(
+    token: str,
+    data_file: str,
+    cache_dir: str,
+    names: Union[str, List[str]],
+    image_col: str,
+):
+    client = OpenAI(
+        base_url="https://external.api.recraft.ai/v1",
+        api_key=token,
+    )
+
+    if isinstance(names, str) and names.strip() == "*":
+        names = None
+    if isinstance(names, str):
+        names = re.split(r"[,;]", names)
+        names = [n.strip() for n in names]
+
+    data = pd.read_csv(
+        data_file,
+        names=names,
+        sep="\t",
+        quoting=3,
+        header=None,
+    )
+
+    os.makedirs(cache_dir, exist_ok=True)
+
+    output_file = f"{cache_dir}/output.jsonl"
+
+    if os.path.exists(output_file):
+        uniques = []
+        with open(output_file, "r") as f:
+            for line in f:
+                row = json.loads(line)
+                uniques.append(row["image"])
+        data = data[
+            ~data.apply(
+                lambda x: x[image_col] in uniques,
+                axis=1,
+            )
+        ]
+
+    writer = open(output_file, "a+")
+    for _, row in data.iterrows():
+        image = row[image_col]
+        raw_image = Image.open(image).convert("RGB")
+
+        image_buffer = io.BytesIO()
+        raw_image.save(image_buffer, format="JPEG")
+        image_buffer.seek(0)
+
+        response = client.post(
+            path="/images/removeBackground",
+            cast_to=object,
+            options={"headers": {"Content-Type": "multipart/form-data"}},
+            files={
+                "file": ("image.jpg", image_buffer, "image/jpeg"),
+            },
+        )
+        result = response["image"]["url"]
+        record = {
+            "image": image,
+            "result_object": save_image_from_url(cache_dir, result),
+        }
+        record["result_mask"] = save_image(
+            cache_dir,
+            Image.open(record["result_object"])
+            .convert("L")
+            .point(lambda x: 0 if x < 128 else 255, "1"),
+        )
+        writer.write(json.dumps(record) + "\n")
+        writer.flush()
 
 
 # outpainting processing images

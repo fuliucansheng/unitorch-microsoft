@@ -278,6 +278,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label="Comment",
             lines=4,
         )
+        preview = create_element(
+            "button",
+            label="Preview",
+        )
         random = create_element(
             "button",
             label="Random",
@@ -365,7 +369,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             image_layout, video_layout = None, None
         html_layout = create_flex_layout(*htmls, num_per_row=self.num_html_per_row)
         label_layout = create_row(
-            comment, create_column(choices, create_row(random, submit))
+            comment, create_column(choices, create_row(preview, random, submit))
         )
 
         layouts = []
@@ -432,6 +436,22 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         random.click(
             self.sample,
+            inputs=[group],
+            outputs=[
+                index,
+                progress,
+                group,
+                choices,
+                comment,
+                *texts,
+                *images,
+                *videos,
+                *htmls,
+            ],
+            trigger_mode="once",
+        )
+        preview.click(
+            self.preview,
             inputs=[group],
             outputs=[
                 index,
@@ -570,7 +590,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             )
         return results
 
-    def sample(self, group=None):
+    def preview(self, group=None):
+        return self.sample(group=group, include_labeled=True)
+
+    def sample(self, group=None, include_labeled=False):
         total = self.dataset.shape[0]
         if group is not None and group not in ["", " - "]:
             labeled = self.dataset[
@@ -584,7 +607,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             non_labeled = self.dataset[self.dataset["Label"] == ""]
         progress = f"{len(labeled)} / {total}"
 
-        if len(self.dataset[self.dataset["Label"] != ""]) == total:
+        if (
+            len(self.dataset[self.dataset["Label"] != ""]) == total
+            and not include_labeled
+        ):
             return (None, progress, group, None, None) + tuple(
                 [None]
                 * (
@@ -596,7 +622,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             )
         if len(non_labeled) == 0:
             non_labeled = self.dataset[self.dataset["Label"] == ""]
-        new_one = non_labeled.sample(1).iloc[0]
+        if include_labeled:
+            new_one = self.dataset.sample(1).iloc[0]
+        else:
+            new_one = non_labeled.sample(1).iloc[0]
         new_one = self.process_sample(new_one)
         new_index = new_one["Index"]
         new_texts = new_one[self.text_cols].tolist()
