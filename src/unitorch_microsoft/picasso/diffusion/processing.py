@@ -496,22 +496,28 @@ class PicassoDiffusionProcessor:
     def _outpainting_random_mask(
         self,
         image: Union[Image.Image, str],
-        ratios: Optional[List[float]] = [0.5, 0.8, 0.9],
+        lower_ratio: Optional[float] = 0.1,
+        upper_ratio: Optional[float] = 0.5,
     ):
-        ratio = random.choice(ratios)
-        im_shape = image.size
-        mask = Image.new("L", im_shape, 255)
+        width, height = image.size
+        mask = Image.new("L", (width, height), 0)
         draw = ImageDraw.Draw(mask)
-        center_size = (int(im_shape[0] * ratio), int(im_shape[1] * ratio))
-        draw.rectangle(
-            (
-                (im_shape[0] - center_size[0]) // 2,
-                (im_shape[1] - center_size[1]) // 2,
-                (im_shape[0] + center_size[0]) // 2,
-                (im_shape[1] + center_size[1]) // 2,
-            ),
-            fill=0,
-        )
+
+        is_width = random.choice([True, False])
+        mask_ratio = random.uniform(lower_ratio, upper_ratio)
+        if is_width:
+            mask_size = int(width * mask_ratio)
+            left = mask_size // 2
+            right = width - left
+            draw.rectangle((0, 0, left, height), fill=255)
+            draw.rectangle((right, 0, width, height), fill=255)
+        else:
+            mask_size = int(height * mask_ratio)
+            top = mask_size // 2
+            bottom = height - top
+            draw.rectangle((0, 0, width, top), fill=255)
+            draw.rectangle((0, bottom, width, height), fill=255)
+
         return mask
 
     @register_process("microsoft/picasso/diffusion/process/dominate_color")

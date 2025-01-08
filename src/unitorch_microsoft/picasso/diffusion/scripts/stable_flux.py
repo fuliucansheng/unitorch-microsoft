@@ -19,14 +19,16 @@ from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_fi
 from unitorch.cli import CoreConfigureParser
 
 endpoints = [
-    "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
-    "http://br1t44-s3-17:5051/core/fastapi/stable_flux",
+    # "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
+    # "http://br1t44-s3-17:5051/core/fastapi/stable_flux",
     "http://br1u43-s2-01:5050/core/fastapi/stable_flux",
     "http://br1u43-s2-01:5051/core/fastapi/stable_flux",
-    "http://br1t43-s3-25.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
-    "http://br1t43-s3-25.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
+    # "http://br1t43-s3-25.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
+    # "http://br1t43-s3-25.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
     "http://br1t45-s1-01:5050/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5051/core/fastapi/stable_flux",
+    "http://br1t43-s3-17.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
+    "http://br1t43-s3-17.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
 ]
 
 
@@ -50,6 +52,7 @@ def text2image(
     lora_name: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
+    force_restart: Optional[bool] = True,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -80,7 +83,7 @@ def text2image(
 
     def call_api(endpoint, part, Q):
         status = requests.get(endpoint + "/status").json()
-        if status != "running":
+        if status != "running" or force_restart:
             headers = {"Content-type": "application/json"}
             requests.post(
                 endpoint + "/start",
@@ -194,6 +197,7 @@ def inpainting(
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
     processor_name: Optional[str] = "default",
+    force_restart: Optional[bool] = True,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -246,7 +250,7 @@ def inpainting(
 
     def call_api(endpoint, part, Q):
         status = requests.get(endpoint + "/status").json()
-        if status != "running":
+        if status != "running" or force_restart:
             headers = {"Content-type": "application/json"}
             requests.post(
                 endpoint + "/start",
@@ -417,6 +421,7 @@ def outpainting(
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
     processor_name: Optional[str] = "default",
+    force_restart: Optional[bool] = True,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -465,7 +470,7 @@ def outpainting(
 
     def call_api(endpoint, part, Q):
         status = requests.get(endpoint + "/status").json()
-        if status != "running":
+        if status != "running" or force_restart:
             headers = {"Content-type": "application/json"}
             requests.post(
                 endpoint + "/start",

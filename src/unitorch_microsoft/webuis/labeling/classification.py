@@ -61,6 +61,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             names = re.split(r"[,;]", names)
             names = [n.strip() for n in names]
 
+        sep = config.getoption("sep", "\t")
         temp_folder = config.getoption("temp_folder", get_temp_home())
         os.makedirs(temp_folder, exist_ok=True)
         self.temp_folder = temp_folder
@@ -69,7 +70,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             data_file,
             names=names,
             header="infer" if names is None else None,
-            sep="\t",
+            sep=sep,
             quoting=3,
         )
         self.dataset["Index"] = self.dataset.index.map(lambda x: f"No.{x}")
