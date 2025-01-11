@@ -4,6 +4,7 @@
 import io
 import torch
 import gc
+import cv2
 import math
 import numpy as np
 import gradio as gr
@@ -96,6 +97,58 @@ class CopyWebUI(SimpleWebUI):
         product.putdata(new_product_data)
         background.paste(product, (0, 0), product)
         return background
+
+
+class SmoothMaskWebUI(SimpleWebUI):
+    def __init__(self, config: CoreConfigureParser):
+        # create elements
+        image = create_element("image_editor", "Image")
+        mask = create_element("image", "Mask")
+        radius = create_element(
+            "slider", "Radius", min_value=0, max_value=50, step=1, default=3
+        )
+        generate = create_element("button", "Generate")
+        output_image = create_element("image", "Output Image")
+
+        left = create_column(create_row(image, mask), radius, generate)
+        right = create_column(output_image)
+        iface = create_blocks(create_row(left, right))
+
+        # create events
+        iface.__enter__()
+        image.change(fn=self.composite_images, inputs=[image], outputs=[mask])
+
+        generate.click(
+            fn=self.smooth_mask,
+            inputs=[image, mask, radius],
+            outputs=[output_image],
+            trigger_mode="once",
+        )
+
+        iface.__exit__()
+
+        super().__init__(config, iname="Smooth Mask", iface=iface)
+
+    def composite_images(self, images):
+        layers = images["layers"]
+        if len(layers) == 0:
+            return None
+        image = layers[0]
+        for i in range(1, len(layers)):
+            image = Image.alpha_composite(image, layers[i])
+        image = image.convert("L")
+        image = image.point(lambda p: p < 5 and 255)
+        image = ImageOps.invert(image)
+        return image
+
+    def smooth_mask(self, image, mask, radius):
+        image_np = np.array(image["background"].convert("RGB"))
+        mask_np = np.array(mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, radius, cv2.INPAINT_TELEA)
+        result_image = Image.fromarray(inpainted_image)
+        return result_image
 
 
 class BlurWebUI(SimpleWebUI):
@@ -380,6 +433,7 @@ class ToolsWebUI(SimpleWebUI):
             BlurWebUI(config),
             BrightnessWebUI(config),
             ControlNetWebUI(config),
+            SmoothMaskWebUI(config),
         ]
         iface = gr.TabbedInterface(
             [webui.iface for webui in webuis],
