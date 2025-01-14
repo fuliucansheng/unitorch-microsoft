@@ -3,12 +3,21 @@
 
 import io
 import torch
+import random
 import gc
 import cv2
 import math
 import numpy as np
 import gradio as gr
-from PIL import Image, ImageFilter, ImageOps, ImageEnhance, ImageFile, ImageChops
+from PIL import (
+    Image,
+    ImageFilter,
+    ImageOps,
+    ImageEnhance,
+    ImageFile,
+    ImageChops,
+    ImageDraw,
+)
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from unitorch.utils import is_opencv_available
@@ -149,6 +158,120 @@ class SmoothMaskWebUI(SimpleWebUI):
         inpainted_image = cv2.inpaint(image_np, binary_mask, radius, cv2.INPAINT_TELEA)
         result_image = Image.fromarray(inpainted_image)
         return result_image
+
+
+class OutpaintWebUI(SimpleWebUI):
+    def __init__(self, config: CoreConfigureParser):
+        # create elements
+        image1 = create_element("image", "Image")
+        ratio1 = create_element("radio", "Ratio", values=[0.5, 1, 2], default=1)
+        generate1 = create_element("button", "Generate")
+
+        image2 = create_element("image", "Image")
+        crop_w = create_element(
+            "slider", "Crop Width", min_value=0, max_value=1024, step=1, default=0
+        )
+        crop_h = create_element(
+            "slider", "Crop Height", min_value=0, max_value=1024, step=1, default=0
+        )
+        mask_side = create_element(
+            "radio", "Mask Width/Height", values=["width", "height"], default="width"
+        )
+        mask_ratio = create_element(
+            "slider", "Mask Ratio", min_value=0, max_value=1, step=0.01, default=0.5
+        )
+        generate2 = create_element("button", "Generate")
+
+        output_image = create_element("image", "Output Image")
+        output_mask = create_element("image", "Output Mask")
+
+        tab1 = create_tab(image1, ratio1, generate1, name="Infer")
+        tab2 = create_tab(
+            image2,
+            create_row(crop_w, crop_h),
+            create_row(mask_side, mask_ratio),
+            generate2,
+            name="Train",
+        )
+        left = create_tabs(tab1, tab2)
+
+        right = create_column(output_image, output_mask)
+        iface = create_blocks(create_row(left, right))
+
+        # create events
+        iface.__enter__()
+
+        generate1.click(
+            fn=self.process_infer,
+            inputs=[image1, ratio1],
+            outputs=[output_image, output_mask],
+            trigger_mode="once",
+        )
+
+        generate2.click(
+            fn=self.process_train,
+            inputs=[image2, crop_w, crop_h, mask_side, mask_ratio],
+            outputs=[output_image, output_mask],
+            trigger_mode="once",
+        )
+
+        iface.__exit__()
+
+        super().__init__(config, iname="Outpaint", iface=iface)
+
+    def process_infer(self, image, ratio):
+        size_dict = {"1": (768, 768), "0.5": (512, 1024), "2": (1024, 512)}
+
+        width, height = image.size
+        size = size_dict[str(ratio)]
+        scale = min(size[0] / width, size[1] / height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+
+        image = image.resize((new_width // 8 * 8, new_height // 8 * 8))
+
+        im_width, im_height = image.size
+
+        mask = Image.new("L", (size[0], size[1]), 255)
+        black = Image.new("RGB", (im_width, im_height), (0, 0, 0))
+        mask.paste(black, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+        new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
+        new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+
+        return new_image, mask
+
+    def process_train(self, image, crop_w, crop_h, mask_side, mask_ratio):
+        width, height = image.size
+        size = (crop_w, crop_h)
+        left = (width - size[0]) // 2
+        top = (height - size[1]) // 2
+        left, top = max(0, left), max(0, top)
+        right = left + size[0]
+        bottom = top + size[1]
+        right, bottom = min(width, right), min(height, bottom)
+        image = image.crop((left, top, right, bottom))
+
+        width, height = image.size
+        mask = Image.new("L", (width, height), 0)
+        draw = ImageDraw.Draw(mask)
+
+        is_width = mask_side == "width"
+        if is_width:
+            mask_size = int(width * mask_ratio)
+            left = mask_size // 2
+            right = width - left
+            draw.rectangle((0, 0, left, height), fill=255)
+            draw.rectangle((right, 0, width, height), fill=255)
+        else:
+            mask_size = int(height * mask_ratio)
+            top = mask_size // 2
+            bottom = height - top
+            draw.rectangle((0, 0, width, top), fill=255)
+            draw.rectangle((0, bottom, width, height), fill=255)
+
+        image.paste((255, 255, 255), mask=mask)
+
+        return image, mask
 
 
 class BlurWebUI(SimpleWebUI):
@@ -434,6 +557,7 @@ class ToolsWebUI(SimpleWebUI):
             BrightnessWebUI(config),
             ControlNetWebUI(config),
             SmoothMaskWebUI(config),
+            OutpaintWebUI(config),
         ]
         iface = gr.TabbedInterface(
             [webui.iface for webui in webuis],

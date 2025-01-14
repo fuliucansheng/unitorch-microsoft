@@ -22,6 +22,7 @@ from unitorch.cli.fastapis.stable import (
     StableForImageInpaintingFastAPIPipeline,
 )
 from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+import unitorch_microsoft.models.diffusers
 
 
 def save_image(folder, image):
