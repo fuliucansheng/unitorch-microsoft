@@ -25,10 +25,11 @@ from unitorch_microsoft import cached_path
 class BaseModelConfig:
     pass
 
+
 class XCLIPModel(HFCLIPModel):
     def __init__(self, config: CLIPConfig):
         super().__init__(config)
-    
+
     def get_text_features(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -38,13 +39,20 @@ class XCLIPModel(HFCLIPModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> torch.FloatTensor:
-
         # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         text_outputs = self.text_model(
             input_ids=input_ids,
@@ -63,7 +71,6 @@ class XCLIPModel(HFCLIPModel):
         pooled_output = text_outputs[1]
         text_features_EOS = self.text_projection(pooled_output)
 
-
         # del last_hidden_state, text_outputs
         # gc.collect()
 
@@ -76,13 +83,20 @@ class XCLIPModel(HFCLIPModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> torch.FloatTensor:
-        
         # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         vision_outputs = self.vision_model(
             pixel_values=pixel_values,
@@ -102,16 +116,16 @@ class XCLIPModel(HFCLIPModel):
 @dataclass
 class ClipModelConfig(BaseModelConfig):
     _target_: str = "trainer.models.clip_model.CLIPModel"
-    pretrained_model_name_or_path: str ="openai/clip-vit-base-patch32"
+    pretrained_model_name_or_path: str = "openai/clip-vit-base-patch32"
 
 
 class CLIPModel(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.config = CLIPConfig.from_json_file(config)        
+        self.config = CLIPConfig.from_json_file(config)
         self.model = XCLIPModel(self.config)
         self.cross_model = Cross_model(dim=1024, layer_num=4, heads=16)
-    
+
     def get_text_features(self, *args, **kwargs):
         return self.model.get_text_features(*args, **kwargs)
 
@@ -121,24 +135,24 @@ class CLIPModel(nn.Module):
     def forward(self, text_inputs=None, image_inputs=None, condition_inputs=None):
         outputs = ()
 
-        text_f, text_EOS = self.model.get_text_features(text_inputs) # B*77*1024
-        outputs += text_EOS,
+        text_f, text_EOS = self.model.get_text_features(text_inputs)  # B*77*1024
+        outputs += (text_EOS,)
 
-        image_f = self.model.get_image_features(image_inputs.half()) # 2B*257*1024
-        condition_f, _ = self.model.get_text_features(condition_inputs) # B*5*1024
+        image_f = self.model.get_image_features(image_inputs.half())  # 2B*257*1024
+        condition_f, _ = self.model.get_text_features(condition_inputs)  # B*5*1024
 
-        sim_text_condition = einsum('b i d, b j d -> b j i', text_f, condition_f)
+        sim_text_condition = einsum("b i d, b j d -> b j i", text_f, condition_f)
         sim_text_condition = torch.max(sim_text_condition, dim=1, keepdim=True)[0]
         sim_text_condition = sim_text_condition / sim_text_condition.max()
-        mask = torch.where(sim_text_condition > 0.01, 0, float('-inf')) # B*1*77
+        mask = torch.where(sim_text_condition > 0.01, 0, float("-inf"))  # B*1*77
 
-        mask = mask.repeat(1,image_f.shape[1],1) # B*257*77
-        bc = int(image_f.shape[0]/2)
+        mask = mask.repeat(1, image_f.shape[1], 1)  # B*257*77
+        bc = int(image_f.shape[0] / 2)
 
-        sim0 = self.cross_model(image_f, text_f,mask.half())
-        #sim1 = self.cross_model(image_f[bc:,:,:], text_f,mask.half())
-        outputs += sim0[:,0,:],
-        #outputs += sim1[:,0,:],
+        sim0 = self.cross_model(image_f, text_f, mask.half())
+        # sim1 = self.cross_model(image_f[bc:,:,:], text_f,mask.half())
+        outputs += (sim0[:, 0, :],)
+        # outputs += sim1[:,0,:],
 
         return outputs
 
@@ -149,13 +163,17 @@ class CLIPModel(nn.Module):
     def save(self, path):
         self.model.save_pretrained(path)
 
+
 # helper functions
+
 
 def exists(val):
     return val is not None
 
+
 def default(val, d):
     return val if exists(val) else d
+
 
 # normalization
 # they use layernorm without bias, something that pytorch does not offer
@@ -169,6 +187,7 @@ class LayerNorm(nn.Module):
 
     def forward(self, x):
         return F.layer_norm(x, x.shape[-1:], self.weight, self.bias)
+
 
 # residual
 
@@ -221,6 +240,7 @@ class SwiGLU(nn.Module):
 # parallel attention and feedforward with residual
 # discovered by Wang et al + EleutherAI from GPT-J fame
 
+
 class ParallelTransformerBlock(nn.Module):
     def __init__(self, dim, dim_head=64, heads=8, ff_mult=4):
         super().__init__()
@@ -237,13 +257,9 @@ class ParallelTransformerBlock(nn.Module):
         self.fused_attn_ff_proj = nn.Linear(dim, sum(self.fused_dims), bias=False)
         self.attn_out = nn.Linear(attn_inner_dim, dim, bias=False)
 
-        self.ff_out = nn.Sequential(
-            SwiGLU(),
-            nn.Linear(ff_inner_dim, dim, bias=False)
-        )
+        self.ff_out = nn.Sequential(SwiGLU(), nn.Linear(ff_inner_dim, dim, bias=False))
 
         self.register_buffer("pos_emb", None, persistent=False)
-
 
     def get_rotary_embedding(self, n, device):
         if self.pos_emb is not None and self.pos_emb.shape[-2] >= n:
@@ -292,11 +308,10 @@ class ParallelTransformerBlock(nn.Module):
 
         sim = einsum("b h i d, b j d -> b h i j", q, k)
 
-
         # extra attention mask - for masking out attention from text CLS token to padding
 
         if exists(attn_mask):
-            attn_mask = rearrange(attn_mask, 'b i j -> b 1 i j')
+            attn_mask = rearrange(attn_mask, "b i j -> b 1 i j")
             sim = sim.masked_fill(~attn_mask, -torch.finfo(sim.dtype).max)
 
         # attention
@@ -313,7 +328,9 @@ class ParallelTransformerBlock(nn.Module):
         out = rearrange(out, "b h n d -> b n (h d)")
         return self.attn_out(out) + self.ff_out(ff)
 
+
 # cross attention - using multi-query + one-headed key / values as in PaLM w/ optional parallel feedforward
+
 
 class CrossAttention(nn.Module):
     def __init__(
@@ -325,11 +342,11 @@ class CrossAttention(nn.Module):
         heads=12,
         parallel_ff=False,
         ff_mult=4,
-        norm_context=False
+        norm_context=False,
     ):
         super().__init__()
         self.heads = heads
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         inner_dim = heads * dim_head
         context_dim = default(context_dim, dim)
 
@@ -344,11 +361,15 @@ class CrossAttention(nn.Module):
 
         ff_inner_dim = ff_mult * dim
 
-        self.ff = nn.Sequential(
-            nn.Linear(dim, ff_inner_dim * 2, bias=False),
-            SwiGLU(),
-            nn.Linear(ff_inner_dim, dim, bias=False)
-        ) if parallel_ff else None
+        self.ff = (
+            nn.Sequential(
+                nn.Linear(dim, ff_inner_dim * 2, bias=False),
+                SwiGLU(),
+                nn.Linear(ff_inner_dim, dim, bias=False),
+            )
+            if parallel_ff
+            else None
+        )
 
     def forward(self, x, context, mask):
         """
@@ -367,7 +388,7 @@ class CrossAttention(nn.Module):
         # get queries
 
         q = self.to_q(x)
-        q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
+        q = rearrange(q, "b n (h d) -> b h n d", h=self.heads)
         # scale
 
         q = q * self.scale
@@ -378,21 +399,21 @@ class CrossAttention(nn.Module):
 
         # query / key similarity
 
-        sim = einsum('b h i d, b j d -> b h i j', q, k)
+        sim = einsum("b h i d, b j d -> b h i j", q, k)
 
         # attention
-        mask = mask.unsqueeze(1).repeat(1,self.heads,1,1)
+        mask = mask.unsqueeze(1).repeat(1, self.heads, 1, 1)
         sim = sim + mask  # context mask
         sim = sim - sim.amax(dim=-1, keepdim=True)
         attn = sim.softmax(dim=-1)
 
         # aggregate
 
-        out = einsum('b h i j, b j d -> b h i d', attn, v)
+        out = einsum("b h i j, b j d -> b h i d", attn, v)
 
         # merge and combine heads
 
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = rearrange(out, "b h n d -> b n (h d)")
         out = self.to_out(out)
 
         # add parallel feedforward (for multimodal layers)
@@ -404,43 +425,47 @@ class CrossAttention(nn.Module):
 
 
 class Cross_model(nn.Module):
-    def __init__(
-        self,
-        dim=512,
-        layer_num=4,
-        dim_head=64,
-        heads=8,
-        ff_mult=4
-    ):
+    def __init__(self, dim=512, layer_num=4, dim_head=64, heads=8, ff_mult=4):
         super().__init__()
 
         self.layers = nn.ModuleList([])
 
-
         for ind in range(layer_num):
-            self.layers.append(nn.ModuleList([
-                Residual(CrossAttention(dim=dim, dim_head=dim_head, heads=heads, parallel_ff=True, ff_mult=ff_mult)),
-                Residual(ParallelTransformerBlock(dim=dim, dim_head=dim_head, heads=heads, ff_mult=ff_mult))
-            ]))
+            self.layers.append(
+                nn.ModuleList(
+                    [
+                        Residual(
+                            CrossAttention(
+                                dim=dim,
+                                dim_head=dim_head,
+                                heads=heads,
+                                parallel_ff=True,
+                                ff_mult=ff_mult,
+                            )
+                        ),
+                        Residual(
+                            ParallelTransformerBlock(
+                                dim=dim, dim_head=dim_head, heads=heads, ff_mult=ff_mult
+                            )
+                        ),
+                    ]
+                )
+            )
 
-    def forward(
-        self,
-        query_tokens,
-        context_tokens,
-        mask
-    ):
-
+    def forward(self, query_tokens, context_tokens, mask):
         for cross_attn, self_attn_ff in self.layers:
-            query_tokens = cross_attn(query_tokens, context_tokens,mask)
+            query_tokens = cross_attn(query_tokens, context_tokens, mask)
             query_tokens = self_attn_ff(query_tokens)
 
-        return query_tokens       
+        return query_tokens
+
 
 @register_model("microsoft/adsplus/mps")
 class MSP_Classifier(GenericModel):
     prefix_keys_in_state_dict = {
-    "^(?!clip\\.)": "clip.",
+        "^(?!clip\\.)": "clip.",
     }
+
     def __init__(self, config):
         super().__init__()
         self.clip = CLIPModel(config)
@@ -461,13 +486,15 @@ class MSP_Classifier(GenericModel):
             inst.from_pretrained(pretrained_weight_path)
         return inst
 
-    def forward(self, 
-                text_inputs, 
-                condition_inputs, 
-                image_inputs
-                ):
-        text_features, image_0_features = self.clip(text_inputs, image_inputs, condition_inputs)
-        image_0_features = image_0_features / image_0_features.norm(dim=-1, keepdim=True)
+    def forward(self, text_inputs, condition_inputs, image_inputs):
+        text_features, image_0_features = self.clip(
+            text_inputs, image_inputs, condition_inputs
+        )
+        image_0_features = image_0_features / image_0_features.norm(
+            dim=-1, keepdim=True
+        )
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-        image_0_scores = self.clip.logit_scale.exp() * torch.diag(torch.einsum('bd,cd->bc', text_features, image_0_features)).unsqueeze(1)
+        image_0_scores = self.clip.logit_scale.exp() * torch.diag(
+            torch.einsum("bd,cd->bc", text_features, image_0_features)
+        ).unsqueeze(1)
         return ClassificationOutputs(outputs=image_0_scores)

@@ -108,7 +108,7 @@ class CopyWebUI(SimpleWebUI):
         return background
 
 
-class SmoothMaskWebUI(SimpleWebUI):
+class InpaintWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         # create elements
         image = create_element("image_editor", "Image")
@@ -136,7 +136,7 @@ class SmoothMaskWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Smooth Mask", iface=iface)
+        super().__init__(config, iname="Inpaint", iface=iface)
 
     def composite_images(self, images):
         layers = images["layers"]
@@ -183,6 +183,7 @@ class OutpaintWebUI(SimpleWebUI):
         generate2 = create_element("button", "Generate")
 
         output_image = create_element("image", "Output Image")
+        output_smooth_image = create_element("image", "Output Smooth Image")
         output_mask = create_element("image", "Output Mask")
 
         tab1 = create_tab(image1, ratio1, generate1, name="Infer")
@@ -195,7 +196,7 @@ class OutpaintWebUI(SimpleWebUI):
         )
         left = create_tabs(tab1, tab2)
 
-        right = create_column(output_image, output_mask)
+        right = create_column(output_image, output_smooth_image, output_mask)
         iface = create_blocks(create_row(left, right))
 
         # create events
@@ -204,14 +205,14 @@ class OutpaintWebUI(SimpleWebUI):
         generate1.click(
             fn=self.process_infer,
             inputs=[image1, ratio1],
-            outputs=[output_image, output_mask],
+            outputs=[output_image, output_smooth_image, output_mask],
             trigger_mode="once",
         )
 
         generate2.click(
             fn=self.process_train,
             inputs=[image2, crop_w, crop_h, mask_side, mask_ratio],
-            outputs=[output_image, output_mask],
+            outputs=[output_image, output_smooth_image, output_mask],
             trigger_mode="once",
         )
 
@@ -238,7 +239,14 @@ class OutpaintWebUI(SimpleWebUI):
         new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
         new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
 
-        return new_image, mask
+        image_np = np.array(new_image.convert("RGB"))
+        mask_np = np.array(mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
+        result_image = Image.fromarray(inpainted_image)
+
+        return new_image, result_image, mask
 
     def process_train(self, image, crop_w, crop_h, mask_side, mask_ratio):
         width, height = image.size
@@ -271,7 +279,14 @@ class OutpaintWebUI(SimpleWebUI):
 
         image.paste((255, 255, 255), mask=mask)
 
-        return image, mask
+        image_np = np.array(image.convert("RGB"))
+        mask_np = np.array(mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
+        result_image = Image.fromarray(inpainted_image)
+
+        return image, result_image, mask
 
 
 class BlurWebUI(SimpleWebUI):
@@ -556,7 +571,7 @@ class ToolsWebUI(SimpleWebUI):
             BlurWebUI(config),
             BrightnessWebUI(config),
             ControlNetWebUI(config),
-            SmoothMaskWebUI(config),
+            InpaintWebUI(config),
             OutpaintWebUI(config),
         ]
         iface = gr.TabbedInterface(
