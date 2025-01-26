@@ -355,8 +355,9 @@ def inpainting(
 def __out_processing_image(image, ratio):
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
-    assert ratio in [0.5, 1, 2]
-    size_dict = {"1": (768, 768), "0.5": (512, 1024), "2": (1024, 512)}
+    assert ratio in [0.5, 1.0, 2.0]
+    size_dict = {"1.0": (768, 768), "0.5": (512, 1024), "2.0": (1024, 512)}
+    # size_dict = {"1.0": (1024, 1024), "0.5": (768, 1536), "2.0": (1536, 768)}
 
     width, height = image.size
     size = size_dict[str(ratio)]
@@ -380,8 +381,9 @@ def __out_processing_image(image, ratio):
 def __out_processing1_image(image, ratio):
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
-    assert ratio in [0.5, 1, 2]
-    size_dict = {"1": (768, 768), "0.5": (512, 1024), "2": (1024, 512)}
+    assert ratio in [0.5, 1.0, 2.0]
+    size_dict = {"1.0": (768, 768), "0.5": (512, 1024), "2.0": (1024, 512)}
+    # size_dict = {"1.0": (1024, 1024), "0.5": (768, 1536), "2.0": (1536, 768)}
 
     width, height = image.size
     size = size_dict[str(ratio)]
@@ -421,6 +423,7 @@ def outpainting(
     lora_alpha: Optional[float] = 32.0,
     device: Optional[Union[str, int]] = "cpu",
     processor_name: Optional[str] = "default",
+    ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
 ):
     pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
         config=CoreConfigureParser(),
@@ -450,6 +453,10 @@ def outpainting(
         "default": __out_processing_image,
         "p1": __out_processing1_image,
     }
+
+    if isinstance(ratios, str):
+        ratios = re.split(r"[,;]", ratios)
+        ratios = [float(n.strip()) for n in ratios]
 
     assert processor_name in processors.keys()
 
@@ -487,7 +494,7 @@ def outpainting(
                 "prompt": prompt,
                 "image": row[image_col],
             }
-            for ratio in [0.5, 1, 2]:
+            for ratio in ratios:
                 p_image, p_mask_image = process_func(raw_image, ratio)
                 result = pipe(
                     prompt,
@@ -509,7 +516,7 @@ def outpainting(
                 "prompt": prompt,
                 "image": row[image_col],
             }
-            for ratio in [0.5, 1, 2]:
+            for ratio in ratios:
                 p_image, p_mask_image = process_func(raw_image, ratio)
                 result = pipe(
                     prompt,

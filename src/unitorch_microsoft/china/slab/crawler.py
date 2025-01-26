@@ -79,6 +79,8 @@ class SLABCrawler(GenericScript):
             chrome_options.add_argument("--headless=new")
             chrome_options.add_argument("start-maximized")
             if use_google_chrome:
+                # download older version of chrome here
+                # https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/
                 # wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
                 # dpkg -i ./google-chrome-stable_current_amd64.deb
                 # apt --fix-broken install

@@ -2,44 +2,122 @@
 # Licensed under the MIT License.
 
 import os
-import io
-import json
 import re
+import io
 import fire
-import hashlib
-import random
+import torch
+import json
 import logging
+import hashlib
 import requests
 import pandas as pd
 from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.hub import download_url_to_file
-from unitorch.cli import CoreConfigureParser, GenericScript
-from unitorch.cli import register_script, cached_path
+from multiprocessing import Process, Queue
 
-try:
-    from openai import OpenAI
-except ImportError:
-    raise ImportError(
-        "Please install the openai package by running `pip install openai`"
-    )
+supported_image_ratios = [
+    "ASPECT_10_16",
+    "ASPECT_16_10",
+    "ASPECT_9_16",
+    "ASPECT_16_9",
+    "ASPECT_3_2",
+    "ASPECT_2_3",
+    "ASPECT_4_3",
+    "ASPECT_3_4",
+    "ASPECT_1_1",
+    "ASPECT_1_3",
+    "ASPECT_3_1",
+]
+
+supported_style_types = [
+    "AUTO",
+    "GENERAL",
+    "REALISTIC",
+    "DESIGN",
+    "RENDER_3D",
+    "ANIME",
+]
 
 supported_image_sizes = [
+    (512, 1536),
+    (576, 1408),
+    (576, 1472),
+    (576, 1536),
+    (640, 1024),
+    (640, 1344),
+    (640, 1408),
+    (640, 1472),
+    (640, 1536),
+    (704, 1152),
+    (704, 1216),
+    (704, 1280),
+    (704, 1344),
+    (704, 1408),
+    (704, 1472),
+    (720, 1280),
+    (736, 1312),
+    (768, 1024),
+    (768, 1088),
+    (768, 1152),
+    (768, 1216),
+    (768, 1232),
+    (768, 1280),
+    (768, 1344),
+    (832, 960),
+    (832, 1024),
+    (832, 1088),
+    (832, 1152),
+    (832, 1216),
+    (832, 1248),
+    (864, 1152),
+    (896, 960),
+    (896, 1024),
+    (896, 1088),
+    (896, 1120),
+    (896, 1152),
+    (960, 832),
+    (960, 896),
+    (960, 1024),
+    (960, 1088),
+    (1024, 640),
+    (1024, 768),
+    (1024, 832),
+    (1024, 896),
+    (1024, 960),
     (1024, 1024),
-    (1365, 1024),
-    (1024, 1365),
-    (1536, 1024),
-    (1024, 1536),
-    (1820, 1024),
-    (1024, 1820),
-    (1024, 2048),
-    (2048, 1024),
-    (1434, 1024),
-    (1024, 1434),
-    (1024, 1280),
-    (1280, 1024),
-    (1024, 1707),
-    (1707, 1024),
+    (1088, 768),
+    (1088, 832),
+    (1088, 896),
+    (1088, 960),
+    (1120, 896),
+    (1152, 704),
+    (1152, 768),
+    (1152, 832),
+    (1152, 864),
+    (1152, 896),
+    (1216, 704),
+    (1216, 768),
+    (1216, 832),
+    (1232, 768),
+    (1248, 832),
+    (1280, 704),
+    (1280, 720),
+    (1280, 768),
+    (1280, 800),
+    (1312, 736),
+    (1344, 640),
+    (1344, 704),
+    (1344, 768),
+    (1408, 576),
+    (1408, 640),
+    (1408, 704),
+    (1472, 576),
+    (1472, 640),
+    (1472, 704),
+    (1536, 512),
+    (1536, 576),
+    (1536, 640),
 ]
 
 
@@ -65,16 +143,13 @@ def text2image(
     cache_dir: str,
     names: Union[str, List[str]],
     prompt_col: str,
-    style_prompt_col: Optional[str] = None,
-    style_prompt: Optional[str] = "realistic_image",
+    style_type_col: Optional[str] = None,
+    style_type: Optional[str] = "REALISTIC",
     height: Optional[int] = 1024,
     width: Optional[int] = 1024,
 ):
-    assert (width, height) in supported_image_sizes
-    client = OpenAI(
-        base_url="https://external.api.recraft.ai/v1",
-        api_key=token,
-    )
+    assert (width, height) in supported_image_sizes, "Unsupported image size."
+    assert style_type in supported_style_types, "Unsupported style type."
 
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -106,7 +181,7 @@ def text2image(
             ~data.apply(
                 lambda x: x[prompt_col]
                 + " - "
-                + (style_prompt if style_prompt is not None else x[style_prompt_col])
+                + (style_type if style_type is not None else x[style_type_col])
                 in uniques,
                 axis=1,
             )
@@ -116,20 +191,32 @@ def text2image(
 
     for _, row in data.iterrows():
         _prompt = row[prompt_col]
-        _style_prompt = (
-            style_prompt if style_prompt is not None else row[style_prompt_col]
-        )
+        _style_type = style_type if style_type is not None else row[style_type_col]
         try:
-            response = client.images.generate(
-                prompt=_prompt,
-                style=_style_prompt,
-                size=f"{width}x{height}",
-            )
-            result = response.data[0].url
+            headers = {
+                "Api-Key": token,
+                "Content-type": "application/json",
+            }
+            response = requests.post(
+                "https://api.ideogram.ai/generate",
+                timeout=60,
+                json={
+                    "image_request": {
+                        "prompt": _prompt,
+                        "resolution": f"RESOLUTION_{width}_{height}",
+                        "model": "V_2",
+                        "magic_prompt_option": "AUTO",
+                        "style_type": _style_type,
+                    },
+                },
+                headers=headers,
+            ).json()
+            result = response["data"][0]["url"]
             record = {
                 "prompt": _prompt,
-                "style": _style_prompt,
+                "style": _style_type,
                 "result": save_image_from_url(cache_dir, result),
+                "result_is_image_safe": response["data"][0]["is_image_safe"],
             }
             writer.write(json.dumps(record) + "\n")
             writer.flush()
@@ -160,16 +247,11 @@ def inpainting(
     mask_image_col: str,
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
-    style_prompt_col: Optional[str] = None,
-    style_prompt: Optional[str] = "realistic_image",
+    style_type_col: Optional[str] = None,
+    style_type: Optional[str] = "REALISTIC",
     reversed_mask: Optional[str] = False,
     processor_name: Optional[str] = "default",
 ):
-    client = OpenAI(
-        base_url="https://external.api.recraft.ai/v1",
-        api_key=token,
-    )
-
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
@@ -216,7 +298,7 @@ def inpainting(
             ~data.apply(
                 lambda x: (prompt_text if prompt_text is not None else x[prompt_col])
                 + " - "
-                + (style_prompt if style_prompt is not None else x[style_prompt_col])
+                + (style_type if style_type is not None else x[style_type_col])
                 + " - "
                 + x[image_col]
                 + " - "
@@ -229,9 +311,7 @@ def inpainting(
     writer = open(output_file, "a+")
     for _, row in data.iterrows():
         _prompt = prompt_text if prompt_text is not None else row[prompt_col]
-        _style_prompt = (
-            style_prompt if style_prompt is not None else row[style_prompt_col]
-        )
+        _style_type = style_type if style_type is not None else row[style_type_col]
         image = row[image_col]
         mask_image = row[mask_image_col]
         p_image, p_mask_image = process_func(
@@ -248,279 +328,31 @@ def inpainting(
         mask_image_buffer.seek(0)
 
         try:
-            response = client.post(
-                path="/images/inpaint",
-                cast_to=object,
-                options={"headers": {"Content-Type": "multipart/form-data"}},
+            headers = {
+                "Api-Key": token,
+            }
+            response = requests.post(
+                "https://api.ideogram.ai/edit",
                 files={
-                    "image": ("image.jpg", image_buffer, "image/jpeg"),
+                    "image_file": ("image.jpg", image_buffer, "image/jpeg"),
                     "mask": ("mask_image.jpg", mask_image_buffer, "image/jpeg"),
                 },
-                body={
-                    "style": _style_prompt,
+                data={
                     "prompt": _prompt,
+                    "model": "V_2",
+                    "magic_prompt_option": "AUTO",
+                    "style_type": _style_type,
                 },
-            )
+                headers=headers,
+            ).json()
             result = response["data"][0]["url"]
             record = {
                 "prompt": _prompt,
-                "style": _style_prompt,
+                "style": _style_type,
                 "image": image,
                 "mask_image": mask_image,
                 "result": save_image_from_url(cache_dir, result),
-            }
-            writer.write(json.dumps(record) + "\n")
-            writer.flush()
-        except:
-            pass
-
-
-# remove background
-def remove_background(
-    token: str,
-    data_file: str,
-    cache_dir: str,
-    names: Union[str, List[str]],
-    image_col: str,
-):
-    client = OpenAI(
-        base_url="https://external.api.recraft.ai/v1",
-        api_key=token,
-    )
-
-    if isinstance(names, str) and names.strip() == "*":
-        names = None
-    if isinstance(names, str):
-        names = re.split(r"[,;]", names)
-        names = [n.strip() for n in names]
-
-    data = pd.read_csv(
-        data_file,
-        names=names,
-        sep="\t",
-        quoting=3,
-        header=None,
-    )
-
-    os.makedirs(cache_dir, exist_ok=True)
-
-    output_file = f"{cache_dir}/output.jsonl"
-
-    if os.path.exists(output_file):
-        uniques = []
-        with open(output_file, "r") as f:
-            for line in f:
-                row = json.loads(line)
-                uniques.append(row["image"])
-        data = data[
-            ~data.apply(
-                lambda x: x[image_col] in uniques,
-                axis=1,
-            )
-        ]
-
-    writer = open(output_file, "a+")
-    for _, row in data.iterrows():
-        image = row[image_col]
-        raw_image = Image.open(image).convert("RGB")
-
-        image_buffer = io.BytesIO()
-        raw_image.save(image_buffer, format="JPEG")
-        image_buffer.seek(0)
-
-        try:
-            response = client.post(
-                path="/images/removeBackground",
-                cast_to=object,
-                options={"headers": {"Content-Type": "multipart/form-data"}},
-                files={
-                    "file": ("image.jpg", image_buffer, "image/jpeg"),
-                },
-            )
-            result = response["image"]["url"]
-            record = {
-                "image": image,
-                "result_object": save_image_from_url(cache_dir, result),
-            }
-            record["result_mask"] = save_image(
-                cache_dir,
-                Image.open(record["result_object"])
-                .convert("L")
-                .point(lambda x: 0 if x < 128 else 255, "1"),
-            )
-            writer.write(json.dumps(record) + "\n")
-            writer.flush()
-        except:
-            pass
-
-
-# resolution
-def resolution(
-    token: str,
-    data_file: str,
-    cache_dir: str,
-    names: Union[str, List[str]],
-    image_col: str,
-    method: Optional[str] = "clarity",  # clarity, generative
-):
-    assert method in ["clarity", "generative"]
-
-    client = OpenAI(
-        base_url="https://external.api.recraft.ai/v1",
-        api_key=token,
-    )
-
-    if isinstance(names, str) and names.strip() == "*":
-        names = None
-    if isinstance(names, str):
-        names = re.split(r"[,;]", names)
-        names = [n.strip() for n in names]
-
-    data = pd.read_csv(
-        data_file,
-        names=names,
-        sep="\t",
-        quoting=3,
-        header=None,
-    )
-
-    os.makedirs(cache_dir, exist_ok=True)
-
-    output_file = f"{cache_dir}/output.jsonl"
-
-    if os.path.exists(output_file):
-        uniques = []
-        with open(output_file, "r") as f:
-            for line in f:
-                row = json.loads(line)
-                uniques.append(row["image"] + " - " + row["method"])
-        data = data[
-            ~data.apply(
-                lambda x: x[image_col] + " - " + method in uniques,
-                axis=1,
-            )
-        ]
-
-    writer = open(output_file, "a+")
-    for _, row in data.iterrows():
-        image = row[image_col]
-        raw_image = Image.open(image).convert("RGB")
-
-        image_buffer = io.BytesIO()
-        raw_image.save(image_buffer, format="JPEG")
-        image_buffer.seek(0)
-
-        try:
-            response = client.post(
-                path="/images/clarityUpscale"
-                if method == "clarity"
-                else "/images/generativeUpscale",
-                cast_to=object,
-                options={"headers": {"Content-Type": "multipart/form-data"}},
-                files={
-                    "file": ("image.jpg", image_buffer, "image/jpeg"),
-                },
-            )
-            result = response["image"]["url"]
-            record = {
-                "image": image,
-                "result": save_image_from_url(cache_dir, result),
-            }
-            writer.write(json.dumps(record) + "\n")
-            writer.flush()
-        except:
-            pass
-
-
-# change background
-def change_background(
-    token: str,
-    data_file: str,
-    cache_dir: str,
-    names: Union[str, List[str]],
-    image_col: str,
-    prompt_col: Optional[str] = None,
-    prompt_text: Optional[str] = None,
-    style_prompt_col: Optional[str] = None,
-    style_prompt: Optional[str] = "realistic_image",
-):
-    client = OpenAI(
-        base_url="https://external.api.recraft.ai/v1",
-        api_key=token,
-    )
-
-    if isinstance(names, str) and names.strip() == "*":
-        names = None
-    if isinstance(names, str):
-        names = re.split(r"[,;]", names)
-        names = [n.strip() for n in names]
-
-    data = pd.read_csv(
-        data_file,
-        names=names,
-        sep="\t",
-        quoting=3,
-        header=None,
-    )
-
-    os.makedirs(cache_dir, exist_ok=True)
-
-    assert prompt_col in data.columns, f"Column {prompt_col} not found in data."
-
-    output_file = f"{cache_dir}/output.jsonl"
-
-    if os.path.exists(output_file):
-        uniques = []
-        with open(output_file, "r") as f:
-            for line in f:
-                row = json.loads(line)
-                uniques.append(
-                    row["prompt"] + " - " + row["style"] + " - " + row["image"]
-                )
-        data = data[
-            ~data.apply(
-                lambda x: (prompt_text if prompt_text is not None else x[prompt_col])
-                + " - "
-                + (style_prompt if style_prompt is not None else x[style_prompt_col])
-                + " - "
-                + x[image_col]
-                in uniques,
-                axis=1,
-            )
-        ]
-
-    writer = open(output_file, "a+")
-    for _, row in data.iterrows():
-        _prompt = prompt_text if prompt_text is not None else row[prompt_col]
-        _style_prompt = (
-            style_prompt if style_prompt is not None else row[style_prompt_col]
-        )
-        image = row[image_col]
-        raw_image = Image.open(image).convert("RGB")
-
-        image_buffer = io.BytesIO()
-        raw_image.save(image_buffer, format="JPEG")
-        image_buffer.seek(0)
-
-        try:
-            response = client.post(
-                path="/images/replaceBackground",
-                cast_to=object,
-                options={"headers": {"Content-Type": "multipart/form-data"}},
-                files={
-                    "image": ("image.jpg", image_buffer, "image/jpeg"),
-                },
-                body={
-                    "style": _style_prompt,
-                    "prompt": _prompt,
-                },
-            )
-            result = response["data"][0]["url"]
-            record = {
-                "prompt": _prompt,
-                "style": _style_prompt,
-                "image": image,
-                "result": save_image_from_url(cache_dir, result),
+                "result_is_image_safe": response["data"][0]["is_image_safe"],
             }
             writer.write(json.dumps(record) + "\n")
             writer.flush()
@@ -552,7 +384,7 @@ def __out_processing_image(image, ratio):
     new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
     new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
 
-    return new_image, mask
+    return new_image, ImageOps.invert(mask)
 
 
 def __out_processing1_image(image, ratio):
@@ -578,7 +410,7 @@ def __out_processing1_image(image, ratio):
     new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
     new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
 
-    return new_image, mask
+    return new_image, ImageOps.invert(mask)
 
 
 def outpainting(
@@ -589,16 +421,11 @@ def outpainting(
     image_col: str,
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
-    style_prompt_col: Optional[str] = None,
-    style_prompt: Optional[str] = "realistic_image",
+    style_type_col: Optional[str] = None,
+    style_type: Optional[str] = "REALISTIC",
     processor_name: Optional[str] = "default",
     ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
 ):
-    client = OpenAI(
-        base_url="https://external.api.recraft.ai/v1",
-        api_key=token,
-    )
-
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
@@ -644,7 +471,7 @@ def outpainting(
             ~data.apply(
                 lambda x: (prompt_text if prompt_text is not None else x[prompt_col])
                 + " - "
-                + (style_prompt if style_prompt is not None else x[style_prompt_col])
+                + (style_type if style_type is not None else x[style_type_col])
                 + " - "
                 + x[image_col]
                 in uniques,
@@ -656,11 +483,9 @@ def outpainting(
 
     for _, row in data.iterrows():
         _prompt = prompt_text if prompt_text is not None else row[prompt_col]
-        _style_prompt = (
-            style_prompt if style_prompt is not None else row[style_prompt_col]
-        )
+        _style_type = style_type if style_type is not None else row[style_type_col]
         raw_image = row[image_col]
-        record = {"prompt": _prompt, "image": row[image_col], "style": _style_prompt}
+        record = {"prompt": _prompt, "image": row[image_col], "style": _style_type}
         for ratio in ratios:
             p_image, p_mask_image = process_func(raw_image, ratio)
             image_buffer = io.BytesIO()
@@ -672,21 +497,30 @@ def outpainting(
             image_buffer.seek(0)
             mask_image_buffer.seek(0)
             try:
-                response = client.post(
-                    path="/images/inpaint",
-                    cast_to=object,
-                    options={"headers": {"Content-Type": "multipart/form-data"}},
+                headers = {
+                    "Api-Key": token,
+                }
+                response = requests.post(
+                    "https://api.ideogram.ai/edit",
                     files={
-                        "image": ("image.jpg", image_buffer, "image/jpeg"),
+                        "image_file": ("image.jpg", image_buffer, "image/jpeg"),
                         "mask": ("mask_image.jpg", mask_image_buffer, "image/jpeg"),
                     },
-                    body={
-                        "style": _style_prompt,
+                    data={
                         "prompt": _prompt,
+                        "model": "V_2",
+                        "magic_prompt_option": "AUTO",
+                        "style_type": _style_type,
                     },
-                )
+                    headers=headers,
+                ).json()
                 result = response["data"][0]["url"]
                 record[f"result_{ratio}"] = save_image_from_url(cache_dir, result)
+                record[f"result_is_image_safe_{ratio}"] = response["data"][0][
+                    "is_image_safe"
+                ]
+                writer.write(json.dumps(record) + "\n")
+                writer.flush()
             except:
                 pass
         writer.write(json.dumps(record) + "\n")
