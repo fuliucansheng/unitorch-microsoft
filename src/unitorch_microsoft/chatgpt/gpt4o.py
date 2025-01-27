@@ -17,6 +17,7 @@ from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
+
 @register_script("microsoft/script/chatgpt/gpt4o")
 class GPT4OScript(GenericScript):
     def __init__(self, config: CoreConfigureParser):
@@ -95,7 +96,7 @@ class GPT4OScript(GenericScript):
 
         def processing(row):
             content = prompt.format(**row.to_dict())
-    
+
             messages = [
                 {
                     "role": "user",

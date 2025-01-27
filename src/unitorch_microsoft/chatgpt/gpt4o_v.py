@@ -17,6 +17,7 @@ from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
+
 @register_script("microsoft/script/chatgpt/gpt4o_v")
 class GPT4O_VScript(GenericScript):
     def __init__(self, config: CoreConfigureParser):
@@ -104,7 +105,7 @@ class GPT4O_VScript(GenericScript):
                     "data": prompt.format(**row.to_dict()),
                 },
             ]
-            
+
             def read_image(image):
                 if is_remote_url(image):
                     return requests.get(image, timeout=300).content
@@ -118,7 +119,7 @@ class GPT4O_VScript(GenericScript):
                         "type": "image_url",
                         "image_url": {
                             "url": f"data:image/jpeg;base64,{base64.b64encode(read_image(row[image])).decode()}",
-                        }
+                        },
                     }
                     for image in images
                 ]
