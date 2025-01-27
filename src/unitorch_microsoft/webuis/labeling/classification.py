@@ -4,6 +4,7 @@
 import os
 import io
 import re
+import time
 import socket
 import requests
 import tempfile
@@ -54,6 +55,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         config.set_default_section(default_section)
         data_file = config.getoption("data_file", None)
         result_file = config.getoption("result_file", None)
+        force_to_relabel = config.getoption("force_to_relabel", False)
         names = config.getoption("names", "*")
         if isinstance(names, str) and names == "*":
             names = None
@@ -202,26 +204,30 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if self.default_choice not in self.choices and self.default_choice != "":
             self.choices = self.choices + [self.default_choice]
 
-        if os.path.exists(result_file):
+        if os.path.exists(result_file) and not force_to_relabel:
             self.dataset = pd.read_csv(result_file, sep="\t")
             self.dataset.fillna("", inplace=True)
         else:
             self.dataset.to_csv(result_file, sep="\t", index=False)
 
+        self.logs = f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: Start Labeling. \n"
+
         # create elements
         index = create_element(
-            "text",
+            "dropdown",
             label="Index",
-            interactive=False,
+            default=" - ",
+            values=[" - "] + self.dataset["Index"].tolist(),
         )
-        group_values = [" - "]
         if self.group_col is not None:
             group_values += self.dataset[self.group_col].unique().tolist()
+        else:
+            group_values = []
         group = create_element(
             "dropdown",
             label="Group",
             default=" - ",
-            values=group_values,
+            values=[" - "] + group_values,
         )
         user = create_element(
             "text",
@@ -272,24 +278,35 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             "radio" if not self.checkbox else "checkboxgroup",
             label="Label",
             values=self.choices,
+            scale=3,
         )
 
         comment = create_element(
             "text",
             label="Comment",
             lines=4,
+            scale=2,
         )
-        preview = create_element(
-            "button",
-            label="Preview",
+        random_type = create_element(
+            "radio",
+            values=["All", "Labeled", "Unlabeled"],
+            default="Unlabeled",
+            label="Sample Type",
+            scale=2,
         )
         random = create_element(
             "button",
-            label="Random",
+            label="Sample",
+            scale=2,
         )
         submit = create_element(
             "button",
             label="Submit",
+        )
+        reset = create_element(
+            "button",
+            label="Reset",
+            variant="secondary",
         )
         progress = create_element(
             "text",
@@ -304,24 +321,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             values=[" - "] + self.choices,
         )
 
-        adv_index = create_element(
-            "text",
-            label="Index",
-            interactive=True,
-            scale=2,
-        )
-        adv_load = create_element(
-            "button",
-            label="Load",
-        )
-        adv_reset = create_element(
-            "button",
-            label="Reset",
-            variant="secondary",
-        )
         adv_stats_header = create_element(
             "markdown",
-            label="## Analytics",
+            label="## <div style='margin-top:10px'>Distribution</div>",
             interactive=False,
         )
         adv_stats = create_element(
@@ -329,13 +331,24 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label="",
             interactive=False,
         )
-        adv_preview = create_element(
+        adv_logs_header = create_element(
             "markdown",
-            label="## Preview",
+            label="## <div style='margin-top:10px'>Logs</div>",
             interactive=False,
         )
-
+        adv_logs = create_element(
+            "markdown",
+            label="",
+            interactive=False,
+        )
         # show results
+        data_type = create_element(
+            "radio",
+            values=["All", "Labeled", "Unlabeled"],
+            default="Labeled",
+            label="Data Type",
+            scale=2,
+        )
         refresh = create_element(
             "button",
             label="Refresh",
@@ -370,7 +383,12 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             image_layout, video_layout = None, None
         html_layout = create_flex_layout(*htmls, num_per_row=self.num_html_per_row)
         label_layout = create_row(
-            comment, create_column(choices, create_row(preview, random, submit))
+            comment,
+            create_column(
+                choices,
+                create_row(reset, submit),
+                scale=3,
+            ),
         )
 
         layouts = []
@@ -390,26 +408,23 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             layouts.append(html_layout)
 
         tab1 = create_tab(
-            create_row(index, group, progress, user),
+            create_row(index, progress, user),
+            create_row(group, random_type, random),
             *layouts,
             label_layout,
             name="Labeling",
         )
         tab2 = create_tab(
-            create_row(progress, group, res_label, refresh, download),
+            create_row(progress, user, download),
+            create_row(group, data_type, res_label, refresh),
             results,
             name="Results",
         )
         tab3 = create_tab(
-            create_row(
-                adv_index,
-                adv_load,
-                adv_reset,
-            ),
             adv_stats_header,
             adv_stats,
-            adv_preview,
-            *layouts,
+            adv_logs_header,
+            adv_logs,
             name="Advanced",
         )
         tabs = create_tabs(tab1, tab2, tab3)
@@ -419,10 +434,11 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         iface.__enter__()
         submit.click(
             self.label,
-            inputs=[index, group, user, choices, comment],
+            inputs=[index, group, user, choices, comment, adv_logs],
             outputs=[
                 download,
                 adv_stats,
+                adv_logs,
                 index,
                 progress,
                 group,
@@ -437,23 +453,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         random.click(
             self.sample,
-            inputs=[group],
-            outputs=[
-                index,
-                progress,
-                group,
-                choices,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
-            ],
-            trigger_mode="once",
-        )
-        preview.click(
-            self.preview,
-            inputs=[group],
+            inputs=[group, random_type],
             outputs=[
                 index,
                 progress,
@@ -469,15 +469,23 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         refresh.click(
             self.show,
-            inputs=[group, res_label],
+            inputs=[group, data_type, res_label],
             outputs=[progress, results],
             trigger_mode="once",
         )
-        adv_load.click(
-            self.load,
-            inputs=[adv_index],
+        reset.click(
+            self.reset,
+            inputs=[index],
+            outputs=[choices, comment, progress],
+            trigger_mode="once",
+        )
+        index.change(
+            fn=self.load,
+            inputs=[index],
             outputs=[
                 index,
+                progress,
+                group,
                 choices,
                 comment,
                 *texts,
@@ -487,21 +495,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             ],
             trigger_mode="once",
         )
-        adv_reset.click(
-            self.reset,
-            inputs=[adv_index],
-            outputs=[adv_index, progress],
-            trigger_mode="once",
-        )
-        index.change(
-            fn=lambda x: x,
-            inputs=[index],
-            outputs=[adv_index],
-        )
 
         iface.load(
             fn=self.sample,
-            inputs=[group],
+            inputs=[group, random_type],
             outputs=[
                 index,
                 progress,
@@ -527,6 +524,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             return None
 
         iface.load(fn=get_user, inputs=None, outputs=user)
+        iface.load(fn=lambda: self.logs, inputs=None, outputs=adv_logs)
 
         iface.__exit__()
 
@@ -570,7 +568,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         for col in set(self.image_cols):
             results[col] = results[col].map(url)
             results[col] = results[col].map(
-                lambda x: f'<img src="{x}" style="min-width: {self.min_image_width}; max-width: {self.max_image_width}; min-height: {self.min_image_height}; max-height: {self.max_image_height};">'
+                lambda x: f'<img src="{x}" style="min-width: {self.min_image_width}; max-width: {self.max_image_width}; min-height: {self.min_image_height}; max-height: {self.max_image_height}; overflow: hidden;">'
             )
         for col in set(self.video_cols):
             results[col] = results[col].map(
@@ -579,7 +577,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 else self.http_url.format(os.path.abspath(x))
             )
             results[col] = results[col].map(
-                lambda x: f'<video src="{x}" style="min-width: {self.min_video_width}; max-width: {self.max_video_width}; min-height: {self.min_video_height}; max-height: {self.max_video_height};" preload="none" controls>'
+                lambda x: f'<video src="{x}" style="min-width: {self.min_video_width}; max-width: {self.max_video_width}; min-height: {self.min_video_height}; max-height: {self.max_video_height}; overflow: hidden;" preload="none" controls>'
             )
 
         for col in self.url_cols:
@@ -591,70 +589,38 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             )
         return results
 
-    def preview(self, group=None):
-        return self.sample(group=group, include_labeled=True)
+    def sample(self, group=None, random_type="Unlabeled"):
+        if random_type == "Labeled":
+            sampled_data = self.dataset[self.dataset["Label"] != ""]
+        elif random_type == "Unlabeled":
+            sampled_data = self.dataset[self.dataset["Label"] == ""]
+        else:
+            sampled_data = self.dataset
 
-    def sample(self, group=None, include_labeled=False):
-        total = self.dataset.shape[0]
         if group is not None and group not in ["", " - "]:
-            labeled = self.dataset[
-                (self.dataset[self.group_col] == group) & (self.dataset["Label"] != "")
-            ]
-            non_labeled = self.dataset[
-                (self.dataset[self.group_col] == group) & (self.dataset["Label"] == "")
-            ]
-        else:
-            labeled = self.dataset[self.dataset["Label"] != ""]
-            non_labeled = self.dataset[self.dataset["Label"] == ""]
-        progress = f"{len(labeled)} / {total}"
+            sampled_data = sampled_data[sampled_data[self.group_col] == group]
 
-        if (
-            len(self.dataset[self.dataset["Label"] != ""]) == total
-            and not include_labeled
-        ):
-            return (None, progress, group, None, None) + tuple(
-                [None]
-                * (
-                    self.num_text_cols
-                    + self.num_image_cols
-                    + self.num_video_cols
-                    + self.num_html_cols
-                )
-            )
-        if len(non_labeled) == 0:
-            non_labeled = self.dataset[self.dataset["Label"] == ""]
-        if include_labeled:
-            new_one = self.dataset.sample(1).iloc[0]
-        else:
-            new_one = non_labeled.sample(1).iloc[0]
-        new_one = self.process_sample(new_one)
-        new_index = new_one["Index"]
-        new_texts = new_one[self.text_cols].tolist()
-        new_images = new_one[self.image_cols].tolist()
-        new_videos = new_one[self.video_cols].tolist()
-        new_htmls = new_one[self.html_cols].tolist()
+        if len(sampled_data) == 0:
+            return self.load(" - ")
 
-        return (
-            (new_index, progress, group, None, None)
-            + tuple(new_texts)
-            + tuple(new_images)
-            + tuple(new_videos)
-            + tuple(new_htmls)
-        )
+        return self.load(sampled_data.sample(1).iloc[0]["Index"])
 
-    def show(self, group=None, choice=None):
+    def show(self, group=None, data_type="Labeled", choice=None):
         total = self.dataset.shape[0]
-        if choice is not None and choice not in ["", " - "]:
-            labeled = self.dataset[self.dataset["Label"].map(lambda x: choice in x)]
-        else:
-            labeled = self.dataset[self.dataset["Label"] != ""]
-
-        if group is not None and group not in [" - "]:
-            labeled = labeled[labeled[self.group_col] == group]
-
         progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
 
-        results = labeled.copy()
+        results = self.dataset.copy()
+        if data_type == "Labeled":
+            results = results[results["Label"] != ""]
+        elif data_type == "Unlabeled":
+            results = results[results["Label"] == ""]
+
+        if choice is not None and choice not in ["", " - "]:
+            results = results[results["Label"].map(lambda x: choice in x)]
+
+        if group is not None and group not in ["", " - "]:
+            results = results[results[self.group_col] == group]
+
         if len(results) > 0:
             results = self.process_results(results)
 
@@ -678,11 +644,14 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
         progress = f"{labeled} / {total}"
         gr.Info(f"Reset {index} Success.")
-        return None, progress
+        return None, None, progress
 
     def load(self, index):
+        total = self.dataset.shape[0]
+        progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
+
         if len(self.dataset[self.dataset["Index"] == index]) == 0:
-            return (index, None, None) + tuple(
+            return (index, progress, None, None, None) + tuple(
                 [None]
                 * (
                     self.num_text_cols
@@ -691,15 +660,24 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                     + self.num_html_cols
                 )
             )
+
         new_one = self.dataset[self.dataset["Index"] == index].iloc[0]
         new_one = self.process_sample(new_one)
         new_texts = new_one[self.text_cols].tolist()
         new_images = new_one[self.image_cols].tolist()
         new_videos = new_one[self.video_cols].tolist()
         new_htmls = new_one[self.html_cols].tolist()
+        new_group = new_one[self.group_col] if self.group_col is not None else None
+        new_comment = new_one["Comment"]
+        new_choices = new_one["Label"].split(",") if new_one["Label"] != "" else None
+        new_choices = (
+            new_choices[0]
+            if not self.checkbox and new_choices is not None
+            else new_choices
+        )
 
         return (
-            (index, None, None)
+            (index, progress, new_group, new_choices, new_comment)
             + tuple(new_texts)
             + tuple(new_images)
             + tuple(new_videos)
@@ -774,6 +752,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         user,
         choice,
         comment,
+        logs,
     ):
         if isinstance(choice, list) or isinstance(choice, tuple):
             choice = ",".join(choice) if len(choice) > 0 else self.default_choice
@@ -783,4 +762,19 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment
         self.dataset.to_csv(self.result_file, sep="\t", index=False)
-        return (os.path.abspath(self.result_file), self.stats()) + self.sample(group)
+        if user is not None and user != "":
+            new_logs = (
+                f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: User {user} Label {index} to {choice} Success. \n"
+                + logs
+            )
+        else:
+            new_logs = (
+                f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: Label {index} to {choice} Success. \n"
+                + logs
+            )
+        self.logs = new_logs
+        return (
+            os.path.abspath(self.result_file),
+            self.stats(),
+            new_logs,
+        ) + self.sample(group)
