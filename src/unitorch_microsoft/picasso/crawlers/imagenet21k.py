@@ -11,10 +11,10 @@ import logging
 import hashlib
 import requests
 import pandas as pd
+from torch.hub import download_url_to_file
 from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from multiprocessing import Process, Queue
-from unitorch_microsoft import cached_path
 
 
 def save_to_zip(image):
@@ -29,35 +29,24 @@ def save_to_zip(image):
     return name
 
 
-def save_image(url):
-    headers = {
-        "User-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Safari/605.1.15"
-    }
-    response = requests.get(url, timeout=300, headers=headers)
-    image_bytes = io.BytesIO(response.content)
-    image = Image.open(image_bytes)
-    tile_size = 1024
-    results = {}
-    for i in range(2):  # 行
-        for j in range(2):  # 列
-            left = j * tile_size
-            upper = i * tile_size
-            right = left + tile_size
-            lower = upper + tile_size
-            sub_image = image.crop((left, upper, right, lower))
-            results[f"image{i}{j}"] = save_to_zip(sub_image)
-    return results
-
-
-def crawl(part, Q):
-    for _, row in part.iterrows():
-        image_url = row["image_url"]
+def crawl(parts, Q, download_folder):
+    for data_url in parts:
+        parquet_file = os.path.join(download_folder, f"{os.getpid()}.parquet")
         try:
-            results = save_image(image_url)
-            record = {"prompt": row["prompt"], **results}
-            Q.put(record)
+            download_url_to_file(data_url, parquet_file)
+            part = pd.read_parquet(parquet_file)
+            for _, row in part.iterrows():
+                image, label = row["image"], row["class"]
+                image = io.BytesIO(image)
+                image = Image.open(image)
+                try:
+                    name = save_to_zip(image)
+                    record = {"image": name, "label": label}
+                    Q.put(record)
+                except Exception as e:
+                    logging.error(f"Failed to process image in {data_url}: {e}")
         except Exception as e:
-            logging.error(f"Failed to crawl {image_url}: {e}")
+            logging.error(f"Failed to download {data_url}: {e}")
     Q.put("Done")
 
 
@@ -76,30 +65,29 @@ def write_file(fpath, Q, cnt):
 
 
 def main(
+    start: int = 0,
+    stop: int = 7760,
+    download_folder: str = "./",
     output_file: str = "./output.jsonl",
     num_processes: int = 10,
-    data_split: str = "first",
 ):
     base_folder = os.path.dirname(output_file)
     if not os.path.exists(base_folder):
         os.makedirs(base_folder, exist_ok=True)
 
-    assert data_split in ["first", "second", "third"]
-    data = pd.read_parquet(
-        cached_path(
-            "https://huggingface.co/datasets/CortexLM/midjourney-v6/resolve/main/data/train-00000-of-00001.parquet"
-        )
-    )
-    if data_split == "first":
-        data = data.iloc[: len(data) // 3]
-    elif data_split == "second":
-        data = data.iloc[len(data) // 3 : 2 * len(data) // 3]
-    else:
-        data = data.iloc[2 * len(data) // 3 :]
+    if not os.path.exists(download_folder):
+        os.makedirs(download_folder, exist_ok=True)
 
+    stop = min(7760, stop)
+    data = [
+        f"https://huggingface.co/datasets/gmongaras/Imagenet21K/resolve/main/data/train-{str(i).rjust(5, '0')}-of-07760.parquet"
+        for i in range(start, stop + 1)
+    ]
+
+    num_processes = min(10, len(data))
     data_parts = []
     for i in range(num_processes):
-        data_parts.append(data.iloc[i::num_processes])
+        data_parts.append(data[i::num_processes])
 
     processes = []
     queue = Queue()
@@ -109,6 +97,7 @@ def main(
             args=(
                 data_parts[i],
                 queue,
+                download_folder,
             ),
         )
         processes.append(p)
