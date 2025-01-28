@@ -7,79 +7,16 @@ import io
 import fire
 import torch
 import json
+import queue
 import logging
 import hashlib
 import requests
+import threading
 import pandas as pd
 from torch.hub import download_url_to_file
 from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from multiprocessing import Process, Queue
 from unitorch_microsoft import cached_path
-
-md5_set = set()
-
-def save_to_zip(image):
-    md5 = hashlib.md5()
-    md5.update(image.tobytes())
-    name = md5.hexdigest() + ".png"
-    if name in md5_set:
-        return name
-    saved_buffer = io.BytesIO()
-    image.save(saved_buffer, format="PNG")
-    saved_buffer = saved_buffer.getvalue()
-    files = {"file": saved_buffer}
-    requests.post(f"http://0.0.0.0:11231/?name={name}", files=files)
-    md5_set.add(name)
-    return name
-
-
-def crawl(parts, Q, download_folder, infos):
-    for data_url in parts:
-        parquet_file = os.path.join(download_folder, f"{os.getpid()}.parquet")
-        try:
-            download_url_to_file(data_url, parquet_file)
-            part = pd.read_parquet(parquet_file)
-            for _, row in part.iterrows():
-                image, artist, genre, style = (
-                    row["image"]["bytes"],
-                    int(row["artist"]),
-                    int(row["genre"]),
-                    int(row["style"]),
-                )
-                image = io.BytesIO(image)
-                image = Image.open(image)
-                try:
-                    name = save_to_zip(image)
-                    record = {
-                        "image": name,
-                        "artist_id": artist,
-                        "genre_id": genre,
-                        "style_id": style,
-                        "artist": infos["artists"].get(artist, "Unknown"),
-                        "genre": infos["genres"].get(genre, "Unknown"),
-                        "style": infos["styles"].get(style, "Unknown"),
-                    }
-                    Q.put(record)
-                except Exception as e:
-                    logging.error(f"Failed to process image in {data_url}: {e}")
-        except Exception as e:
-            logging.error(f"Failed to download {data_url}: {e}")
-    Q.put("Done")
-
-
-def write_file(fpath, Q, cnt):
-    f = open(fpath, "a+")
-    done = 0
-    while True:
-        item = Q.get()
-        if item == "Done":
-            done += 1
-            if done == cnt:
-                break
-        else:
-            f.write(json.dumps(item) + "\n")
-            f.flush()
 
 
 def main(
@@ -88,6 +25,7 @@ def main(
     download_folder: str = "./",
     output_file: str = "./output.jsonl",
     num_processes: int = 10,
+    max_queue_size: int = 1000,
 ):
     base_folder = os.path.dirname(output_file)
     if not os.path.exists(base_folder):
@@ -119,26 +57,83 @@ def main(
         "styles": {i: style for i, style in enumerate(styles)},
     }
 
+    saved_images = set()
+    Q = queue.Queue(maxsize=max_queue_size)
     num_processes = min(10, len(data))
+
+    def save_to_zip(image):
+        md5 = hashlib.md5()
+        md5.update(image.tobytes())
+        name = md5.hexdigest() + ".png"
+        if name in saved_images:
+            return name
+        saved_buffer = io.BytesIO()
+        image.save(saved_buffer, format="PNG")
+        saved_buffer = saved_buffer.getvalue()
+        files = {"file": saved_buffer}
+        requests.post(f"http://0.0.0.0:11231/?name={name}", files=files)
+        saved_images.add(name)
+        return name
+
+    def crawl(parts):
+        for data_url in parts:
+            parquet_file = os.path.join(download_folder, f"{os.getpid()}.parquet")
+            try:
+                download_url_to_file(data_url, parquet_file)
+                part = pd.read_parquet(parquet_file)
+                for _, row in part.iterrows():
+                    image, artist, genre, style = (
+                        row["image"]["bytes"],
+                        int(row["artist"]),
+                        int(row["genre"]),
+                        int(row["style"]),
+                    )
+                    image = io.BytesIO(image)
+                    image = Image.open(image)
+                    try:
+                        name = save_to_zip(image)
+                        record = {
+                            "image": name,
+                            "artist_id": artist,
+                            "genre_id": genre,
+                            "style_id": style,
+                            "artist": infos["artists"].get(artist, "Unknown"),
+                            "genre": infos["genres"].get(genre, "Unknown"),
+                            "style": infos["styles"].get(style, "Unknown"),
+                        }
+                        Q.put(record)
+                    except Exception as e:
+                        logging.error(f"Failed to process image in {data_url}: {e}")
+            except Exception as e:
+                logging.error(f"Failed to download {data_url}: {e}")
+        Q.put("Done")
+
+    def write_file(cnt):
+        f = open(output_file, "a+")
+        done = 0
+        while True:
+            item = Q.get()
+            if item == "Done":
+                done += 1
+                if done == cnt:
+                    break
+            else:
+                f.write(json.dumps(item) + "\n")
+                f.flush()
+
     data_parts = []
     for i in range(num_processes):
         data_parts.append(data[i::num_processes])
 
     processes = []
-    queue = Queue()
     for i in range(num_processes):
-        p = Process(
+        p = threading.Thread(
             target=crawl,
-            args=(
-                data_parts[i],
-                queue,
-                download_folder,
-                infos,
-            ),
+            args=(data_parts[i],),
         )
         processes.append(p)
 
-    io_process = Process(target=write_file, args=(output_file, queue, num_processes))
+    io_process = threading.Thread(target=write_file, args=(num_processes,))
     processes.append(io_process)
 
     for p in processes:
