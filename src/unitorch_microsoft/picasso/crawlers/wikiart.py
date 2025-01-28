@@ -17,16 +17,20 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from multiprocessing import Process, Queue
 from unitorch_microsoft import cached_path
 
+md5_set = set()
 
 def save_to_zip(image):
     md5 = hashlib.md5()
     md5.update(image.tobytes())
     name = md5.hexdigest() + ".png"
+    if name in md5_set:
+        return name
     saved_buffer = io.BytesIO()
     image.save(saved_buffer, format="PNG")
     saved_buffer = saved_buffer.getvalue()
     files = {"file": saved_buffer}
     requests.post(f"http://0.0.0.0:11231/?name={name}", files=files)
+    md5_set.add(name)
     return name
 
 
