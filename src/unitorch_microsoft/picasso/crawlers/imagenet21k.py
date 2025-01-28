@@ -22,7 +22,7 @@ def save_to_zip(image):
     md5.update(image.tobytes())
     name = md5.hexdigest() + ".jpg"
     saved_buffer = io.BytesIO()
-    image.save(saved_buffer, format="JPG")
+    image.save(saved_buffer, format="JPEG")
     saved_buffer = saved_buffer.getvalue()
     files = {"file": saved_buffer}
     requests.post(f"http://0.0.0.0:11231/?name={name}", files=files)
