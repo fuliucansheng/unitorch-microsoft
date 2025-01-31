@@ -106,6 +106,8 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.aether
     import unitorch_microsoft.chatgpt
     import unitorch_microsoft.deepgen
+    import unitorch_microsoft.fastapis
+    import unitorch_microsoft.interrogators
     import unitorch_microsoft.models.bletchley
     import unitorch_microsoft.models.bloom
     import unitorch_microsoft.models.culr
@@ -116,10 +118,18 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.models.tribert
     import unitorch_microsoft.models.tulg
     import unitorch_microsoft.models.tulr
+    import unitorch_microsoft.modules
     import unitorch_microsoft.msan
+    import unitorch_microsoft.omnigpt
+    import unitorch_microsoft.omnilora
     import unitorch_microsoft.pa
     import unitorch_microsoft.pa.intl
     import unitorch_microsoft.pa.l2
+    import unitorch_microsoft.picasso
+    import unitorch_microsoft.pipelines
+    import unitorch_microsoft.scores
+    import unitorch_microsoft.scripts
+    import unitorch_microsoft.services
     import unitorch_microsoft.utils
     import unitorch_microsoft.vpr
     import unitorch_microsoft.webuis

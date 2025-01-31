@@ -167,39 +167,3 @@ class BletchleyProcessor:
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
         return TensorsInputs(inputs)
-
-    @register_process("microsoft/process/bletchley/v3/uncertainty/classification")
-    def _classification_with_label(
-        self,
-        text: str,
-        image: Union[Image.Image, str],
-        label: Optional[int] = None,
-        text_pair: Optional[str] = None,
-        max_seq_length: Optional[int] = None,
-        prefix: Optional[str] = None,
-    ):
-        max_seq_length = pop_value(
-            max_seq_length,
-            self.max_seq_length,
-        )
-        if isinstance(image, str):
-            image = Image.open(image)
-        image = self.image_transform(image)
-
-        outputs = self._tokenize(
-            text=text,
-            text_pair=text_pair,
-            max_seq_length=max_seq_length,
-        )
-
-        inputs = dict(
-            input_ids=outputs.input_ids,
-            attention_mask=outputs.attention_mask,
-            images=image,
-        )
-        if prefix is not None:
-            inputs = {prefix + k: v for k, v in inputs.items()}
-        if label is not None:
-            inputs["label"] = torch.tensor(int(label), dtype=torch.long)
-
-        return TensorsInputs(inputs)

@@ -42,6 +42,14 @@ supported_image_sizes = [
     (1707, 1024),
 ]
 
+supported_image_styles = [
+    "realistic_image",
+    "digital_illustration",
+    "vector_illustration",
+    "icon",
+    "logo_raster",
+]
+
 
 def save_image_from_url(folder, url):
     name = hashlib.md5(url.encode()).hexdigest() + ".jpg"

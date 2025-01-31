@@ -79,6 +79,7 @@ def main(
     output_file: str = "./output.jsonl",
     num_processes: int = 10,
     data_split: str = "first",
+    max_queue_size: Optional[int] = 1000,
 ):
     base_folder = os.path.dirname(output_file)
     if not os.path.exists(base_folder):
@@ -102,7 +103,7 @@ def main(
         data_parts.append(data.iloc[i::num_processes])
 
     processes = []
-    queue = Queue()
+    queue = Queue(maxsize=max_queue_size)
     for i in range(num_processes):
         p = Process(
             target=crawl,

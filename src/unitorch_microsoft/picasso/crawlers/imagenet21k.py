@@ -70,6 +70,7 @@ def main(
     download_folder: str = "./",
     output_file: str = "./output.jsonl",
     num_processes: int = 10,
+    max_queue_size: Optional[int] = 1000,
 ):
     base_folder = os.path.dirname(output_file)
     if not os.path.exists(base_folder):
@@ -84,13 +85,13 @@ def main(
         for i in range(start, stop + 1)
     ]
 
-    num_processes = min(10, len(data))
+    num_processes = min(num_processes, len(data))
     data_parts = []
     for i in range(num_processes):
         data_parts.append(data[i::num_processes])
 
     processes = []
-    queue = Queue()
+    queue = Queue(maxsize=max_queue_size)
     for i in range(num_processes):
         p = Process(
             target=crawl,

@@ -8,10 +8,6 @@ from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from sklearn.metrics import roc_auc_score
 from unitorch.models import GenericOutputs
-from unitorch.models.clip import (
-    ClipForPretrain as _ClipForPretrain,
-    ClipProcessor,
-)
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 
 from unitorch.cli import (
@@ -22,32 +18,25 @@ from unitorch.cli import (
 )
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
-from unitorch.cli.models.clip import pretrained_clip_infos
+from unitorch_microsoft.models.bletchley.modeling_v3 import BletchleyForPretrain
+from unitorch_microsoft.models.bletchley.processing_v3 import BletchleyProcessor
 
 
-class ClipInterrogatorPipeline(_ClipForPretrain):
+class BletchleyInterrogatorPipeline(BletchleyForPretrain):
     def __init__(
         self,
-        config_path: str,
-        vocab_path: str,
-        merge_path: str,
-        vision_config_path: str,
-        max_seq_length: Optional[int] = 77,
+        config_type: str,
+        projection_dim: Optional[int] = 1024,
+        max_seq_length: Optional[int] = 64,
         weight_path: Optional[Union[str, List[str]]] = None,
         state_dict: Optional[Dict[str, Any]] = None,
         device: Optional[Union[str, int]] = "cpu",
     ):
-        projection_dim = nested_dict_value(
-            read_json_file(config_path), "projection_dim"
-        )
         super().__init__(
-            config_path=config_path,
+            config_type=config_type,
             projection_dim=projection_dim,
         )
-        self.processor = ClipProcessor(
-            vocab_path=vocab_path,
-            merge_path=merge_path,
-            vision_config_path=vision_config_path,
+        self.processor = BletchleyProcessor(
             max_seq_length=max_seq_length,
         )
         self._device = "cpu" if device == "cpu" else int(device)
@@ -125,84 +114,50 @@ class ClipInterrogatorPipeline(_ClipForPretrain):
         self.positive_labels_embeds = self.get_text_embeds(self.positive_labels)
 
     @classmethod
-    @add_default_section_for_init("microsoft/omnilora/interrogator/clip")
+    @add_default_section_for_init("microsoft/interrogators/bletchley")
     def from_core_configure(
         cls,
         config,
-        pretrained_name: str = None,
-        config_path: Optional[str] = None,
-        vocab_path: Optional[str] = None,
-        merge_path: Optional[str] = None,
-        vision_config_path: Optional[str] = None,
+        config_type: str = None,
         pretrained_weight_path: Optional[str] = None,
         device: Optional[str] = "cpu",
         **kwargs,
     ):
-        config.set_default_section("microsoft/omnilora/interrogator/clip")
-        pretrained_name = config.getoption("pretrained_name", pretrained_name)
-
-        config_path = config.getoption("config_path", config_path)
-        config_path = pop_value(
-            config_path,
-            nested_dict_value(pretrained_clip_infos, pretrained_name, "config"),
-        )
-        config_path = cached_path(config_path)
-
-        vocab_path = config.getoption("vocab_path", vocab_path)
-        vocab_path = pop_value(
-            vocab_path,
-            nested_dict_value(pretrained_clip_infos, pretrained_name, "vocab"),
-        )
-        vocab_path = cached_path(vocab_path)
-
-        merge_path = config.getoption("merge_path", merge_path)
-        merge_path = pop_value(
-            merge_path,
-            nested_dict_value(pretrained_clip_infos, pretrained_name, "merge"),
-        )
-        merge_path = cached_path(merge_path)
-
-        vision_config_path = config.getoption("vision_config_path", vision_config_path)
-        vision_config_path = pop_value(
-            vision_config_path,
-            nested_dict_value(pretrained_clip_infos, pretrained_name, "vision_config"),
-        )
-        vision_config_path = cached_path(vision_config_path)
-
-        max_seq_length = config.getoption("max_seq_length", 77)
+        config.set_default_section("microsoft/interrogator/bletchley")
+        config_type = config.getoption("config_type", config_type)
+        projection_dim = config.getoption("projection_dim", 1024)
+        max_seq_length = config.getoption("max_seq_length", 64)
         device = config.getoption("device", device)
         pretrained_weight_path = config.getoption(
             "pretrained_weight_path", pretrained_weight_path
         )
-        weight_path = pop_value(
-            pretrained_weight_path,
-            nested_dict_value(pretrained_clip_infos, pretrained_name, "weight"),
-            check_none=False,
-        )
         inst = cls(
-            config_path,
-            vocab_path,
-            merge_path,
-            vision_config_path,
+            config_type=config_type,
+            projection_dim=projection_dim,
             max_seq_length=max_seq_length,
-            weight_path=weight_path,
+            weight_path=pretrained_weight_path,
             device=device,
         )
 
         return inst
 
     def get_image_embeds(self, images: List[Image.Image], max_batch_size=128):
-        inputs = [self.processor.image_classification(image) for image in images]
+        inputs = [
+            self.processor._image_classification(image).dict() for image in images
+        ]
         keys = inputs[0].keys()
         inputs = {
             k: torch.stack([i[k] for i in inputs]).to(device=self._device) for k in keys
         }
+        # image_outputs = self.image_encoder(inputs["images"])
+        # image_embeds = self.image_projection(image_outputs[:, 0])
+        # image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+        # return image_embeds.cpu()
+
         results = []
-        for i in range(0, len(inputs["pixel_values"]), max_batch_size):
-            vision_outputs = self.vision_model(
-                pixel_values=inputs["pixel_values"][i : i + max_batch_size]
-            )
-            image_embeds = self.visual_projection(vision_outputs[1])
+        for i in range(0, len(inputs["images"]), max_batch_size):
+            image_outputs = self.image_encoder(inputs["images"][i : i + max_batch_size])
+            image_embeds = self.image_projection(image_outputs[:, 0])
             image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
             results.append(image_embeds.cpu())
         return torch.cat(results, dim=0)
@@ -210,19 +165,18 @@ class ClipInterrogatorPipeline(_ClipForPretrain):
     def get_text_embeds(self, texts: Union[str, List[str]], max_batch_size=128):
         if isinstance(texts, str):
             texts = [texts]
-        inputs = [self.processor.text_classification(text) for text in texts]
+        inputs = [self.processor._text_classification(text).dict() for text in texts]
         keys = inputs[0].keys()
         inputs = {
             k: torch.stack([i[k] for i in inputs]).to(device=self._device) for k in keys
         }
         results = []
         for i in range(0, len(inputs["input_ids"]), max_batch_size):
-            text_outputs = self.text_model(
-                input_ids=inputs["input_ids"][i : i + max_batch_size],
-                attention_mask=inputs["attention_mask"][i : i + max_batch_size],
-                position_ids=inputs["position_ids"][i : i + max_batch_size],
+            text_outputs = self.text_encoder(
+                inputs["input_ids"][i : i + max_batch_size],
+                inputs["attention_mask"][i : i + max_batch_size],
             )
-            text_embeds = self.text_projection(text_outputs[1])
+            text_embeds = self.text_projection(text_outputs[:, 0])
             text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
             results.append(text_embeds.cpu())
         return torch.cat(results, dim=0)
@@ -358,17 +312,17 @@ class ClipInterrogatorPipeline(_ClipForPretrain):
         )
 
 
-@register_script("microsoft/omnilora/script/interrogator/clip")
-class ClipInterrogatorScript(GenericScript):
+@register_script("microsoft/script/interrogator/bletchley")
+class BletchleyInterrogatorScript(GenericScript):
     def __init__(self, config: CoreConfigureParser):
         self.config = config
 
     def launch(self, **kwargs):
         config = self.config
 
-        pipe = ClipInterrogatorPipeline.from_core_configure(config)
+        pipe = BletchleyInterrogatorPipeline.from_core_configure(config)
 
-        config.set_default_section("microsoft/omnilora/script/interrogator/clip")
+        config.set_default_section("microsoft/script/interrogator/bletchley")
 
         data_file = config.getoption("data_file", None)
         names = config.getoption("names", None)

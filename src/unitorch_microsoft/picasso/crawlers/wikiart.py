@@ -59,7 +59,7 @@ def main(
 
     saved_images = set()
     Q = queue.Queue(maxsize=max_queue_size)
-    num_processes = min(10, len(data))
+    num_processes = min(num_processes, len(data))
 
     def save_to_zip(image):
         md5 = hashlib.md5()

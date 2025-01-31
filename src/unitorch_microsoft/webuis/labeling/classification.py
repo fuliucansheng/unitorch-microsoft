@@ -99,13 +99,17 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
 
         # show columns
+        self.group_text_cols = config.getoption("group_text_cols", None)
         self.text_cols = config.getoption("text_cols", None)
         self.image_cols = config.getoption("image_cols", None)
         self.video_cols = config.getoption("video_cols", None)
         self.url_cols = config.getoption("url_cols", None)
         self.html_cols = config.getoption("html_cols", None)
         self.show_cols = config.getoption("show_cols", None)
+        self.zip_cols = config.getoption("zip_cols", None)
+        self.zip_http_url = config.getoption("zip_http_url", None)
         self.group_col = config.getoption("group_col", None)
+        self.num_group_texts_per_row = config.getoption("num_group_texts_per_row", 4)
         self.num_images_per_row = config.getoption("num_images_per_row", 4)
         self.num_videos_per_row = config.getoption("num_videos_per_row", 4)
         self.num_mix_images_videos_per_row = config.getoption(
@@ -123,10 +127,24 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.max_video_width = config.getoption("max_video_width", "none")
         self.max_video_height = config.getoption("max_video_height", "100px")
 
+        if self.group_text_cols is not None:
+            if isinstance(self.group_text_cols, str):
+                self.group_text_cols = re.split(r"[,;]", self.group_text_cols)
+                self.group_text_cols = [n.strip() for n in self.group_text_cols]
+            assert all(
+                [col in self.dataset.columns for col in self.group_text_cols]
+            ), f"group_text_cols {self.group_text_cols} not found in dataset"
+        else:
+            self.group_text_cols = []
+
         if self.text_cols is not None:
             if isinstance(self.text_cols, str):
                 self.text_cols = re.split(r"[,;]", self.text_cols)
                 self.text_cols = [n.strip() for n in self.text_cols]
+
+            self.text_cols = [
+                col for col in self.text_cols if col not in self.group_text_cols
+            ] + self.group_text_cols
             assert all(
                 [col in self.dataset.columns for col in self.text_cols]
             ), f"text_cols {self.text_cols} not found in dataset"
@@ -183,6 +201,20 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         else:
             self.show_cols = list(self.dataset.columns)
 
+        if self.zip_cols is not None:
+            if isinstance(self.zip_cols, str):
+                self.zip_cols = re.split(r"[,;]", self.zip_cols)
+                self.zip_cols = [n.strip() for n in self.zip_cols]
+            assert all(
+                [col in self.dataset.columns for col in self.zip_cols]
+            ), f"zip_cols {self.zip_cols} not found in dataset"
+        else:
+            self.zip_cols = []
+
+        if len(self.zip_cols) > 0:
+            assert self.zip_http_url is not None, "zip_http_url is required."
+
+        self.num_group_text_cols = len(self.group_text_cols)
         self.num_text_cols = 0 if self.text_cols is None else len(self.text_cols)
         self.num_image_cols = 0 if self.image_cols is None else len(self.image_cols)
         self.num_video_cols = 0 if self.video_cols is None else len(self.video_cols)
@@ -220,7 +252,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             values=[" - "] + self.dataset["Index"].tolist(),
         )
         if self.group_col is not None:
-            group_values += self.dataset[self.group_col].unique().tolist()
+            group_values = self.dataset[self.group_col].unique().tolist()
         else:
             group_values = []
         group = create_element(
@@ -364,7 +396,13 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
 
         # create blocks
-        text_layout = create_column(*texts)
+        text_layout = create_column(
+            *texts[: -self.num_group_text_cols],
+            create_flex_layout(
+                *texts[-self.num_group_text_cols :],
+                num_per_row=self.num_group_texts_per_row,
+            ),
+        )
         if (
             self.num_image_cols + self.num_video_cols
             > self.num_mix_images_videos_per_row
@@ -538,11 +576,14 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 )
                 try:
                     if not os.path.exists(name):
-                        download_url_to_file(url, name)
+                        download_url_to_file(url, name, progress=False)
                     return name
                 except Exception as e:
                     print(e)
             return url
+
+        for col in set(self.zip_cols):
+            sample[col] = self.zip_http_url.format(sample[col])
 
         for col in self.image_cols + self.video_cols:
             sample[col] = save_url(sample[col])
@@ -565,6 +606,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             if x.startswith("http")
             else self.http_url.format(os.path.abspath(x))
         )
+
+        for col in set(self.zip_cols):
+            results[col] = results[col].map(lambda x: self.zip_http_url.format(x))
+
         for col in set(self.image_cols):
             results[col] = results[col].map(url)
             results[col] = results[col].map(

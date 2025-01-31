@@ -149,7 +149,6 @@ def text2image(
     width: Optional[int] = 1024,
 ):
     assert (width, height) in supported_image_sizes, "Unsupported image size."
-    assert style_type in supported_style_types, "Unsupported style type."
 
     if isinstance(names, str) and names.strip() == "*":
         names = None
