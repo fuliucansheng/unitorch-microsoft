@@ -33,6 +33,7 @@ from unitorch.cli import (
 from unitorch_microsoft.models.bletchley.roberta import (
     RobertaEncoder as RobertaPreLNEncoder,
 )
+from unitorch_microsoft.models.bletchley.processing_v1 import BletchleyProcessor
 
 
 def get_bletchley_text_config(
@@ -1280,3 +1281,143 @@ class BletchleyForTextSelection(GenericModel):
         loss = loss / ((samples.shape[1] - 1) * samples.shape[0])
 
         return LossOutputs(loss=loss)
+
+
+@register_model("microsoft/model/matching/bletchley/v1/v2")
+class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
+    replace_keys_in_state_dict = {
+        "text_encoder.projection": "text_projection",
+        "image_encoder.projection": "image_projection",
+    }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
+
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 1024,
+        freeze_base_model: Optional[bool] = True,
+        gradient_checkpointing: Optional[bool] = False,
+        output_text_embed: Optional[bool] = False,
+        output_image_embed: Optional[bool] = False,
+        labels: Optional[List[str]] = None,
+        max_seq_length: Optional[int] = 128,
+    ):
+        super().__init__()
+
+        self.output_text_embed = output_text_embed
+        self.output_image_embed = output_image_embed
+
+        text_config = get_bletchley_text_config(config_type, gradient_checkpointing)
+        image_config = get_bletchley_image_config(config_type, gradient_checkpointing)
+        self.text_encoder = BletchleyTextEncoder(
+            text_config, add_projection_layer=False
+        )
+        self.image_encoder = BletchleyImageEncoder(
+            image_config, add_projection_layer=False
+        )
+
+        self.projection_dim = projection_dim
+        self.text_embed_dim = text_config.hidden_size
+        self.image_embed_dim = image_config.hidden_size
+        self.text_projection = nn.Linear(
+            self.text_embed_dim,
+            self.projection_dim,
+        )
+        self.image_projection = nn.Linear(
+            self.image_embed_dim,
+            self.projection_dim,
+        )
+
+        self.classifier = nn.Linear(1, 1)
+
+        self.init_weights()
+        self.classifier.weight.data.fill_(5.0)
+
+        self.labels = labels
+        self.processor = BletchleyProcessor(
+            max_seq_length=max_seq_length,
+        )
+
+        if freeze_base_model:
+            for p in self.text_encoder.parameters():
+                p.requires_grad = False
+
+            for p in self.image_encoder.parameters():
+                p.requires_grad = False
+
+    def setup_label(self):
+        self.labels_embs = [self.get_text_embeds(v) for v in self.labels]
+        self.labels_embs = torch.cat(self.labels_embs, dim=0)
+
+    @torch.no_grad()
+    def get_text_embeds(self, text: str):
+        inputs = self.processor._text_classification(text)
+        inputs = {
+            k: v.unsqueeze(0) if v is not None else v for k, v in inputs.dict().items()
+        }
+        inputs = {
+            k: v.to(device="cpu") if v is not None else v for k, v in inputs.items()
+        }
+        text_outputs = self.text_encoder(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+        )
+        text_embeds = self.text_projection(text_outputs[:, 0])
+        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+        return text_embeds
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/matching/bletchley/v1/v2")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/matching/bletchley/v1/v2")
+        config_type = config.getoption("config_type", "0.8B")
+
+        projection_dim = config.getoption("projection_dim", 1024)
+        freeze_base_model = config.getoption("freeze_base_model", True)
+        gradient_checkpointing = config.getoption("gradient_checkpointing", False)
+        output_text_embed = config.getoption("output_text_embed", False)
+        output_image_embed = config.getoption("output_image_embed", False)
+        labels = config.getoption("labels", None)
+
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            freeze_base_model=freeze_base_model,
+            gradient_checkpointing=gradient_checkpointing,
+            output_text_embed=output_text_embed,
+            output_image_embed=output_image_embed,
+            labels=labels,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
+            )
+
+        if labels is not None:
+            inst.setup_label()
+        return inst
+
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
+    def forward(
+        self,
+        images: torch.Tensor = None,
+    ):
+        image_outputs = self.image_encoder(images)
+        image_embeds = self.image_projection(image_outputs[:, 0])
+
+        image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+        self.labels_embs = self.labels_embs.to(device=image_embeds.device)
+        scores = torch.einsum("ij,kj->ik", image_embeds, self.labels_embs)
+        return ClassificationOutputs(outputs=scores)

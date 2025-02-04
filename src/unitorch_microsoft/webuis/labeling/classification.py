@@ -323,7 +323,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             "radio",
             values=["All", "Labeled", "Unlabeled"],
             default="Unlabeled",
-            label="Sample Type",
+            label="Data Type",
             scale=2,
         )
         random = create_element(
@@ -344,6 +344,15 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             "text",
             label="Progress",
             interactive=False,
+            scale=2,
+        )
+        res_disp_cols = create_element(
+            "dropdown",
+            label="Display Columns",
+            default=" - ",
+            values=[" - "] + self.show_cols,
+            interactive=True,
+            multiselect=True,
             scale=2,
         )
         res_label = create_element(
@@ -453,8 +462,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             name="Labeling",
         )
         tab2 = create_tab(
-            create_row(progress, user, download),
-            create_row(group, data_type, res_label, refresh),
+            create_row(progress, group, res_label, download),
+            create_row(data_type, res_disp_cols, refresh),
             results,
             name="Results",
         )
@@ -507,7 +516,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
         refresh.click(
             self.show,
-            inputs=[group, data_type, res_label],
+            inputs=[group, data_type, res_label, res_disp_cols],
             outputs=[progress, results],
             trigger_mode="once",
         )
@@ -650,7 +659,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         return self.load(sampled_data.sample(1).iloc[0]["Index"])
 
-    def show(self, group=None, data_type="Labeled", choice=None):
+    def show(self, group=None, data_type="Labeled", choice=None, disp_cols=None):
         total = self.dataset.shape[0]
         progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
 
@@ -669,11 +678,16 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if len(results) > 0:
             results = self.process_results(results)
 
+        if disp_cols is None:
+            disp_cols = self.show_cols
+        elif " - " in disp_cols:
+            disp_cols = self.show_cols
+
         results = results[
             ["Index"]
             + [
                 col
-                for col in self.show_cols
+                for col in disp_cols
                 if col not in ["Comment", "User", "Label", "Index"]
             ]
             + ["Label", "Comment"]
