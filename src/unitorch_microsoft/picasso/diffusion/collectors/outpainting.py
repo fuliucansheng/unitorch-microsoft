@@ -34,7 +34,7 @@ endpoints = [
     # "http://br1t45-s1-01:5051/core/fastapi/stable_flux",
     # gpu8
     "http://br1t43-s3-17.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
-    "http://br1t43-s3-17.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
+    # "http://br1t43-s3-17.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
 ]
 
 
