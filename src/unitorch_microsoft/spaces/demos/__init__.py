@@ -36,6 +36,7 @@ from unitorch_microsoft.spaces.demos.flux.obj_add import AddObjWebUI as FluxAddO
 from unitorch_microsoft.spaces.demos.flux.obj_remove import (
     RemoveObjWebUI as FluxRemoveObjWebUI,
 )
+from unitorch_microsoft.spaces.demos.flux.t2i import T2IWebUI
 
 
 config_path = cached_path("spaces/config.ini")
@@ -73,6 +74,11 @@ remove_obj_page.infos = {
 }
 
 # flux
+flux_t2i_page = T2IWebUI(config).iface
+flux_t2i_page.infos = {
+    "title": "Text to Image",
+    "description": "This is a demo for text to image with FLUX.",
+}
 flux_change_bg_page = FluxChangeBGWebUI(config).iface
 flux_change_bg_page.infos = {
     "title": "Change Background",
@@ -113,6 +119,7 @@ image_pages = [
 ]
 
 flux_pages = [
+    flux_t2i_page,
     flux_change_bg_page,
     flux_expand_bg_page,
     flux_add_obj_page,

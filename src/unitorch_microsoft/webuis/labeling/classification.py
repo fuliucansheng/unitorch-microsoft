@@ -239,6 +239,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if os.path.exists(result_file) and not force_to_relabel:
             self.dataset = pd.read_csv(result_file, sep="\t")
             self.dataset.fillna("", inplace=True)
+            self.dataset["User"] = self.dataset["User"].map(str)
+            self.dataset["Comment"] = self.dataset["Comment"].map(str)
+            self.dataset["Label"] = self.dataset["Label"].map(str)
         else:
             self.dataset.to_csv(result_file, sep="\t", index=False)
 
@@ -482,36 +485,13 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         submit.click(
             self.label,
             inputs=[index, group, user, choices, comment, adv_logs],
-            outputs=[
-                download,
-                adv_stats,
-                adv_logs,
-                index,
-                progress,
-                group,
-                choices,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
-            ],
+            outputs=[download, adv_stats, adv_logs, index],
             trigger_mode="once",
         )
         random.click(
             self.sample,
             inputs=[group, random_type],
-            outputs=[
-                index,
-                progress,
-                group,
-                choices,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
-            ],
+            outputs=[index],
             trigger_mode="once",
         )
         refresh.click(
@@ -546,17 +526,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         iface.load(
             fn=self.sample,
             inputs=[group, random_type],
-            outputs=[
-                index,
-                progress,
-                group,
-                choices,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
-            ],
+            outputs=[index],
         )
         iface.load(
             fn=lambda: tuple(self.show())
@@ -655,9 +625,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             sampled_data = sampled_data[sampled_data[self.group_col] == group]
 
         if len(sampled_data) == 0:
-            return self.load(" - ")
+            return " - "
 
-        return self.load(sampled_data.sample(1).iloc[0]["Index"])
+        return sampled_data.sample(1).iloc[0]["Index"]
 
     def show(self, group=None, data_type="Labeled", choice=None, disp_cols=None):
         total = self.dataset.shape[0]
@@ -813,10 +783,14 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         comment,
         logs,
     ):
+        if (
+            choice is None
+            or choice == ""
+            or (isinstance(choice, (list, tuple)) and len(choice) == 0)
+        ):
+            return os.path.abspath(self.result_file), self.stats(), logs, index
         if isinstance(choice, list) or isinstance(choice, tuple):
-            choice = ",".join(choice) if len(choice) > 0 else self.default_choice
-        elif choice is None:
-            choice = self.default_choice
+            choice = ",".join(choice)
         self.dataset.loc[self.dataset.Index == index, "User"] = user
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment
@@ -824,16 +798,17 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if user is not None and user != "":
             new_logs = (
                 f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: User {user} Label {index} to {choice} Success. \n"
-                + logs
+                + self.logs
             )
         else:
             new_logs = (
                 f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: Label {index} to {choice} Success. \n"
-                + logs
+                + self.logs
             )
         self.logs = new_logs
         return (
             os.path.abspath(self.result_file),
             self.stats(),
             new_logs,
-        ) + self.sample(group)
+            self.sample(group),
+        )

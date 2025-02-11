@@ -50,7 +50,7 @@ def text2image(
     height: Optional[int] = 1024,
     width: Optional[int] = 1024,
     prompt_upsampling: Optional[bool] = False,
-    max_queue_size: Optional[int] = 10,
+    max_queue_size: Optional[int] = 2000,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -147,9 +147,13 @@ def text2image(
                     }
                     writer.write(json.dumps(record) + "\n")
                     writer.flush()
-                else:
+                elif response["status"] == "Pending":
                     Q.put(trackid)
                     time.sleep(2)
+                else:
+                    logging.warning(
+                        f"TrackId: {trackid} - Prompt: {_prompt} - Status: {response['status']}"
+                    )
             except:
                 pass
 

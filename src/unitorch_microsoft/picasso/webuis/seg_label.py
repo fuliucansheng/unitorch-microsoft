@@ -304,6 +304,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             create_element(
                 "image",
                 label=col,
+                elem_classes="ut-ms-seq-label-bg-green",
             )
             for col in self.image_cols
         ]
@@ -323,33 +324,30 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         ]
         choices1 = create_element(
             "radio" if not self.checkbox1 else "checkboxgroup",
-            label="Label1",
+            label="Segmentation Label",
             values=self.choices1,
-            scale=3,
+            scale=2,
         )
         choices2 = create_element(
             "radio" if not self.checkbox2 else "checkboxgroup",
-            label="Label2",
+            label="Image Attractiveness",
             values=self.choices2,
-            scale=3,
         )
         choices3 = create_element(
             "radio" if not self.checkbox3 else "checkboxgroup",
-            label="Label3",
+            label="Product Integrity",
             values=self.choices3,
-            scale=3,
         )
         choices4 = create_element(
             "radio" if not self.checkbox4 else "checkboxgroup",
-            label="Label4",
+            label="Readable Text in Background",
             values=self.choices4,
-            scale=3,
         )
 
         comment = create_element(
             "text",
             label="Comment",
-            lines=4,
+            lines=2,
             scale=2,
         )
         random_type = create_element(
@@ -466,13 +464,23 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             )
             image_layout, video_layout = None, None
         html_layout = create_flex_layout(*htmls, num_per_row=self.num_html_per_row)
+        """
         label_layout = create_row(
             comment,
             create_column(
-                choices1,
                 create_row(choices2, choices3, choices4),
+                choices1,
                 create_row(reset, submit),
                 scale=3,
+            ),
+        )
+        """
+        label_layout = create_column(
+            create_row(choices2, choices3, choices4, choices1),
+            create_row(
+                comment,
+                reset,
+                submit,
             ),
         )
 
@@ -513,7 +521,16 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             name="Advanced",
         )
         tabs = create_tabs(tab1, tab2, tab3)
-        iface = create_blocks(guideline_header, guideline, tabs)
+        iface = create_blocks(
+            guideline_header,
+            guideline,
+            tabs,
+            css="""
+            .ut-ms-seq-label-bg-green {
+              background-color: green !important;
+            }
+            """,
+        )
 
         # create events
         iface.__enter__()
@@ -535,37 +552,13 @@ class SegmentationLabelingWebUI(SimpleWebUI):
                 adv_stats,
                 adv_logs,
                 index,
-                progress,
-                group,
-                choices1,
-                choices2,
-                choices3,
-                choices4,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
             ],
             trigger_mode="once",
         )
         random.click(
             self.sample,
             inputs=[group, random_type],
-            outputs=[
-                index,
-                progress,
-                group,
-                choices1,
-                choices2,
-                choices3,
-                choices4,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
-            ],
+            outputs=[index],
             trigger_mode="once",
         )
         refresh.click(
@@ -603,20 +596,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         iface.load(
             fn=self.sample,
             inputs=[group, random_type],
-            outputs=[
-                index,
-                progress,
-                group,
-                choices1,
-                choices2,
-                choices3,
-                choices4,
-                comment,
-                *texts,
-                *images,
-                *videos,
-                *htmls,
-            ],
+            outputs=[index],
         )
         iface.load(
             fn=lambda: tuple(self.show())
@@ -717,9 +697,9 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             sampled_data = sampled_data[sampled_data[self.group_col] == group]
 
         if len(sampled_data) == 0:
-            return self.load(" - ")
+            return " - "
 
-        return self.load(sampled_data.sample(1).iloc[0]["Index"])
+        return sampled_data.sample(1).iloc[0]["Index"]
 
     def show(self, group=None, data_type="Labeled", choice=None, disp_cols=None):
         total = self.dataset.shape[0]
@@ -765,7 +745,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         labeled = self.dataset[self.dataset["Label"] != ""].shape[0]
         progress = f"{labeled} / {total}"
         gr.Info(f"Reset {index} Success.")
-        return None, None, progress
+        return None, None, None, None, None, progress
 
     def load(self, index):
         total = self.dataset.shape[0]
@@ -792,14 +772,17 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         new_comment = new_one["Comment"]
         new_choices = new_one["Label"].split(",") if new_one["Label"] != "" else []
         new_choices1 = [choice for choice in new_choices if choice in self.choices1]
+        """
         new_choices2 = [choice for choice in new_choices if choice in self.choices2]
         new_choices3 = [choice for choice in new_choices if choice in self.choices3]
         new_choices4 = [choice for choice in new_choices if choice in self.choices4]
+        """
+        new_choices2 = new_choices[-3:-2] if len(new_choices) > 0 else []
+        new_choices3 = new_choices[-2:-1] if len(new_choices) > 0 else []
+        new_choices4 = new_choices[-1:] if len(new_choices) > 0 else []
 
         if len(new_choices1) > 0 and not self.checkbox1:
             new_choices1 = new_choices1[0]
-        else:
-            new_choices1 = None
         if len(new_choices2) > 0 and not self.checkbox2:
             new_choices2 = new_choices2[0]
         else:
@@ -903,6 +886,17 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         comment,
         logs,
     ):
+        check1 = any(
+            ch == "" or ch is None for ch in [choice1, choice2, choice3, choice4]
+        )
+        check2 = "all bad" in choice1 and len(choice1) > 1
+        check3 = len(choice1) == 0
+        if check1 or check2 or check3:
+            gr.Warning(
+                "Please don't leave any of labels empty or segmentation label invaild."
+            )
+            return os.path.abspath(self.result_file), self.stats(), logs, index
+
         def process_choice(choice):
             if isinstance(choice, list) or isinstance(choice, tuple):
                 choice = ",".join(choice) if len(choice) > 0 else self.default_choice
@@ -927,16 +921,17 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         if user is not None and user != "":
             new_logs = (
                 f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: User {user} Label {index} to {choice} Success. \n"
-                + logs
+                + self.logs
             )
         else:
             new_logs = (
                 f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: Label {index} to {choice} Success. \n"
-                + logs
+                + self.logs
             )
         self.logs = new_logs
         return (
             os.path.abspath(self.result_file),
             self.stats(),
             new_logs,
-        ) + self.sample(group)
+            self.sample(group),
+        )
