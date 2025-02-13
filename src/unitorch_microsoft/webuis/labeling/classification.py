@@ -222,7 +222,6 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.guideline = config.getoption("guideline", None)
         self.choices = config.getoption("choices", None)
         self.checkbox = config.getoption("checkbox", False)
-        self.default_choice = config.getoption("default_choice", "")
         self.html_styles = config.getoption("html_styles", {})
         self.dataset["User"] = ""
         self.dataset["Comment"] = ""
@@ -231,21 +230,28 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if isinstance(self.choices, str):
             self.choices = re.split(r"[,;]", self.choices)
             self.choices = [c.strip() for c in self.choices]
-        self.choices = [c.replace(",", " ").strip() for c in self.choices]
-        self.default_choice = self.default_choice.replace(",", " ").strip()
-        if self.default_choice not in self.choices and self.default_choice != "":
-            self.choices = self.choices + [self.default_choice]
+        self.choices = [str(c).replace(",", " ").strip() for c in self.choices]
 
         if os.path.exists(result_file) and not force_to_relabel:
             self.dataset = pd.read_csv(result_file, sep="\t")
-            self.dataset.fillna("", inplace=True)
-            self.dataset["User"] = self.dataset["User"].map(str)
-            self.dataset["Comment"] = self.dataset["Comment"].map(str)
-            self.dataset["Label"] = self.dataset["Label"].map(str)
         else:
             self.dataset.to_csv(result_file, sep="\t", index=False)
 
         self.logs = f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: Start Labeling. \n"
+
+        # format dataset columns
+        str_columns = ["User", "Comment", "Label"]
+        str_columns += [self.group_col] if self.group_col is not None else []
+        str_columns += (
+            self.image_cols
+            + self.video_cols
+            + self.html_cols
+            + self.url_cols
+            + self.zip_cols
+        )
+        for col in str_columns:
+            self.dataset[col].fillna("", inplace=True)
+            self.dataset[col] = self.dataset[col].map(str)
 
         # create elements
         index = create_element(
@@ -362,7 +368,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             "dropdown",
             label="Label",
             default=" - ",
-            values=[" - "] + self.choices,
+            values=[" - "]
+            + self.choices
+            + ([] if not self.checkbox else [f"NOT {ch}" for ch in self.choices]),
         )
 
         adv_stats_header = create_element(
@@ -639,11 +647,16 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         elif data_type == "Unlabeled":
             results = results[results["Label"] == ""]
 
-        if choice is not None and choice not in ["", " - "]:
-            results = results[results["Label"].map(lambda x: choice in x)]
+        if choice is not None and choice not in ["", " - "] and len(results) > 0:
+            if self.checkbox and str(choice).startswith("NOT "):
+                results = results[
+                    results["Label"].map(lambda x: str(choice)[4:] not in x)
+                ]
+            else:
+                results = results[results["Label"].map(lambda x: str(choice) in x)]
 
-        if group is not None and group not in ["", " - "]:
-            results = results[results[self.group_col] == group]
+        if group is not None and group not in ["", " - "] and len(results) > 0:
+            results = results[results[self.group_col] == str(group)]
 
         if len(results) > 0:
             results = self.process_results(results)

@@ -16,6 +16,10 @@ pretrained_bletchley_v1_extensions_infos = {
         "text": "#### Prompt: watermarked, no watermark signature, brand logo \n #### Max Sequence: 36",
         "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.0.3B.lora4.watermark.2410.bin",
     },
+    "lora-0.8B-picasso-backgroundtype": {
+        "text": "#### Prompt: \n * white: white background, no objects in the background \n * simple: clean background, no objects in the background \n  * complex: complex background, objects in the background or even no background \n * real: a real image, not a poster or a logo \n * poster: poster image, composed of multiple objects, logo, text, etc. \n * logo: logo image, composed of logo only \n #### Max Sequence: 36",
+        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
+    },
     "lora-2.5B-picasso-watermark": {
         "text": "#### Prompt: watermarked, no watermark signature, brand logo \n #### Max Sequence: 36",
         "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.2.5B.lora4.watermark.2410.bin",

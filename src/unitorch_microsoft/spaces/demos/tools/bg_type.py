@@ -110,12 +110,12 @@ class BGTypeWebUI(SimpleWebUI):
     def start(self):
         self._pipe = BletchleyForMatchingV2Pipeline.from_core_configure(
             self._config,
-            config_type="2.5B",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2410.bin",
+            config_type="0.8B",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
             label_dict={
-                "complex": "complex detailed environment, detailed surroundings",
-                "simple": "minimal clean background",
-                "white": "white background",
+                "complex": "complex background, objects in the background or even no background",
+                "simple": "clean background, no objects in the background",
+                "white": "white background, no objects in the background",
             },
         )
         self._status = "Running"
