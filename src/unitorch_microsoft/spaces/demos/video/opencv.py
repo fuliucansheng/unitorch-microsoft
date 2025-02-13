@@ -53,8 +53,6 @@ class ZoomInWebUI(SimpleWebUI):
 
         left = create_column(input_image, frames, create_row(reset, generate))
         right = create_column(output_video)
-        iface = create_blocks()
-
         iface = create_blocks(
             toper_menus,
             header,
@@ -64,6 +62,8 @@ class ZoomInWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Zoom In"
+        iface._description = "This is a demo for zooming in video."
 
         # create events
         iface.__enter__()

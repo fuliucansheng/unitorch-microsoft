@@ -91,6 +91,8 @@ class ExpandBGWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Expand Background"
+        iface._description = "This is a demo for expanding background with FLUX."
 
         # create events
         iface.__enter__()

@@ -112,6 +112,8 @@ class RemoveObjWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Remove Object"
+        iface._description = "This is a demo for removing object with FLUX."
 
         # create events
         iface.__enter__()

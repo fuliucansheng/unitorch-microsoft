@@ -9,22 +9,16 @@ import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
 from transformers import AutoModelForImageSegmentation
-from diffusers import (
-    StableDiffusionInpaintPipeline,
-    StableDiffusionControlNetInpaintPipeline,
-    ControlNetModel,
-    UniPCMultistepScheduler,
-)
+
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
-from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+
+from unitorch.cli.fastapis.stable import StableForText2ImageFastAPIPipeline
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-import unitorch_microsoft.models.sam
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -40,7 +34,7 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class AddObjWebUI(SimpleWebUI):
+class CreateImgWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -48,7 +42,7 @@ class AddObjWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Add Object</div>",
+            label=f"# <div style='margin-top:10px'>🖼️ Text to Image Generation</div>",
             interactive=False,
         )
         description = create_element(
@@ -60,15 +54,17 @@ class AddObjWebUI(SimpleWebUI):
         status = create_element("text", "Status", default="Stopped", interactive=False)
         start = create_element("button", "Start", variant="primary")
         stop = create_element("button", "Stop", variant="stop")
-        image = create_element("image_editor", "Input Image")
-        mask_image = create_element("image", "Input Image Mask")
-        prompt = create_element(
-            "text", "Input Prompt", lines=3, default="simple background"
+        prompt = create_element("text", "Input Prompt", lines=3)
+        width = create_element(
+            "slider", "Width", default=512, min_value=1, max_value=2048, step=1
+        )
+        height = create_element(
+            "slider", "Height", default=512, min_value=1, max_value=2048, step=1
         )
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image")
 
-        left = create_column(create_row(image, mask_image), prompt, generate)
+        left = create_column(prompt, width, height, generate)
         right = create_column(output_image)
         iface = create_blocks(
             toper_menus,
@@ -81,13 +77,11 @@ class AddObjWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Add Object"
-        iface._description = "This is a demo for adding object."
+        iface._title = "Text to Image"
+        iface._description = "This is a demo for text to image."
 
         # create events
         iface.__enter__()
-
-        image.change(fn=self.composite_images, inputs=[image], outputs=[mask_image])
 
         start.click(
             self.start,
@@ -102,7 +96,7 @@ class AddObjWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.serve,
-            inputs=[prompt, image, mask_image],
+            inputs=[prompt, width, height],
             outputs=[output_image],
             trigger_mode="once",
         )
@@ -114,14 +108,12 @@ class AddObjWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Add Object", iface=iface)
+        super().__init__(config, iname="Text to Image Generation", iface=iface)
 
     def start(self):
-        self._pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
+        self._pipe = StableForText2ImageFastAPIPipeline.from_core_configure(
             config=self._config,
-            pretrained_name="stable-v1.5-realistic-v5.1-inpainting",
-            pretrained_controlnet_names=[],
-            pretrained_inpainting_controlnet_name="stable-v1.5-controlnet-inpainting",
+            pretrained_name="stable-v1.5-realistic-v5.1",
         )
         self._status = "Running"
         return self._status
@@ -134,51 +126,22 @@ class AddObjWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def composite_images(self, images):
-        layers = images["layers"]
-        if len(layers) == 0:
-            return None
-        image = layers[0]
-        for i in range(1, len(layers)):
-            image = Image.alpha_composite(image, layers[i])
-        image = image.convert("L")
-        image = image.point(lambda p: p < 5 and 255)
-        image = ImageOps.invert(image)
-        return image
-
-    def serve(self, prompt, image, mask):
-        image = image["background"].convert("RGB")
-        white = Image.new("RGB", (image.width, image.height), (255, 255, 255))
-        image.paste(white, mask=mask.convert("1"))
-        # pos_prompt = f"cinematic photo of {prompt}, realistic, extremely detailed, photorealistic, best quality"
+    def serve(self, prompt, width, height):
+        if getattr(self, "_pipe", None) is None:
+            raise gr.Error("Please start the model first.")
         pos_prompt = (
             f"{prompt}, realistic, extremely detailed, photorealistic, best quality"
         )
         neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
+
         result = self._pipe(
             pos_prompt,
-            image,
-            mask,
             neg_text=neg_prompt,
-            width=image.width,
-            height=image.height,
+            width=width // 8 * 8,
+            height=height // 8 * 8,
             guidance_scale=7.5,
-            strength=1.0,
-            num_timesteps=25,
+            num_timesteps=50,
             seed=42,
-            controlnet_images=[],
-            controlnet_guidance_scales=[],
-            inpaint_controlnet_image=image,
-            inpaint_controlnet_guidance_scale=0.2,
         )
 
-        # new_image = image.resize(result.size).convert("RGB")
-        # result = result.convert("RGB")
-        # mask = mask.resize(result.size)
-        # mask = np.array(mask.convert("1"))[:, :, None]
-        # result = Image.fromarray(
-        #     (np.array(result) * mask + np.array(new_image) * (1 - mask)).astype(
-        #         np.uint8
-        #     )
-        # )
         return result

@@ -77,8 +77,6 @@ class ExpandBGWebUI(SimpleWebUI):
 
         left = create_column(input_image, prompt, width, height, generate)
         right = create_column(output_image)
-        iface = create_blocks()
-
         iface = create_blocks(
             toper_menus,
             create_row(
@@ -90,6 +88,8 @@ class ExpandBGWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Expand Background"
+        iface._description = "This is a demo for expanding background."
 
         # create events
         iface.__enter__()
@@ -129,7 +129,7 @@ class ExpandBGWebUI(SimpleWebUI):
 
     def start(self):
         # self._clip_pipe = ClipInterrogatorPipeline.from_core_configure(config=CoreConfigureParser(), pretrained_name="clip-vit-large-patch14")
-        self._diff_pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
+        self._pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
             config=self._config,
             pretrained_name="stable-v1.5-realistic-v5.1-inpainting",
             pretrained_controlnet_names=[],
@@ -141,8 +141,8 @@ class ExpandBGWebUI(SimpleWebUI):
     def stop(self):
         # self._clip_pipe.to("cpu")
         # del self._clip_pipe
-        self._diff_pipe.to("cpu")
-        del self._diff_pipe
+        self._pipe.to("cpu")
+        del self._pipe
         gc.collect()
         torch.cuda.empty_cache()
         self._status = "Stopped"
@@ -162,7 +162,7 @@ class ExpandBGWebUI(SimpleWebUI):
             f"{prompt}, realistic, extremely detailed, photorealistic, best quality"
         )
         neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
-        result = self._diff_pipe(
+        result = self._pipe(
             pos_prompt,
             new_image,
             mask,

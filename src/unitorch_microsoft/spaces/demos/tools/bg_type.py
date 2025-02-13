@@ -7,18 +7,17 @@ import gc
 import torch
 import numpy as np
 import gradio as gr
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw
 from transformers import AutoModelForImageSegmentation
-
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
-
-from unitorch.cli.fastapis.stable_flux import StableFluxForText2ImageFastAPIPipeline
+from unitorch.cli.pipelines.bria import BRIAForSegmentationPipeline
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
+import unitorch_microsoft.models.sam
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -32,9 +31,12 @@ from unitorch_microsoft.spaces import (
     create_dashboard_cards_group,
     create_cards_group,
 )
+from unitorch_microsoft.models.bletchley.pipeline_v1 import (
+    BletchleyForMatchingV2Pipeline,
+)
 
 
-class T2IWebUI(SimpleWebUI):
+class BGTypeWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -42,7 +44,7 @@ class T2IWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🖼️ Text to Image Generation</div>",
+            label=f"# <div style='margin-top:10px'>✨ Background Type</div>",
             interactive=False,
         )
         description = create_element(
@@ -54,18 +56,13 @@ class T2IWebUI(SimpleWebUI):
         status = create_element("text", "Status", default="Stopped", interactive=False)
         start = create_element("button", "Start", variant="primary")
         stop = create_element("button", "Stop", variant="stop")
-        prompt = create_element("text", "Input Prompt", lines=3)
-        width = create_element(
-            "slider", "Width", default=1024, min_value=1, max_value=2048, step=1
-        )
-        height = create_element(
-            "slider", "Height", default=1024, min_value=1, max_value=2048, step=1
-        )
+        input_image = create_element("image", "Image")
         generate = create_element("button", "Generate")
-        output_image = create_element("image", "Output Image")
+        result = gr.Label(label="Type")
 
-        left = create_column(prompt, width, height, generate)
-        right = create_column(output_image)
+        left = create_column(input_image, generate)
+        right = create_column(result)
+
         iface = create_blocks(
             toper_menus,
             create_row(
@@ -77,6 +74,8 @@ class T2IWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Background Type"
+        iface._description = "This is a demo for background type."
 
         # create events
         iface.__enter__()
@@ -94,8 +93,8 @@ class T2IWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.serve,
-            inputs=[prompt, width, height],
-            outputs=[output_image],
+            inputs=[input_image],
+            outputs=[result],
             trigger_mode="once",
         )
 
@@ -106,39 +105,31 @@ class T2IWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Text to Image Generation", iface=iface)
+        super().__init__(config, iname="Remove Background", iface=iface)
 
     def start(self):
-        self._diff_pipe = StableFluxForText2ImageFastAPIPipeline.from_core_configure(
-            config=self._config,
-            pretrained_name="stable-flux-dev",
+        self._pipe = BletchleyForMatchingV2Pipeline.from_core_configure(
+            self._config,
+            config_type="2.5B",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2410.bin",
+            label_dict={
+                "complex": "complex detailed environment, detailed surroundings",
+                "simple": "minimal clean background",
+                "white": "white background",
+            },
         )
         self._status = "Running"
         return self._status
 
     def stop(self):
-        self._diff_pipe.to("cpu")
-        del self._diff_pipe
+        self._pipe.to("cpu")
+        del self._pipe
         gc.collect()
         torch.cuda.empty_cache()
-        self._status = "Stopped"
+        self._pipe = None if not hasattr(self, "_pipe") else self._pipe
+        self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, prompt, width, height):
-        if getattr(self, "_diff_pipe", None) is None:
-            raise gr.Error("Please start the model first.")
-        pos_prompt = (
-            f"{prompt}, realistic, extremely detailed, photorealistic, best quality"
-        )
-        neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
-
-        result = self._diff_pipe(
-            pos_prompt,
-            width=width // 16 * 16,
-            height=height // 16 * 16,
-            guidance_scale=3.5,
-            num_timesteps=50,
-            seed=42,
-        )
-
+    def serve(self, image):
+        result = self._pipe(image)
         return result

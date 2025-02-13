@@ -71,8 +71,6 @@ class ChangeBGWebUI(SimpleWebUI):
 
         left = create_column(input_image, prompt, generate)
         right = create_column(output_image)
-        iface = create_blocks()
-
         iface = create_blocks(
             toper_menus,
             create_row(
@@ -84,6 +82,8 @@ class ChangeBGWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Change Background"
+        iface._description = "This is a demo for changing background."
 
         # create events
         iface.__enter__()

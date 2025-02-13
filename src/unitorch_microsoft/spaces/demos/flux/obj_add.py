@@ -88,6 +88,8 @@ class AddObjWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Add Object"
+        iface._description = "This is a demo for adding object with FLUX."
 
         # create events
         iface.__enter__()

@@ -88,6 +88,8 @@ class ChangeBGWebUI(SimpleWebUI):
             ),
             footer,
         )
+        iface._title = "Change Background"
+        iface._description = "This is a demo for changing background with FLUX."
 
         # create events
         iface.__enter__()
