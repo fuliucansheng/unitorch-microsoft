@@ -111,7 +111,7 @@ class CreateImgWebUI(SimpleWebUI):
         super().__init__(config, iname="Text to Image Generation", iface=iface)
 
     def start(self):
-        self._diff_pipe = StableFluxForText2ImageFastAPIPipeline.from_core_configure(
+        self._pipe = StableFluxForText2ImageFastAPIPipeline.from_core_configure(
             config=self._config,
             pretrained_name="stable-flux-dev",
         )
@@ -119,22 +119,22 @@ class CreateImgWebUI(SimpleWebUI):
         return self._status
 
     def stop(self):
-        self._diff_pipe.to("cpu")
-        del self._diff_pipe
+        self._pipe.to("cpu")
+        del self._pipe
         gc.collect()
         torch.cuda.empty_cache()
         self._status = "Stopped"
         return self._status
 
     def serve(self, prompt, width, height):
-        if getattr(self, "_diff_pipe", None) is None:
+        if getattr(self, "_pipe", None) is None:
             raise gr.Error("Please start the model first.")
         pos_prompt = (
             f"{prompt}, realistic, extremely detailed, photorealistic, best quality"
         )
         neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
 
-        result = self._diff_pipe(
+        result = self._pipe(
             pos_prompt,
             width=width // 16 * 16,
             height=height // 16 * 16,

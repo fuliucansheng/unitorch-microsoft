@@ -67,9 +67,15 @@ class RemoveObjWebUI(SimpleWebUI):
             "text", "Input Prompt", lines=3, default="minimalist background"
         )
         mask_threshold = create_element(
-            "slider", "Mask Threshold", default=0, min_value=-20, max_value=20, step=0.1
+            "slider",
+            "Mask Threshold",
+            default=0,
+            min_value=-20,
+            max_value=20,
+            step=0.1,
+            scale=4,
         )
-        reset = create_element("button", "Reset")
+        reset = create_element("button", "Reset", variant="stop")
         segment = create_element("button", "Segment")
         generate_click = create_element("button", "Generate")
 
@@ -86,8 +92,7 @@ class RemoveObjWebUI(SimpleWebUI):
 
         click_tab = create_tab(
             create_row(image_click, mask_click),
-            mask_threshold,
-            create_row(reset, segment),
+            create_row(mask_threshold, reset, segment),
             prompt_click,
             generate_click,
             name="Click",
@@ -188,28 +193,22 @@ class RemoveObjWebUI(SimpleWebUI):
         super().__init__(config, iname="Remove Object", iface=iface)
 
     def start(self):
-        self._pipe = SamForSegmentationPipeline.from_core_configure(
+        self._pipe1 = SamForSegmentationPipeline.from_core_configure(
             config=self._config,
             pretrained_name="sam-vit-large",
-            device=0,
         )
-        self._pipe.to("cuda")
-        self._pipe.eval()
-
-        self._diff_pipe = (
-            StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
-                config=self._config,
-                pretrained_name="stable-flux-dev-fill",
-            )
+        self._pipe2 = StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
+            config=self._config,
+            pretrained_name="stable-flux-dev-fill",
         )
         self._status = "Running"
         return self._status
 
     def stop(self):
-        self._pipe.to("cpu")
-        del self._pipe
-        self._diff_pipe.to("cpu")
-        del self._diff_pipe
+        self._pipe1.to("cpu")
+        del self._pipe1
+        self._pipe2.to("cpu")
+        del self._pipe2
         gc.collect()
         torch.cuda.empty_cache()
         self._status = "Stopped"
@@ -231,7 +230,7 @@ class RemoveObjWebUI(SimpleWebUI):
         return new_image, click_points
 
     def segment(self, image, points, mask_threshold):
-        mask = self._pipe(
+        mask = self._pipe1(
             image,
             points=points,
             mask_threshold=mask_threshold,
@@ -271,7 +270,7 @@ class RemoveObjWebUI(SimpleWebUI):
         )
         neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
 
-        result = self._diff_pipe(
+        result = self._pipe2(
             pos_prompt,
             image,
             mask,

@@ -128,7 +128,6 @@ class ExpandBGWebUI(SimpleWebUI):
         super().__init__(config, iname="Expand Background", iface=iface)
 
     def start(self):
-        # self._clip_pipe = ClipInterrogatorPipeline.from_core_configure(config=CoreConfigureParser(), pretrained_name="clip-vit-large-patch14")
         self._pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
             config=self._config,
             pretrained_name="stable-v1.5-realistic-v5.1-inpainting",
@@ -139,8 +138,6 @@ class ExpandBGWebUI(SimpleWebUI):
         return self._status
 
     def stop(self):
-        # self._clip_pipe.to("cpu")
-        # del self._clip_pipe
         self._pipe.to("cpu")
         del self._pipe
         gc.collect()
@@ -149,7 +146,6 @@ class ExpandBGWebUI(SimpleWebUI):
         return self._status
 
     def serve(self, image, prompt, width, height):
-        # prompt = self._clip_pipe.get_best_prompt(image)
         mask = Image.new("L", (width, height), 255)
         im_width, im_height = image.size
         assert width >= im_width and height >= im_height

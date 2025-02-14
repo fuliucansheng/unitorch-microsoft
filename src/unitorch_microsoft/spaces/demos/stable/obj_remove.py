@@ -95,7 +95,6 @@ class RemoveObjWebUI(SimpleWebUI):
         click_tab = create_tab(
             create_row(image_click, mask_click),
             create_row(mask_threshold, reset, segment),
-            # create_row(reset, segment),
             prompt_click,
             generate_click,
             name="Click",
@@ -199,10 +198,7 @@ class RemoveObjWebUI(SimpleWebUI):
         self._pipe1 = SamForSegmentationPipeline.from_core_configure(
             config=self._config,
             pretrained_name="sam-vit-large",
-            device=0,
         )
-        self._pipe1.to("cuda")
-        self._pipe1.eval()
         self._pipe2 = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
             config=self._config,
             pretrained_name="stable-v1.5-realistic-v5.1-inpainting",

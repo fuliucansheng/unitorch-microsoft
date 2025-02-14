@@ -8,7 +8,6 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from transformers import AutoModelForImageSegmentation
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file

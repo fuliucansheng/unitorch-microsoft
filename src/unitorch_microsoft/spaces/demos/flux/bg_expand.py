@@ -8,21 +8,12 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
-
-# from diffusers import (
-#     FluxInpaintPipeline,
-#     FluxControlNetInpaintPipeline,
-#     FluxControlNetModel,
-# )
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.stable.interrogator import ClipInterrogatorPipeline
-from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
-
 from unitorch.cli.fastapis.stable_flux.inpainting import (
     StableFluxForImageInpaintingFastAPIPipeline,
 )
@@ -131,27 +122,22 @@ class ExpandBGWebUI(SimpleWebUI):
         super().__init__(config, iname="Expand Background", iface=iface)
 
     def start(self):
-        self._diff_pipe = (
-            StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
-                config=self._config,
-                pretrained_name="stable-flux-dev-fill",
-            )
+        self._pipe = StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
+            config=self._config,
+            pretrained_name="stable-flux-dev-fill",
         )
         self._status = "Running"
         return self._status
 
     def stop(self):
-        # self._clip_pipe.to("cpu")
-        # del self._clip_pipe
-        self._diff_pipe.to("cpu")
-        del self._diff_pipe
+        self._pipe.to("cpu")
+        del self._pipe
         gc.collect()
         torch.cuda.empty_cache()
         self._status = "Stopped"
         return self._status
 
     def serve(self, image, prompt, width, height):
-        # prompt = self._clip_pipe.get_best_prompt(image)
         mask = Image.new("L", (width, height), 255)
         im_width, im_height = image.size
         assert width >= im_width and height >= im_height
@@ -164,7 +150,7 @@ class ExpandBGWebUI(SimpleWebUI):
             f"{prompt}, realistic, extremely detailed, photorealistic, best quality"
         )
         neg_prompt = "nsfw, paintings, sketches, (worst quality:2), (low quality:2) lowers, normal quality, ((monochrome)), ((grayscale)), logo, word, character, nudity, naked, disfigured, nude, blurry, blurry background"
-        result = self._diff_pipe(
+        result = self._pipe(
             pos_prompt,
             new_image,
             mask,
