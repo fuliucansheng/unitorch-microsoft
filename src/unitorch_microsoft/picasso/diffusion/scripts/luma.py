@@ -20,7 +20,7 @@ from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.hub import download_url_to_file
 from urllib.parse import urlparse
-
+import random
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,42 +53,71 @@ def save_video_from_url(folder, url):
     except Exception as e:
         print("save video error {!r}".format(e))
         return None
-
+    
+def send_i2v_request(token, prompt, aspect_ratio, model, resolution, duration, keyframes):
+    headers = {
+        "accept":"application/json",
+        "authorization": "Bearer "+ token,
+        "content-type": "application/json"
+        }
+    response = requests.post(
+        "https://api.lumalabs.ai/dream-machine/v1/generations",
+        timeout=600,
+        json={
+            "prompt": prompt,
+            "aspect_ratio": aspect_ratio,
+            "model": model,
+            "resolution":resolution,
+            "duration":duration,
+            "keyframes":keyframes
+            },
+            headers=headers,
+        ).json()
+    retry = 0 
+    while 'id' not in response and retry <= 5:
+        retry += 1
+        time.sleep(60)
+        response = requests.post(
+        "https://api.lumalabs.ai/dream-machine/v1/generations",
+        timeout=600,
+        json={
+            "prompt": prompt,
+            "aspect_ratio": aspect_ratio,
+            "model": model,
+            "resolution":resolution,
+            "duration":duration,
+            "keyframes":keyframes
+            },
+            headers=headers,
+        ).json()
+    return response
 
 def get_image_url_with_azure(image, account_name, connect_key, subfolder):
     from azure.identity import DefaultAzureCredential
     from azure.storage.blob import BlobServiceClient
     from azure.storage.blob import BlobClient, ContentSettings
     from azureml.core.run import Run
-
     if "http" in image:
         return image
     if os.path.exists(image):
-        # upload to azure storage
+        #upload to azure storage
         try:
-            remote_name = subfolder + "/" + os.path.basename(image)
-            connect_str = (
-                "DefaultEndpointsProtocol=https;AccountName="
-                + account_name
-                + ";AccountKey="
-                + connect_key
-                + ";EndpointSuffix=core.windows.net"
-            )
-            container_name = "i2v"
+            remote_name = subfolder+'/'+os.path.basename(image)
+            connect_str = 'DefaultEndpointsProtocol=https;AccountName='+account_name+';AccountKey='+connect_key+';EndpointSuffix=core.windows.net'
+            container_name = 'i2v'
             blob_service_client = BlobServiceClient.from_connection_string(connect_str)
             container_client = blob_service_client.get_container_client(container_name)
             image_blob = container_client.get_blob_client(remote_name)
             with open(image, "rb") as data:
                 image_blob.upload_blob(data, overwrite=True)
             url = f"https://{account_name}.blob.core.windows.net/i2v/{remote_name}"
-            return url
+            return  url   
         except Exception as e:
             print("upload img2azure failed {!r}".format(e))
-            return None
+            return None 
     else:
-        return None
-
-
+        return None    
+   
 def text2image(
     token: str,
     data_file: str,
@@ -128,7 +157,6 @@ def text2image(
         ]
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
-
     def producer():
         for _, row in data.iterrows():
             while Q.full():
@@ -136,7 +164,7 @@ def text2image(
             _prompt = row[prompt_col]
             try:
                 headers = {
-                    "authorization": "Bearer " + token,
+                    "authorization": "Bearer "+token,
                     "content-type": "application/json",
                 }
                 response = requests.post(
@@ -145,7 +173,7 @@ def text2image(
                     json={
                         "prompt": _prompt,
                         "aspect_ratio": aspect_ratio,
-                        "model": model,
+                        "model": model
                     },
                     headers=headers,
                 ).json()
@@ -153,7 +181,6 @@ def text2image(
             except:
                 pass
         Q.put("Done")
-
     def consumer():
         is_produder_done = False
         while True:
@@ -165,10 +192,10 @@ def text2image(
                 continue
             try:
                 response = requests.get(
-                    "https://api.lumalabs.ai/dream-machine/v1/generations/" + trackid,
+                    "https://api.lumalabs.ai/dream-machine/v1/generations/"+trackid,
                     headers={
-                        "authorization": "Bearer " + token,
-                    },
+                        "authorization": "Bearer "+token,
+                    }
                 ).json()
                 if response["state"] == "completed":
                     result = response["assets"]["image"]
@@ -189,13 +216,17 @@ def text2image(
                     time.sleep(2)
             except:
                 pass
-
     producer_thread = threading.Thread(target=producer)
     consumer_thread = threading.Thread(target=consumer)
     producer_thread.start()
     consumer_thread.start()
     producer_thread.join()
     consumer_thread.join()
+
+def get_random_cameras():
+    cameras = ["Static","Move Left","Move Right","Move Up","Move Down","Push In","Pull Out","Zoom In","Zoom Out","Pan Left","Pan Right","Crane Up","Crane Down"]
+    motion = random.choice(cameras)
+    return " Camera Motion: "+motion
 
 
 def text2video(
@@ -209,6 +240,7 @@ def text2video(
     model: Optional[str] = "ray-2",
     aspect_ratio: Optional[str] = "16:9",
     max_queue_size: Optional[int] = 2000,
+    random_camera_motion: Optional[bool] = False
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -246,16 +278,20 @@ def text2video(
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
 
+
+
     def producer():
+        camera = ""
         for _, row in data.iterrows():
             while Q.full():
                 time.sleep(2)
-
-            _prompt = row[prompt_col]
+            if random_camera_motion:
+                camera = get_random_cameras()
+            _prompt = row[prompt_col] + camera
             try:
                 headers = {
-                    "accept": "application/json",
-                    "authorization": "Bearer " + token,
+                    "accept":"application/json",
+                    "authorization": "Bearer "+token,
                     "content-type": "application/json",
                 }
                 response = requests.post(
@@ -265,8 +301,8 @@ def text2video(
                         "prompt": _prompt,
                         "aspect_ratio": aspect_ratio,
                         "model": model,
-                        "resolution": resolution,
-                        "duration": duration,
+                        "resolution":resolution,
+                        "duration":duration
                     },
                     headers=headers,
                 ).json()
@@ -288,11 +324,11 @@ def text2video(
 
             try:
                 response = requests.get(
-                    "https://api.lumalabs.ai/dream-machine/v1/generations/" + trackid,
+                    "https://api.lumalabs.ai/dream-machine/v1/generations/"+trackid,
                     headers={
-                        "accept": "application/json",
-                        "authorization": "Bearer " + token,
-                    },
+                        "accept":"application/json",
+                        "authorization": "Bearer "+token,
+                    }
                 ).json()
 
                 if response["state"] == "completed":
@@ -332,7 +368,7 @@ def image2video(
     names: Union[str, List[str]],
     prompt_col: str,
     azure_account_key: str,
-    start_frame_col: Optional[str] = None,
+    start_frame_col:Optional[str] = None,
     end_frame_col: Optional[str] = None,
     resolution: Optional[str] = "720p",
     duration: Optional[str] = "5s",
@@ -341,6 +377,7 @@ def image2video(
     max_queue_size: Optional[int] = 2000,
     azure_account_name: Optional[str] = "unitorchazureblob",
     azure_save_folder: Optional[str] = "test",
+    random_camera_motion: Optional[bool] = False,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -359,63 +396,36 @@ def image2video(
     os.makedirs(cache_dir, exist_ok=True)
 
     assert prompt_col in data.columns, f"Column {prompt_col} not found in data."
-    assert (
-        start_frame_col in data.columns or end_frame_col in data.columns
-    ), f"At least one image needed."
+    assert start_frame_col in data.columns or end_frame_col in data.columns, f"At least one image needed."
+
 
     output_file = f"{cache_dir}/output.jsonl"
+
 
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
 
     def producer():
-        cnt = 0
+        camera = ""
         for _, row in data.iterrows():
             while Q.full():
                 time.sleep(2)
-
-            _prompt = row[prompt_col]
+            if random_camera_motion:
+                camera = get_random_cameras()
+            _prompt = row[prompt_col] + camera
             keyframes = {}
             if start_frame_col != None and start_frame_col in data.columns:
-                url = get_image_url_with_azure(
-                    row[start_frame_col],
-                    azure_account_name,
-                    azure_account_key,
-                    azure_save_folder,
-                )
+                url = get_image_url_with_azure(row[start_frame_col], azure_account_name, azure_account_key, azure_save_folder)
                 if url != None:
-                    keyframes["frame0"] = {"type": "image", "url": url}
+                    keyframes["frame0"] = {"type":"image", "url":url}
             if end_frame_col != None and end_frame_col in data.columns:
-                url = get_image_url_with_azure(
-                    row[end_frame_col],
-                    azure_account_name,
-                    azure_account_key,
-                    azure_save_folder,
-                )
+                url = get_image_url_with_azure(row[end_frame_col], azure_account_name, azure_account_key, azure_save_folder)
                 if url != None:
-                    keyframes["frame1"] = {"type": "image", "url": url}
+                    keyframes["frame1"] = {"type":"image", "url":url}
             if len(keyframes) == 0:
                 continue
             try:
-                headers = {
-                    "accept": "application/json",
-                    "authorization": "Bearer " + token,
-                    "content-type": "application/json",
-                }
-                response = requests.post(
-                    "https://api.lumalabs.ai/dream-machine/v1/generations",
-                    timeout=600,
-                    json={
-                        "prompt": _prompt,
-                        "aspect_ratio": aspect_ratio,
-                        "model": model,
-                        "resolution": resolution,
-                        "duration": duration,
-                        "keyframes": keyframes,
-                    },
-                    headers=headers,
-                ).json()
-                cnt += 1
+                response = send_i2v_request(token, _prompt, aspect_ratio, model, resolution, duration, keyframes)
                 Q.put(response["id"])
             except Exception as e:
                 print("Producer error {!r}".format(e))
@@ -434,11 +444,11 @@ def image2video(
 
             try:
                 response = requests.get(
-                    "https://api.lumalabs.ai/dream-machine/v1/generations/" + trackid,
+                    "https://api.lumalabs.ai/dream-machine/v1/generations/"+trackid,
                     headers={
-                        "accept": "application/json",
-                        "authorization": "Bearer " + token,
-                    },
+                        "accept":"application/json",
+                        "authorization": "Bearer "+token,
+                    }
                 ).json()
 
                 if response["state"] == "completed":
@@ -446,17 +456,9 @@ def image2video(
                     _prompt = response["request"]["prompt"]
                     start_frame = ""
                     end_frame = ""
-                    if (
-                        "frame0" in response["request"]["keyframes"]
-                        and response["request"]["keyframes"]["frame0"] != None
-                        and "url" in response["request"]["keyframes"]["frame0"]
-                    ):
+                    if "frame0" in response["request"]["keyframes"] and response["request"]["keyframes"]["frame0"] != None and "url" in response["request"]["keyframes"]["frame0"]:
                         start_frame = response["request"]["keyframes"]["frame0"]["url"]
-                    if (
-                        "frame1" in response["request"]["keyframes"]
-                        and response["request"]["keyframes"]["frame1"] != None
-                        and "url" in response["request"]["keyframes"]["frame1"]
-                    ):
+                    if "frame1" in response["request"]["keyframes"] and response["request"]["keyframes"]["frame1"] != None and "url" in response["request"]["keyframes"]["frame1"]:
                         end_frame = response["request"]["keyframes"]["frame1"]["url"]
                     record = {
                         "prompt": _prompt,
@@ -488,5 +490,11 @@ def image2video(
     consumer_thread.join()
 
 
+
+
+
 if __name__ == "__main__":
     fire.Fire()
+
+
+
