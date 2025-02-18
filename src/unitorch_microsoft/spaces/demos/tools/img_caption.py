@@ -41,7 +41,7 @@ class CaptionImgWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Image Caption</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ Image Caption</div>",
             interactive=False,
         )
         description = create_element(

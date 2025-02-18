@@ -633,10 +633,11 @@ class BletchleyForClassification(GenericModel, PeftWeightLoaderMixin):
 
 
 @register_model("microsoft/model/classification/bletchley/v3/image")
-class BletchleyForImageClassification(GenericModel):
+class BletchleyForImageClassification(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "image_encoder.projection": "image_projection",
     }
+    replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,

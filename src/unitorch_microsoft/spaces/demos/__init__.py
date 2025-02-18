@@ -53,8 +53,9 @@ from unitorch_microsoft.spaces.demos.recraft.img_create import (
     CreateImgWebUI as RecraftCreateImgWebUI,
 )
 from unitorch_microsoft.spaces.demos.video.opencv import ZoomInWebUI
-from unitorch_microsoft.spaces.demos.tools.bg_type import BGTypeWebUI
+from unitorch_microsoft.spaces.demos.tools.img_insights import ImgInsightsWebUI
 from unitorch_microsoft.spaces.demos.tools.bg_remove import RemoveBGWebUI
+from unitorch_microsoft.spaces.demos.tools.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.demos.tools.img_caption import CaptionImgWebUI
 from unitorch_microsoft.spaces.demos.tools.joycaption2 import JoyCaption2WebUI
 
@@ -82,7 +83,8 @@ recraft_create_img_page = RecraftCreateImgWebUI(config).iface
 zoom_in_page = ZoomInWebUI(config).iface
 
 # tools
-bg_type_page = BGTypeWebUI(config).iface
+img_insights_page = ImgInsightsWebUI(config).iface
+roi_detect_page = ROIDetectWebUI(config).iface
 remove_bg_page = RemoveBGWebUI(config).iface
 caption_img_page = CaptionImgWebUI(config).iface
 joycaption2_page = JoyCaption2WebUI(config).iface
@@ -112,7 +114,8 @@ video_pages = [
 ]
 
 tools_pages = [
-    bg_type_page,
+    img_insights_page,
+    roi_detect_page,
     remove_bg_page,
     caption_img_page,
     joycaption2_page,

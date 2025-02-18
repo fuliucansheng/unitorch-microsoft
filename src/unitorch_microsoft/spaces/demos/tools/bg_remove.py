@@ -40,7 +40,7 @@ class RemoveBGWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Remove Background</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ Remove Background</div>",
             interactive=False,
         )
         description = create_element(

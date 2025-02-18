@@ -42,6 +42,9 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
         config_type: str,
         max_seq_length: Optional[int] = 120,
         weight_path: Optional[Union[str, List[str]]] = None,
+        lora_weight_path: Optional[Union[str, List[str]]] = None,
+        lora_weight: Optional[float] = 1.0,
+        lora_alpha: Optional[float] = 32.0,
         state_dict: Optional[Dict[str, Any]] = None,
         device: Optional[Union[str, int]] = "cpu",
     ):
@@ -56,6 +59,13 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
         self._device = "cpu" if device == "cpu" else int(device)
 
         self.from_pretrained(weight_path, state_dict=state_dict)
+        if lora_weight_path is not None:
+            self.load_lora_weights(
+                lora_weight_path,
+                lora_weights=lora_weight,
+                lora_alphas=lora_alpha,
+                save_base_state=False,
+            )
         self.to(device=self._device)
 
     @classmethod
@@ -63,29 +73,46 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
     def from_core_configure(
         cls,
         config,
-        config_type: Optional[str] = "2.5B",
+        config_type: Optional[str] = None,
         pretrained_weight_path: Optional[str] = None,
-        device: Optional[str] = "cpu",
+        pretrained_lora_weight_path: Optional[str] = None,
+        device: Optional[str] = None,
         **kwargs,
     ):
         config.set_default_section("microsoft/models/bletchley/pipeline/v1/matching")
-        config_type = config.getoption("config_type", config_type)
+        config_type = (
+            config.getoption("config_type", "2.5B")
+            if config_type is None
+            else config_type
+        )
 
         max_seq_length = config.getoption("max_seq_length", 120)
-        device = config.getoption("device", device)
-        pretrained_weight_path = config.getoption(
-            "pretrained_weight_path", pretrained_weight_path
+        device = config.getoption("device", None) if device is None else device
+        pretrained_weight_path = (
+            config.getoption("pretrained_weight_path", None)
+            if pretrained_weight_path is None
+            else pretrained_weight_path
         )
         weight_path = pop_value(
             pretrained_weight_path,
             nested_dict_value(pretrained_bletchley_v1_infos, config_type),
             check_none=False,
         )
+        lora_weight_path = (
+            config.getoption("pretrained_lora_weight_path", None)
+            if pretrained_lora_weight_path is None
+            else pretrained_lora_weight_path
+        )
+        lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
 
         inst = cls(
             config_type,
             max_seq_length=max_seq_length,
             weight_path=weight_path,
+            lora_weight_path=lora_weight_path,
+            lora_weight=lora_weight,
+            lora_alpha=lora_alpha,
             device=device,
         )
 
@@ -98,11 +125,6 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
         text: str,
         image: Image.Image,
         max_seq_length: Optional[int] = 120,
-        lora_checkpoints: Optional[Union[str, List[str]]] = None,
-        lora_weights: Optional[Union[float, List[float]]] = 1.0,
-        lora_alphas: Optional[Union[float, List[float]]] = 32,
-        lora_urls: Optional[Union[str, List[str]]] = None,
-        lora_files: Optional[Union[str, List[str]]] = None,
     ):
         inputs = self.processor._classification(
             text=text,
@@ -115,50 +137,6 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
             for k, v in inputs.items()
         }
 
-        if isinstance(lora_checkpoints, str):
-            lora_checkpoints = [lora_checkpoints]
-        if isinstance(lora_weights, float):
-            lora_weights = [lora_weights]
-        if isinstance(lora_alphas, float):
-            lora_alphas = [lora_alphas]
-        if isinstance(lora_urls, str):
-            lora_urls = [lora_urls]
-        if isinstance(lora_files, str):
-            lora_files = [lora_files]
-
-        assert (
-            len(lora_checkpoints) == len(lora_weights)
-            and len(lora_checkpoints) == len(lora_alphas)
-            and len(lora_checkpoints) == len(lora_urls)
-            and len(lora_checkpoints) == len(lora_files)
-        )
-        processed_lora_files, processed_lora_weights, processed_lora_alphas = [], [], []
-        for ckpt, url, file, weight, alpha in zip(
-            lora_checkpoints, lora_urls, lora_files, lora_weights, lora_alphas
-        ):
-            if ckpt is not None:
-                lora_file = nested_dict_value(
-                    pretrained_bletchley_v1_extensions_infos, ckpt, "weight"
-                )
-                processed_lora_files.append(lora_file)
-                processed_lora_weights.append(weight)
-                processed_lora_alphas.append(alpha)
-            elif url is not None and is_remote_url(url):
-                processed_lora_files.append(url)
-                processed_lora_weights.append(weight)
-                processed_lora_alphas.append(alpha)
-            elif file is not None:
-                processed_lora_files.append(file)
-                processed_lora_weights.append(weight)
-                processed_lora_alphas.append(alpha)
-
-        if len(processed_lora_files) > 0:
-            self.load_lora_weights(
-                processed_lora_files,
-                lora_weights=processed_lora_weights,
-                lora_alphas=processed_lora_alphas,
-            )
-
         outputs = (
             super()
             .forward(
@@ -169,7 +147,6 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
             .outputs
         )
         scores = outputs.sigmoid().squeeze(0)
-        self.unload_lora_weights()
         return scores[0].item()
 
 
@@ -221,20 +198,26 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
     def from_core_configure(
         cls,
         config,
-        config_type: Optional[str] = "2.5B",
+        config_type: Optional[str] = None,
         pretrained_weight_path: Optional[str] = None,
         pretrained_lora_weight_path: Optional[str] = None,
         label_dict: Optional[Dict[str, str]] = None,
-        device: Optional[str] = "cpu",
+        device: Optional[str] = None,
         **kwargs,
     ):
         config.set_default_section("microsoft/models/bletchley/pipeline/v1/matching/v2")
-        config_type = config.getoption("config_type", config_type)
+        config_type = (
+            config.getoption("config_type", "2.5B")
+            if config_type is None
+            else config_type
+        )
 
         max_seq_length = config.getoption("max_seq_length", 120)
-        device = config.getoption("device", device)
-        pretrained_weight_path = config.getoption(
-            "pretrained_weight_path", pretrained_weight_path
+        device = config.getoption("device", None) if device is None else device
+        pretrained_weight_path = (
+            config.getoption("pretrained_weight_path", None)
+            if pretrained_weight_path is None
+            else pretrained_weight_path
         )
         weight_path = pop_value(
             pretrained_weight_path,
@@ -242,8 +225,10 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
             check_none=False,
         )
 
-        lora_weight_path = config.getoption(
-            "pretrained_lora_weight_path", pretrained_lora_weight_path
+        lora_weight_path = (
+            config.getoption("pretrained_lora_weight_path", None)
+            if pretrained_lora_weight_path is None
+            else pretrained_lora_weight_path
         )
         lora_weight = config.getoption("pretrained_lora_weight", 1.0)
         lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)

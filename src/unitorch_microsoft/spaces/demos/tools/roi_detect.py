@@ -8,13 +8,12 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from transformers import AutoModelForImageSegmentation
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
-from unitorch.cli.pipelines.bria import BRIAForSegmentationPipeline
+from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
 import unitorch_microsoft.models.sam
@@ -31,12 +30,9 @@ from unitorch_microsoft.spaces import (
     create_dashboard_cards_group,
     create_cards_group,
 )
-from unitorch_microsoft.models.bletchley.pipeline_v1 import (
-    BletchleyForMatchingV2Pipeline,
-)
 
 
-class BGTypeWebUI(SimpleWebUI):
+class ROIDetectWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -44,7 +40,7 @@ class BGTypeWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Background Type</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ ROI Detection</div>",
             interactive=False,
         )
         description = create_element(
@@ -57,11 +53,19 @@ class BGTypeWebUI(SimpleWebUI):
         start = create_element("button", "Start", variant="primary")
         stop = create_element("button", "Stop", variant="stop")
         input_image = create_element("image", "Image")
+        mask_threshold = create_element(
+            "slider",
+            "Mask Threshold",
+            default=-1.0,
+            min_value=-20,
+            max_value=20,
+            step=0.1,
+        )
         generate = create_element("button", "Generate")
-        result = gr.Label(label="Type")
+        output_image = create_element("image", "Output Image")
 
-        left = create_column(input_image, generate)
-        right = create_column(result)
+        left = create_column(input_image, mask_threshold, generate)
+        right = create_column(output_image)
 
         iface = create_blocks(
             toper_menus,
@@ -74,8 +78,8 @@ class BGTypeWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Background Type"
-        iface._description = "This is a demo for background type."
+        iface._title = "ROI Detection"
+        iface._description = "This is a demo for roi detection."
 
         # create events
         iface.__enter__()
@@ -93,8 +97,8 @@ class BGTypeWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.serve,
-            inputs=[input_image],
-            outputs=[result],
+            inputs=[input_image, mask_threshold],
+            outputs=[output_image],
             trigger_mode="once",
         )
 
@@ -108,15 +112,9 @@ class BGTypeWebUI(SimpleWebUI):
         super().__init__(config, iname="Remove Background", iface=iface)
 
     def start(self):
-        self._pipe = BletchleyForMatchingV2Pipeline.from_core_configure(
-            self._config,
-            config_type="0.8B",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
-            label_dict={
-                "complex": "complex background, objects in the background or even no background",
-                "simple": "clean background, no objects in the background",
-                "white": "white background, no objects in the background",
-            },
+        self._pipe = SamForSegmentationPipeline.from_core_configure(
+            config=self._config,
+            pretrained_name="sam-vit-large",
         )
         self._status = "Running"
         return self._status
@@ -130,6 +128,22 @@ class BGTypeWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, image):
-        result = self._pipe(image)
+    def serve(self, image, mask_threshold=-2.0):
+        x1, y1, x2, y2 = 0, 0, image.size[0], image.size[1]
+        mask = self._pipe(
+            image,
+            boxes=[[(x1, y1, x2, y2)]],
+            mask_threshold=mask_threshold,
+            lora_checkpoints=["sam-lora-dis5k"],
+            lora_weights=[0.5],
+            lora_alphas=[32.0],
+            lora_urls=[None],
+            lora_files=[None],
+        )
+        mask = mask.convert("L").resize(image.size)
+        result = image.convert("RGB")
+        bbox = mask.getbbox()
+        if bbox:
+            draw = ImageDraw.Draw(result)
+            draw.rectangle(bbox, outline="red", width=3)
         return result

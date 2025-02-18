@@ -518,7 +518,6 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             fn=self.load,
             inputs=[index],
             outputs=[
-                index,
                 progress,
                 group,
                 choices,
@@ -693,7 +692,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
 
         if len(self.dataset[self.dataset["Index"] == index]) == 0:
-            return (index, progress, None, None, None) + tuple(
+            return (progress, None, None, None) + tuple(
                 [None]
                 * (
                     self.num_text_cols
@@ -719,7 +718,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
 
         return (
-            (index, progress, new_group, new_choices, new_comment)
+            (progress, new_group, new_choices, new_comment)
             + tuple(new_texts)
             + tuple(new_images)
             + tuple(new_videos)
@@ -801,6 +800,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             or choice == ""
             or (isinstance(choice, (list, tuple)) and len(choice) == 0)
         ):
+            gr.Warning("Please ensure the label field is not left empty.")
             return os.path.abspath(self.result_file), self.stats(), logs, index
         if isinstance(choice, list) or isinstance(choice, tuple):
             choice = ",".join(choice)

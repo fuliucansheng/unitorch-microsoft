@@ -17,11 +17,13 @@ from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.tools import controlnet_processes
-from unitorch.cli.fastapis.stable import (
-    StableForText2ImageFastAPIPipeline,
-    StableForImageInpaintingFastAPIPipeline,
+from unitorch.cli.fastapis.stable_xl import (
+    StableXLForText2ImageFastAPIPipeline,
+    StableXLForImageInpaintingFastAPIPipeline,
 )
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet_xl import (
+    ControlNetXLForImageInpaintingFastAPIPipeline,
+)
 import unitorch_microsoft.models.diffusers
 
 
@@ -36,24 +38,22 @@ def text2image(
     cache_dir: str,
     names: Union[str, List[str]],
     prompt_col: str,
-    pretrained_name: Optional[str] = "stable-v1.5-realistic-v5.1",
+    pretrained_name: Optional[str] = "stable-xl-realvis-v4.0",
     neg_prompt_text: Optional[str] = None,
-    height: Optional[int] = 512,
-    width: Optional[int] = 512,
+    height: Optional[int] = 1024,
+    width: Optional[int] = 1024,
     guidance_scale: Optional[float] = 7.5,
     num_timesteps: Optional[int] = 50,
     seed: Optional[int] = 1123,
-    pad_token: Optional[str] = "<|endoftext|>",
     weight_path: Optional[str] = None,
     lora_weight_path: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
     device: Optional[Union[str, int]] = "cpu",
 ):
-    pipe = StableForText2ImageFastAPIPipeline.from_core_configure(
+    pipe = StableXLForText2ImageFastAPIPipeline.from_core_configure(
         config=CoreConfigureParser(),
         pretrained_name=pretrained_name,
-        pad_token=pad_token,
         pretrained_weight_path=weight_path,
         pretrained_lora_weights_path=lora_weight_path,
         pretrained_lora_weights=lora_weight,
@@ -146,7 +146,7 @@ def inpainting(
     mask_image_col: str,
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
-    pretrained_name: Optional[str] = "stable-v1.5-realistic-v5.1-inpainting",
+    pretrained_name: Optional[str] = "stable-xl-realvis-v4.0-inpainting",
     pretrained_controlnet_names: Optional[str] = None,
     controlnet_process_names: Optional[str] = None,
     controlnet_guidance_scales: Optional[float] = None,
@@ -156,7 +156,6 @@ def inpainting(
     guidance_scale: Optional[float] = 7.5,
     num_timesteps: Optional[int] = 50,
     seed: Optional[int] = 1123,
-    pad_token: Optional[str] = "<|endoftext|>",
     reversed_mask: Optional[str] = False,
     weight_path: Optional[str] = None,
     lora_weight_path: Optional[str] = None,
@@ -169,10 +168,9 @@ def inpainting(
         pretrained_controlnet_names is None
         and pretrained_inpainting_controlnet_name is None
     ):
-        pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
+        pipe = StableXLForImageInpaintingFastAPIPipeline.from_core_configure(
             config=CoreConfigureParser(),
             pretrained_name=pretrained_name,
-            pad_token=pad_token,
             pretrained_weight_path=weight_path,
             pretrained_lora_weights_path=lora_weight_path,
             pretrained_lora_weights=lora_weight,
@@ -194,12 +192,11 @@ def inpainting(
             controlnet_guidance_scales, int
         ):
             controlnet_guidance_scales = [controlnet_guidance_scales]
-        pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
+        pipe = ControlNetXLForImageInpaintingFastAPIPipeline.from_core_configure(
             config=CoreConfigureParser(),
             pretrained_name=pretrained_name,
             pretrained_controlnet_names=pretrained_controlnet_names,
             pretrained_inpainting_controlnet_name=pretrained_inpainting_controlnet_name,
-            pad_token=pad_token,
             pretrained_weight_path=weight_path,
             pretrained_lora_weights_path=lora_weight_path,
             pretrained_lora_weights=lora_weight,
@@ -411,12 +408,11 @@ def outpainting(
     image_col: str,
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
-    pretrained_name: Optional[str] = "stable-v1.5-realistic-v5.1-inpainting",
+    pretrained_name: Optional[str] = "stable-xl-realvis-v4.0-inpainting",
     neg_prompt_text: Optional[str] = None,
     guidance_scale: Optional[float] = 7.5,
     num_timesteps: Optional[int] = 50,
     seed: Optional[int] = 1123,
-    pad_token: Optional[str] = "<|endoftext|>",
     weight_path: Optional[str] = None,
     lora_weight_path: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
@@ -425,10 +421,9 @@ def outpainting(
     processor_name: Optional[str] = "p1",
     ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
 ):
-    pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
+    pipe = StableXLForImageInpaintingFastAPIPipeline.from_core_configure(
         config=CoreConfigureParser(),
         pretrained_name=pretrained_name,
-        pad_token=pad_token,
         pretrained_weight_path=weight_path,
         pretrained_lora_weights_path=lora_weight_path,
         pretrained_lora_weights=lora_weight,

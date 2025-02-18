@@ -41,7 +41,7 @@ class JoyCaption2WebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ JoyCaption 2</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ JoyCaption 2</div>",
             interactive=False,
         )
         description = create_element(
