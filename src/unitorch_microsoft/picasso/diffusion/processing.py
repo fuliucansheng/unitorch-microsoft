@@ -498,6 +498,7 @@ class PicassoDiffusionProcessor:
         image: Union[Image.Image, str],
         lower_ratio: Optional[float] = 0.1,
         upper_ratio: Optional[float] = 0.5,
+        blur_radius: Optional[float] = 10.0,
     ):
         width, height = image.size
         mask = Image.new("L", (width, height), 0)
@@ -517,6 +518,8 @@ class PicassoDiffusionProcessor:
             bottom = height - top
             draw.rectangle((0, 0, width, top), fill=255)
             draw.rectangle((0, bottom, width, height), fill=255)
+
+        mask = mask.filter(ImageFilter.GaussianBlur(blur_radius))
 
         return mask
 

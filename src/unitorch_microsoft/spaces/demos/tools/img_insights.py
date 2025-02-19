@@ -32,10 +32,12 @@ from unitorch_microsoft.spaces import (
     create_cards_group,
 )
 from unitorch_microsoft.models.bletchley.pipeline_v1 import (
-    BletchleyForMatchingV2Pipeline,
+    BletchleyForMatchingV2Pipeline as BletchleyV1ForMatchingV2Pipeline,
+    BletchleyForMatchingPipeline as BletchleyV1ForMatchingPipeline,
 )
 from unitorch_microsoft.models.bletchley.pipeline_v3 import (
-    BletchleyForImageClassificationPipeline,
+    BletchleyForMatchingPipeline as BletchleyV3ForMatchingPipeline,
+    BletchleyForImageClassificationPipeline as BletchleyV3ForImageClassificationPipeline,
 )
 
 
@@ -64,9 +66,10 @@ class ImgInsightsWebUI(SimpleWebUI):
         result1 = gr.Label(label="Background Type")
         result2 = gr.Label(label="Image Type")
         result3 = gr.Label(label="General Category")
+        result4 = gr.Label(label="Blurry")
 
         left = create_column(input_image, generate)
-        right = create_column(create_row(result1, result2), result3)
+        right = create_column(create_row(result1, result2, result4), result3)
 
         iface = create_blocks(
             toper_menus,
@@ -99,7 +102,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         generate.click(
             fn=self.serve,
             inputs=[input_image],
-            outputs=[result1, result2, result3],
+            outputs=[result1, result2, result3, result4],
             trigger_mode="once",
         )
 
@@ -113,7 +116,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         super().__init__(config, iname="Image Insights", iface=iface)
 
     def start(self):
-        self._pipe1 = BletchleyForMatchingV2Pipeline.from_core_configure(
+        self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="0.8B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
@@ -127,7 +130,7 @@ class ImgInsightsWebUI(SimpleWebUI):
                 "logo": "logo image, composed of logo only",
             },
         )
-        self._pipe2 = BletchleyForImageClassificationPipeline.from_core_configure(
+        self._pipe2 = BletchleyV3ForImageClassificationPipeline.from_core_configure(
             self._config,
             config_type="2.5B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/image/pytorch_model.bletchley.v3.cate.2502.bin",
@@ -153,6 +156,15 @@ class ImgInsightsWebUI(SimpleWebUI):
                 18: "Others",
             },
         )
+        self._pipe3 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
+            self._config,
+            config_type="2.5B",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
+            label_dict={
+                "blurry": "blurry",
+            },
+        )
         self._status = "Running"
         return self._status
 
@@ -175,5 +187,6 @@ class ImgInsightsWebUI(SimpleWebUI):
         result1 = {k: results[k] for k in ["white", "simple", "complex"]}
         result2 = {k: results[k] for k in ["poster", "logo", "real"]}
         result3 = self._pipe2(image)
+        result4 = self._pipe3(image)
 
-        return result1, result2, result3
+        return result1, result2, result3, result4
