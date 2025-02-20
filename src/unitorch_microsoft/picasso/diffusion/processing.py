@@ -152,6 +152,7 @@ class PicassoDiffusionProcessor:
     def __init__(
         self,
         image_size: Tuple[int, int] = (512, 512),
+        use_soft_mask: Optional[bool] = True,
     ):
         """
         Initializes a new instance of the ImageProcessor.
@@ -159,6 +160,7 @@ class PicassoDiffusionProcessor:
         self.image_size = (
             image_size if isinstance(image_size, tuple) else (image_size, image_size)
         )
+        self.use_soft_mask = use_soft_mask
 
     @classmethod
     @add_default_section_for_init("microsoft/picasso/diffusion/process")
@@ -519,7 +521,8 @@ class PicassoDiffusionProcessor:
             draw.rectangle((0, 0, width, top), fill=255)
             draw.rectangle((0, bottom, width, height), fill=255)
 
-        mask = mask.filter(ImageFilter.GaussianBlur(blur_radius))
+        if self.use_soft_mask:
+            mask = mask.filter(ImageFilter.GaussianBlur(blur_radius))
 
         return mask
 
