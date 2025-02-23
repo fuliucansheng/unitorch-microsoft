@@ -8,6 +8,7 @@ src/unitorch_microsoft.egg-info/*
 dist/*
 cache/
 cache*/
+*.local.ini
 .vs/*
 .vs
 ./pytest_cache/*

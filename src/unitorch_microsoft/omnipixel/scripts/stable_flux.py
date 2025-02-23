@@ -23,7 +23,7 @@ endpoints = [
     # "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
     # "http://br1t44-s3-17:5051/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5050/core/fastapi/stable_flux",
-    "http://10.224.120.219:5050/core/fastapi/stable_flux",
+    # "http://10.224.120.219:5050/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5051/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",

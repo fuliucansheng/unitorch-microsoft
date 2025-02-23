@@ -1337,6 +1337,7 @@ class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
         self.processor = BletchleyProcessor(
             max_seq_length=max_seq_length,
         )
+        self.labels_embs = None
 
         if freeze_base_model:
             for p in self.text_encoder.parameters():

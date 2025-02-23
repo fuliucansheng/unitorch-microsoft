@@ -97,10 +97,8 @@ def send_i2v_request(
 
 
 def get_image_url_with_azure(image, account_name, connect_key, subfolder):
-    from azure.identity import DefaultAzureCredential
     from azure.storage.blob import BlobServiceClient
     from azure.storage.blob import BlobClient, ContentSettings
-    from azureml.core.run import Run
 
     if "http" in image:
         return image

@@ -7,6 +7,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.spaces import (
+    spaces_settings,
     create_element,
     create_row,
     create_column,
@@ -59,35 +60,32 @@ from unitorch_microsoft.spaces.demos.tools.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.demos.tools.img_caption import CaptionImgWebUI
 from unitorch_microsoft.spaces.demos.tools.joycaption2 import JoyCaption2WebUI
 
-config_path = cached_path("spaces/config.ini")
-config = CoreConfigureParser(config_path)
-
 # image
-stable_create_img_page = StableCreateImgWebUI(config).iface
-stable_change_bg_page = StableChangeBGWebUI(config).iface
-stable_expand_bg_page = StableExpandBGWebUI(config).iface
-stable_add_obj_page = StableAddObjWebUI(config).iface
-stable_remove_obj_page = StableRemoveObjWebUI(config).iface
+stable_create_img_page = StableCreateImgWebUI(spaces_settings).iface
+stable_change_bg_page = StableChangeBGWebUI(spaces_settings).iface
+stable_expand_bg_page = StableExpandBGWebUI(spaces_settings).iface
+stable_add_obj_page = StableAddObjWebUI(spaces_settings).iface
+stable_remove_obj_page = StableRemoveObjWebUI(spaces_settings).iface
 
 # flux
-flux_create_img_page = FluxCreateImgWebUI(config).iface
-flux_change_bg_page = FluxChangeBGWebUI(config).iface
-flux_expand_bg_page = FluxExpandBGWebUI(config).iface
-flux_add_obj_page = FluxAddObjWebUI(config).iface
-flux_remove_obj_page = FluxRemoveObjWebUI(config).iface
+flux_create_img_page = FluxCreateImgWebUI(spaces_settings).iface
+flux_change_bg_page = FluxChangeBGWebUI(spaces_settings).iface
+flux_expand_bg_page = FluxExpandBGWebUI(spaces_settings).iface
+flux_add_obj_page = FluxAddObjWebUI(spaces_settings).iface
+flux_remove_obj_page = FluxRemoveObjWebUI(spaces_settings).iface
 
 # recraft
-recraft_create_img_page = RecraftCreateImgWebUI(config).iface
+recraft_create_img_page = RecraftCreateImgWebUI(spaces_settings).iface
 
 # video
-zoom_in_page = ZoomInWebUI(config).iface
+zoom_in_page = ZoomInWebUI(spaces_settings).iface
 
 # tools
-img_insights_page = ImgInsightsWebUI(config).iface
-roi_detect_page = ROIDetectWebUI(config).iface
-remove_bg_page = RemoveBGWebUI(config).iface
-caption_img_page = CaptionImgWebUI(config).iface
-joycaption2_page = JoyCaption2WebUI(config).iface
+img_insights_page = ImgInsightsWebUI(spaces_settings).iface
+roi_detect_page = ROIDetectWebUI(spaces_settings).iface
+remove_bg_page = RemoveBGWebUI(spaces_settings).iface
+caption_img_page = CaptionImgWebUI(spaces_settings).iface
+joycaption2_page = JoyCaption2WebUI(spaces_settings).iface
 
 stable_pages = [
     stable_create_img_page,
