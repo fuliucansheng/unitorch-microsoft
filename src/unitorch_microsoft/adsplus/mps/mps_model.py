@@ -498,3 +498,58 @@ class MSP_Classifier(GenericModel):
             torch.einsum("bd,cd->bc", text_features, image_0_features)
         ).unsqueeze(1)
         return ClassificationOutputs(outputs=image_0_scores)
+
+
+@register_model("microsoft/adsplus/mps/pair")
+class MSP_PairClassifier(GenericModel):
+    prefix_keys_in_state_dict = {
+        "^(?!clip\\.)": "clip.",
+    }
+
+    def __init__(self, config):
+        super().__init__()
+        self.clip = CLIPModel(config)
+
+    @classmethod
+    @add_default_section_for_init("microsoft/adsplus/mps/pair")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/adsplus/mps/pair")
+        config_path = config.getoption("config_path", "")
+        config_path = cached_path(config_path)
+
+        inst = cls(
+            config=config_path,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        pretrained_weight_path = cached_path(pretrained_weight_path)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+        return inst
+
+    def forward(self, text_inputs, condition_inputs, image_inputs_0, image_inputs_1):
+        text_features, image_0_features = self.clip(
+            text_inputs, image_inputs_0, condition_inputs
+        )
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+        _, image_1_features = self.clip(
+            text_inputs, image_inputs_1, condition_inputs
+        )
+        image_0_features = image_0_features / image_0_features.norm(
+            dim=-1, keepdim=True
+        )
+        image_1_features = image_1_features / image_1_features.norm(
+            dim=-1, keepdim=True
+        )
+        
+        image_0_scores = self.clip.logit_scale.exp() * torch.diag(
+            torch.einsum("bd,cd->bc", text_features, image_0_features)
+        )
+        image_1_scores = self.clip.logit_scale.exp() * torch.diag(
+            torch.einsum("bd,cd->bc", text_features, image_1_features)
+        )
+
+        scores = torch.stack([image_0_scores, image_1_scores], dim=-1)
+        probs = torch.softmax(scores, dim=-1)
+        return ClassificationOutputs(outputs=probs)
+    
