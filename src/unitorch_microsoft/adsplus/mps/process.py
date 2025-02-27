@@ -83,6 +83,7 @@ class MPSImageProcessor:
             }
         )
 
+
 class MPSImagePairProcessor:
     def __init__(self):
         super().__init__()
@@ -122,7 +123,13 @@ class MPSImagePairProcessor:
         pass
 
     @register_process("microsoft/process/mps/classification/pair")
-    def classification(self, text: str, condition: str, image0: Union[Image.Image, str], image1: Union[Image.Image, str]):
+    def classification(
+        self,
+        text: str,
+        condition: str,
+        image0: Union[Image.Image, str],
+        image1: Union[Image.Image, str],
+    ):
         """
         Performs classification using text and image inputs.
 
@@ -142,6 +149,6 @@ class MPSImagePairProcessor:
                 "text_inputs": text_outputs,
                 "condition_inputs": condition_outputs,
                 "image_inputs_0": pixel_outputs0,
-                "image_inputs_1": pixel_outputs1
+                "image_inputs_1": pixel_outputs1,
             }
         )

@@ -532,16 +532,14 @@ class MSP_PairClassifier(GenericModel):
         )
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
-        _, image_1_features = self.clip(
-            text_inputs, image_inputs_1, condition_inputs
-        )
+        _, image_1_features = self.clip(text_inputs, image_inputs_1, condition_inputs)
         image_0_features = image_0_features / image_0_features.norm(
             dim=-1, keepdim=True
         )
         image_1_features = image_1_features / image_1_features.norm(
             dim=-1, keepdim=True
         )
-        
+
         image_0_scores = self.clip.logit_scale.exp() * torch.diag(
             torch.einsum("bd,cd->bc", text_features, image_0_features)
         )
@@ -552,4 +550,3 @@ class MSP_PairClassifier(GenericModel):
         scores = torch.stack([image_0_scores, image_1_scores], dim=-1)
         probs = torch.softmax(scores, dim=-1)
         return ClassificationOutputs(outputs=probs)
-    

@@ -716,6 +716,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             if not self.checkbox and new_choices is not None
             else new_choices
         )
+        new_texts = [text if text != "" else None for text in new_texts]
+        new_images = [img if img != "" else None for img in new_images]
+        new_videos = [vid if vid != "" else None for vid in new_videos]
+        new_htmls = [html if html != "" else None for html in new_htmls]
 
         return (
             (progress, new_group, new_choices, new_comment)
