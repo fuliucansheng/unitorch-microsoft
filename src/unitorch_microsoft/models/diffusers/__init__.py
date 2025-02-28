@@ -13,7 +13,6 @@ from unitorch.cli.models.diffusers import (
 
 pretrained_stable_infos.update({})
 
-
-import unitorch_microsoft.models.diffusers.modeling_flux_utils
+import unitorch_microsoft.models.diffusers.pipeline_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_vae
