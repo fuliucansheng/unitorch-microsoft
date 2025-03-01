@@ -714,7 +714,7 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-        indices = [random.randint(0, self.scheduler.config.num_train_timesteps)]
+        indices = [random.randint(0, self.scheduler.config.num_train_timesteps - 1)]
         timesteps = self.scheduler.timesteps[indices].to(device=self.device)
         sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         noise_latents = (1.0 - sigmas) * latents + sigmas * noise
@@ -1500,7 +1500,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-        indices = [random.randint(0, self.scheduler.config.num_train_timesteps)]
+        indices = [random.randint(0, self.scheduler.config.num_train_timesteps - 1)]
         timesteps = self.scheduler.timesteps[indices].to(device=self.device)
         sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         noise_latents = (1.0 - sigmas) * latents + sigmas * noise
