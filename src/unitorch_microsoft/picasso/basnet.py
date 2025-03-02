@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torchvision import models
-from torch.cuda.amp import autocast
+from torch import autocast
 from PIL import Image, ImageCms
 from random import random
 from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, Compose
@@ -344,6 +344,7 @@ class BASNetForSegmentation(GenericModel):
 
         return inst
 
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self, image: torch.Tensor, sizes: Optional[List[Tuple[int, int]]] = None
     ):

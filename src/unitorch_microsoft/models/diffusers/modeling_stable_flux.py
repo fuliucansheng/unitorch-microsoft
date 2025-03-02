@@ -305,7 +305,7 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-        sigmas = torch.sigmoid(torch.randn((batch,), device=self.device)).unsqueeze(1)
+        sigmas = torch.sigmoid(torch.randn((batch,), device=self.device))
         noise_latents = (1 - sigmas) * latents + sigmas * noise
         vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
@@ -483,6 +483,14 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
         )
         self.guidance_scale = guidance_scale
         self.pipeline.set_progress_bar_config(disable=True)
+        base_shift = self.scheduler.config.base_shift
+        max_shift = self.scheduler.config.max_shift
+        base_image_seq_len = self.scheduler.config.base_image_seq_len
+        max_image_seq_len = self.scheduler.config.max_image_seq_len
+        m = (max_shift - base_shift) / (max_image_seq_len - base_image_seq_len)
+        b = base_shift - m * base_image_seq_len
+        mu = max_image_seq_len * m + b
+        self.sigmas = self.scheduler.time_shift(mu, 1.0, self.scheduler.timesteps)
 
     @classmethod
     @add_default_section_for_init(
@@ -714,9 +722,12 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-        indices = [random.randint(0, self.scheduler.config.num_train_timesteps - 1)]
-        timesteps = self.scheduler.timesteps[indices].to(device=self.device)
-        sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
+        indices = random.randint(0, self.scheduler.config.num_train_timesteps - 1)
+        sigmas = (
+            torch.tensor(self.sigmas[indices])
+            .to(device=self.device)
+            .expand(latents.shape[0])
+        )
         noise_latents = (1.0 - sigmas) * latents + sigmas * noise
         vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
@@ -742,7 +753,7 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
 
         outputs = self.transformer(
             hidden_states=latent_model_input,
-            timestep=timesteps / 1000,
+            timestep=sigmas,
             guidance=guidance,
             encoder_hidden_states=outputs.prompt_embeds,
             pooled_projections=outputs.pooled_prompt_embeds,
@@ -1056,7 +1067,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-        sigmas = torch.sigmoid(torch.randn((batch,), device=self.device)).unsqueeze(1)
+        sigmas = torch.sigmoid(torch.randn((batch,), device=self.device))
         noise_latents = (1 - sigmas) * latents + sigmas * noise
         vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
@@ -1268,6 +1279,14 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         self.guidance_scale = guidance_scale
         self.pipeline.set_progress_bar_config(disable=True)
         self.num_channels_transformer = self.transformer.config.in_channels
+        base_shift = self.scheduler.config.base_shift
+        max_shift = self.scheduler.config.max_shift
+        base_image_seq_len = self.scheduler.config.base_image_seq_len
+        max_image_seq_len = self.scheduler.config.max_image_seq_len
+        m = (max_shift - base_shift) / (max_image_seq_len - base_image_seq_len)
+        b = base_shift - m * base_image_seq_len
+        mu = max_image_seq_len * m + b
+        self.sigmas = self.scheduler.time_shift(mu, 1.0, self.scheduler.timesteps)
 
     @classmethod
     @add_default_section_for_init(
@@ -1500,9 +1519,12 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-        indices = [random.randint(0, self.scheduler.config.num_train_timesteps - 1)]
-        timesteps = self.scheduler.timesteps[indices].to(device=self.device)
-        sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
+        indices = random.randint(0, self.scheduler.config.num_train_timesteps - 1)
+        sigmas = (
+            torch.tensor(self.sigmas[indices])
+            .to(device=self.device)
+            .expand(latents.shape[0])
+        )
         noise_latents = (1.0 - sigmas) * latents + sigmas * noise
         vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
@@ -1557,7 +1579,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
 
         outputs = self.transformer(
             hidden_states=latent_model_input,
-            timestep=timesteps / 1000,
+            timestep=sigmas,
             guidance=guidance,
             encoder_hidden_states=outputs.prompt_embeds,
             pooled_projections=outputs.pooled_prompt_embeds,
