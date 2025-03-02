@@ -344,7 +344,6 @@ class BASNetForSegmentation(GenericModel):
 
         return inst
 
-    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self, image: torch.Tensor, sizes: Optional[List[Tuple[int, int]]] = None
     ):
