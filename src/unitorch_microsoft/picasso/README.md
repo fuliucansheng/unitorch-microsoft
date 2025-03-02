@@ -1,39 +1,14 @@
-# Setup A6000 Environment
+# Usage
 
-### Open the firewall ports
+### Run OCR for local images
+
 ```bash
-sudo apt install iptables-persistent
-sudo iptables -P INPUT ACCEPT
-sudo iptables -P FORWARD ACCEPT
-sudo iptables -P OUTPUT ACCEPT
-sudo iptables -F
-sudo iptables-save
-sudo netfilter-persistent save
-sudo netfilter-persistent reload
+pip3 install paddlepaddle-gpu paddleocr
+python3 -m unitorch_microsoft.picasso.ocr --data_file ./images.50.txt --names image --image_col image --output_file ./ocr.out.txt --http_url None
 ```
 
-### Setup unitorch-microsoft
+### Run BASNet for local images
 
 ```bash
-mkdir -p ~/my
-cd ~/my
-git clone https://github.com/fuliucansheng/unitorch && cd unitorch && pip3 install -e .
-git clone https://dev.azure.com/decui/unitorch-microsoft/_git/unitorch-microsoft && cd unitorch-microsoft && pip3 install -e .
-pip3 install gradio==4.40.0 fastapi
-```
-
-### Start the flux model fastapi service
-
-> You could test the service by visiting the URL like: http://br1t44-s3-17:5000/docs
-
-```bash
-unitorch-fastapi picasso/diffusion/fastapis.ini --device 0 --port 5000
-```
-
-### Run the client
-
-> API Endpoint should be like: http://br1t44-s3-17:5000/core/fastapi/stable/text2image
-
-```bash
-unitorch-launch picasso/diffusion/scripts/text2image.ini --data_file ./data.tsv --jsonl_file ./output.jsonl
+python3 -m unitorch_microsoft.picasso.basnet --data_file ./images.50.txt --names image --image_col image --output_file ./basnet.out.txt --http_url None
 ```

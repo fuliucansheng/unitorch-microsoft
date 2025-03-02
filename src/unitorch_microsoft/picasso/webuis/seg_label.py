@@ -226,8 +226,6 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         self.checkbox2 = config.getoption("checkbox2", False)
         self.choices3 = config.getoption("choices3", None)
         self.checkbox3 = config.getoption("checkbox3", False)
-        self.choices4 = config.getoption("choices4", None)
-        self.checkbox4 = config.getoption("checkbox4", False)
         self.default_choice = config.getoption("default_choice", "")
         self.html_styles = config.getoption("html_styles", {})
         self.dataset["User"] = ""
@@ -246,10 +244,6 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             self.choices3 = re.split(r"[,;]", self.choices3)
             self.choices3 = [c.strip() for c in self.choices3]
         self.choices3 = [c.replace(",", " ").strip() for c in self.choices3]
-        if isinstance(self.choices4, str):
-            self.choices4 = re.split(r"[,;]", self.choices4)
-            self.choices4 = [c.strip() for c in self.choices4]
-        self.choices4 = [c.replace(",", " ").strip() for c in self.choices4]
 
         if os.path.exists(result_file) and not force_to_relabel:
             self.dataset = pd.read_csv(result_file, sep="\t")
@@ -300,10 +294,21 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             )
             for col in self.text_cols
         ]
-        images = [
+        image_headers = [
             create_element(
-                "image",
+                "text",
                 label=col,
+                default=col,
+                show_label=False,
+                interactive=False,
+            )
+            for col in self.image_cols
+        ]
+        images = [
+            gr.Image(
+                label=col,
+                show_label=False,
+                show_download_button=False,
                 elem_classes="ut-ms-seq-label-bg-green",
             )
             for col in self.image_cols
@@ -335,13 +340,8 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         )
         choices3 = create_element(
             "radio" if not self.checkbox3 else "checkboxgroup",
-            label="Product Integrity",
+            label="Product Obstruction Check",
             values=self.choices3,
-        )
-        choices4 = create_element(
-            "radio" if not self.checkbox4 else "checkboxgroup",
-            label="Readable Text in Background",
-            values=self.choices4,
         )
 
         comment = create_element(
@@ -390,11 +390,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             "dropdown",
             label="Label",
             default=" - ",
-            values=[" - "]
-            + self.choices1
-            + self.choices2
-            + self.choices3
-            + self.choices4,
+            values=[" - "] + self.choices1 + self.choices2 + self.choices3,
         )
 
         adv_stats_header = create_element(
@@ -451,6 +447,9 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             self.num_image_cols + self.num_video_cols
             > self.num_mix_images_videos_per_row
         ):
+            image_header_layout = create_flex_layout(
+                *image_headers, num_per_row=self.num_images_per_row
+            )
             image_layout = create_flex_layout(
                 *images, num_per_row=self.num_images_per_row
             )
@@ -462,13 +461,16 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             mix_image_video_layout = create_flex_layout(
                 *images, *videos, num_per_row=self.num_mix_images_videos_per_row
             )
+            image_header_layout = create_flex_layout(
+                *image_headers, num_per_row=self.num_mix_images_videos_per_row
+            )
             image_layout, video_layout = None, None
         html_layout = create_flex_layout(*htmls, num_per_row=self.num_html_per_row)
         """
         label_layout = create_row(
             comment,
             create_column(
-                create_row(choices2, choices3, choices4),
+                create_row(choices2, choices3),
                 choices1,
                 create_row(reset, submit),
                 scale=3,
@@ -476,7 +478,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         )
         """
         label_layout = create_column(
-            create_row(choices2, choices3, choices4, choices1),
+            create_row(choices1, choices3, choices2),
             create_row(
                 comment,
                 reset,
@@ -489,12 +491,14 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             layouts.append(text_layout)
 
         if self.num_image_cols > 0 and image_layout is not None:
+            layouts.append(image_header_layout)
             layouts.append(image_layout)
 
         if self.num_video_cols > 0 and video_layout is not None:
             layouts.append(video_layout)
 
         if mix_image_video_layout is not None:
+            layouts.append(image_header_layout)
             layouts.append(mix_image_video_layout)
 
         if self.num_html_cols > 0:
@@ -543,7 +547,6 @@ class SegmentationLabelingWebUI(SimpleWebUI):
                 choices1,
                 choices2,
                 choices3,
-                choices4,
                 comment,
                 adv_logs,
             ],
@@ -570,7 +573,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         reset.click(
             self.reset,
             inputs=[index],
-            outputs=[choices1, choices2, choices3, choices4, comment, progress],
+            outputs=[choices1, choices2, choices3, comment, progress],
             trigger_mode="once",
         )
         index.change(
@@ -583,7 +586,6 @@ class SegmentationLabelingWebUI(SimpleWebUI):
                 choices1,
                 choices2,
                 choices3,
-                choices4,
                 comment,
                 *texts,
                 *images,
@@ -752,7 +754,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
 
         if len(self.dataset[self.dataset["Index"] == index]) == 0:
-            return (index, progress, None, None, None, None, None, None) + tuple(
+            return (index, progress, None, None, None, None, None) + tuple(
                 [None]
                 * (
                     self.num_text_cols
@@ -771,30 +773,14 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         new_group = new_one[self.group_col] if self.group_col is not None else None
         new_comment = new_one["Comment"]
         new_choices = new_one["Label"].split(",") if new_one["Label"] != "" else []
-        new_choices1 = [choice for choice in new_choices if choice in self.choices1]
         """
+        new_choices1 = [choice for choice in new_choices if choice in self.choices1]
         new_choices2 = [choice for choice in new_choices if choice in self.choices2]
         new_choices3 = [choice for choice in new_choices if choice in self.choices3]
-        new_choices4 = [choice for choice in new_choices if choice in self.choices4]
         """
-        new_choices2 = new_choices[-3:-2] if len(new_choices) > 0 else []
-        new_choices3 = new_choices[-2:-1] if len(new_choices) > 0 else []
-        new_choices4 = new_choices[-1:] if len(new_choices) > 0 else []
-
-        if len(new_choices1) > 0 and not self.checkbox1:
-            new_choices1 = new_choices1[0]
-        if len(new_choices2) > 0 and not self.checkbox2:
-            new_choices2 = new_choices2[0]
-        else:
-            new_choices2 = None
-        if len(new_choices3) > 0 and not self.checkbox3:
-            new_choices3 = new_choices3[0]
-        else:
-            new_choices3 = None
-        if len(new_choices4) > 0 and not self.checkbox4:
-            new_choices4 = new_choices4[0]
-        else:
-            new_choices4 = None
+        new_choices1 = new_choices[0] if len(new_choices) > 0 else None
+        new_choices2 = new_choices[1] if len(new_choices) > 1 else None
+        new_choices3 = new_choices[2] if len(new_choices) > 2 else None
 
         return (
             (
@@ -804,7 +790,6 @@ class SegmentationLabelingWebUI(SimpleWebUI):
                 new_choices1,
                 new_choices2,
                 new_choices3,
-                new_choices4,
                 new_comment,
             )
             + tuple(new_texts)
@@ -817,7 +802,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         dataset = self.dataset.copy()
         dataset["Num"] = 1
         labeled = dataset[dataset["Label"] != ""]
-        choices = self.choices1 + self.choices2 + self.choices3 + self.choices4
+        choices = self.choices1 + self.choices2 + self.choices3
 
         labeled["Label"] = labeled["Label"].map(
             lambda x: x.split(",") if x != "" else []
@@ -882,24 +867,25 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         choice1,
         choice2,
         choice3,
-        choice4,
         comment,
         logs,
     ):
-        check1 = any(
-            ch == "" or ch is None for ch in [choice1, choice2, choice3, choice4]
+        check1 = (
+            any(ch == "" or ch is None for ch in [choice2, choice3])
+            or len(choice1) == 0
         )
-        check2 = "all bad" in choice1 and len(choice1) > 1
-        check3 = len(choice1) == 0
-        if check1 or check2 or check3:
+        # check2 = "Both Bad" in choice1 and len(choice1) > 1
+        # check3 = choice2 == "Bad" or choice3 == "Bad" or ("Both Bad" in choice1 and not check2)
+        check2 = choice2 == "Bad" or choice3 == "Bad" or choice1 == "Both Bad"
+        if check1 and not check2:
             gr.Warning(
-                "Please don't leave any of labels empty or segmentation label invaild."
+                "Please don't leave all of labels empty or segmentation label invaild."
             )
             return os.path.abspath(self.result_file), self.stats(), logs, index
 
         def process_choice(choice):
             if isinstance(choice, list) or isinstance(choice, tuple):
-                choice = ",".join(choice) if len(choice) > 0 else self.default_choice
+                choice = ";".join(choice) if len(choice) > 0 else self.default_choice
             if choice is None:
                 return ""
             return choice
@@ -910,10 +896,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             + process_choice(choice2)
             + ","
             + process_choice(choice3)
-            + ","
-            + process_choice(choice4)
         )
-        choice = choice.strip(",")
         self.dataset.loc[self.dataset.Index == index, "User"] = user
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment

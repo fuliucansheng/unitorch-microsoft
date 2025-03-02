@@ -13,6 +13,13 @@ from unitorch.cli.models.diffusers import (
 
 pretrained_stable_infos.update({})
 
+pretrained_stable_extensions_infos.update(
+    {
+        "stable-flux-lora-ms-dev-recraft": {"weight": ""},
+        "stable-flux-lora-ms-dev-fill-simple": {"weight": ""},
+    }
+)
+
 import unitorch_microsoft.models.diffusers.pipeline_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_vae

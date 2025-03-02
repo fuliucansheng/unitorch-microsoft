@@ -1333,10 +1333,12 @@ class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
         self.init_weights()
         self.classifier.weight.data.fill_(5.0)
 
-        self.labels = labels
         self.processor = BletchleyProcessor(
             max_seq_length=max_seq_length,
         )
+
+        assert labels is not None
+        self.labels_inputs = self.get_label_inputs(labels)
         self.labels_embs = None
 
         if freeze_base_model:
@@ -1346,26 +1348,15 @@ class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
             for p in self.image_encoder.parameters():
                 p.requires_grad = False
 
-    def setup_label(self):
-        self.labels_embs = [self.get_text_embeds(v) for v in self.labels]
-        self.labels_embs = torch.cat(self.labels_embs, dim=0)
-
-    @torch.no_grad()
-    def get_text_embeds(self, text: str):
-        inputs = self.processor._text_classification(text)
-        inputs = {
-            k: v.unsqueeze(0) if v is not None else v for k, v in inputs.dict().items()
-        }
-        inputs = {
-            k: v.to(device="cpu") if v is not None else v for k, v in inputs.items()
-        }
-        text_outputs = self.text_encoder(
-            input_ids=inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
-        )
-        text_embeds = self.text_projection(text_outputs[:, 0])
-        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
-        return text_embeds
+    def get_label_inputs(self, texts):
+        input_ids, attention_mask = [], []
+        for text in texts:
+            inputs = self.processor._text_classification(text).dict()
+            input_ids.append(inputs["input_ids"])
+            attention_mask.append(inputs["attention_mask"])
+        input_ids = torch.stack(input_ids, dim=0)
+        attention_mask = torch.stack(attention_mask, dim=0)
+        return {"input_ids": input_ids, "attention_mask": attention_mask}
 
     @classmethod
     @add_default_section_for_init("microsoft/model/matching/bletchley/v1/v2")
@@ -1405,9 +1396,6 @@ class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
                 lora_alphas=pretrained_lora_alpha,
                 save_base_state=False,
             )
-
-        if labels is not None:
-            inst.setup_label()
         return inst
 
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
@@ -1419,6 +1407,15 @@ class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
         image_embeds = self.image_projection(image_outputs[:, 0])
 
         image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+        if self.labels_embs is None or self.training:
+            text_outputs = self.text_encoder(
+                input_ids=self.labels_inputs["input_ids"].to(self.device),
+                attention_mask=self.labels_inputs["attention_mask"].to(self.device),
+            )
+            text_embeds = self.text_projection(text_outputs[:, 0])
+            text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+            self.labels_embs = text_embeds
         self.labels_embs = self.labels_embs.to(device=image_embeds.device)
         scores = torch.einsum("ij,kj->ik", image_embeds, self.labels_embs)
+        scores = self.classifier(scores.view(-1, 1)).view(-1, self.labels_embs.size(0))
         return ClassificationOutputs(outputs=scores)
