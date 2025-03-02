@@ -490,7 +490,7 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
         m = (max_shift - base_shift) / (max_image_seq_len - base_image_seq_len)
         b = base_shift - m * base_image_seq_len
         mu = max_image_seq_len * m + b
-        self.sigmas = self.scheduler.time_shift(mu, 1.0, self.scheduler.timesteps)
+        self.sigmas = self.scheduler.time_shift(mu, 1.0, self.scheduler.timesteps / 1000)
 
     @classmethod
     @add_default_section_for_init(
@@ -1286,7 +1286,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         m = (max_shift - base_shift) / (max_image_seq_len - base_image_seq_len)
         b = base_shift - m * base_image_seq_len
         mu = max_image_seq_len * m + b
-        self.sigmas = self.scheduler.time_shift(mu, 1.0, self.scheduler.timesteps)
+        self.sigmas = self.scheduler.time_shift(mu, 1.0, self.scheduler.timesteps / 1000)
 
     @classmethod
     @add_default_section_for_init(
