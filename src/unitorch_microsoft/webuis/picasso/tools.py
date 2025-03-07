@@ -164,7 +164,7 @@ class OutpaintWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         # create elements
         image1 = create_element("image", "Image")
-        ratio1 = create_element("radio", "Ratio", values=[0.5, 1, 2], default=1)
+        ratio1 = create_element("radio", "Ratio", values=[0.5, 1, 1.9, 2], default=1)
         generate1 = create_element("button", "Generate")
 
         image2 = create_element("image", "Image")
@@ -221,7 +221,12 @@ class OutpaintWebUI(SimpleWebUI):
         super().__init__(config, iname="Outpaint", iface=iface)
 
     def process_infer(self, image, ratio):
-        size_dict = {"1": (768, 768), "0.5": (512, 1024), "2": (1024, 512)}
+        size_dict = {
+            "1": (768, 768),
+            "0.5": (512, 1024),
+            "1.9": (1024, 536),
+            "2": (1024, 512),
+        }
 
         width, height = image.size
         size = size_dict[str(ratio)]

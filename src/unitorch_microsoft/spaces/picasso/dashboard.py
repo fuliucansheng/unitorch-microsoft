@@ -22,9 +22,6 @@ from unitorch_microsoft.spaces import (
     create_cards_group,
 )
 
-config_path = cached_path("spaces/config.ini")
-config = CoreConfigureParser(config_path)
-
 
 class DashboardWebUI(SimpleWebUI):
     def __init__(
@@ -94,6 +91,9 @@ class DashboardWebUI(SimpleWebUI):
             ),
             footer,
         )
+
+        iface._title = "Ads Spaces | Picasso Dashboard"
+        iface._description = "This is a demo for picasso dashboard."
 
         # create events
         iface.__enter__()

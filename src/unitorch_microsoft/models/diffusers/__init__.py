@@ -15,8 +15,21 @@ pretrained_stable_infos.update({})
 
 pretrained_stable_extensions_infos.update(
     {
-        "stable-flux-lora-ms-dev-recraft": {"weight": ""},
-        "stable-flux-lora-ms-dev-fill-simple": {"weight": ""},
+        "stable-flux-lora-dev-fill-obj-removal": {
+            "lora": {
+                "weight": "https://huggingface.co/lrzjason/ObjectRemovalFluxFill/resolve/main/fill_remove.safetensors"
+            }
+        },
+        "stable-flux-lora-ms-dev-recraft": {
+            "lora": {
+                "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.ms.lora.recraft.bin"
+            }
+        },
+        "stable-flux-lora-ms-dev-fill-simple": {
+            "lora": {
+                "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.simple.bin"
+            }
+        },
     }
 )
 

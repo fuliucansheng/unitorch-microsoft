@@ -3,6 +3,7 @@
 
 import os
 import re
+import cv2
 import io
 import fire
 import torch
@@ -10,8 +11,9 @@ import json
 import logging
 import hashlib
 import requests
+import numpy as np
 import pandas as pd
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from multiprocessing import Process, Queue
 from unitorch.models import GenericOutputs
@@ -20,20 +22,23 @@ from unitorch.cli import CoreConfigureParser
 import unitorch_microsoft.models.diffusers
 
 endpoints = [
-    # "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
+    "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
     # "http://br1t44-s3-17:5051/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.219:5050/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5051/core/fastapi/stable_flux",
+    # "http://10.224.120.219:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
+    ### "http://10.224.120.67:5050/core/fastapi/stable_flux",
+    ### "http://10.224.120.67:5051/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5050/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5051/core/fastapi/stable_flux",
-    "http://10.224.120.184:5051/core/fastapi/stable_flux",
+    ### "http://10.224.120.184:5050/core/fastapi/stable_flux",
+    ### "http://10.224.120.184:5051/core/fastapi/stable_flux",
     # "http://br1t43-s3-17.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-17.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
-    "http://10.224.120.81:5050/core/fastapi/stable_flux",
-    "http://10.224.120.81:5051/core/fastapi/stable_flux",
+    # "http://10.224.120.81:5050/core/fastapi/stable_flux",
+    # "http://10.224.120.81:5051/core/fastapi/stable_flux",
 ]
 
 
@@ -204,6 +209,7 @@ def inpainting(
     lora_alpha: Optional[float] = 32.0,
     processor_name: Optional[str] = "default",
     force_restart: Optional[bool] = True,
+    do_copy: Optional[bool] = False,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -311,6 +317,18 @@ def inpainting(
             )
             result = Image.open(io.BytesIO(response.content))
             record[f"result"] = save_image(cache_dir, result)
+            if do_copy:
+                image = image.resize(result.size).convert("RGBA")
+                mask_image = ImageOps.invert(mask_image.resize(result.size)).convert(
+                    "L"
+                )
+                result = result.convert("RGBA")
+                image = Image.composite(image, result, mask_image)
+                mask = mask_image.filter(ImageFilter.GaussianBlur(100))
+                mask = ImageEnhance.Contrast(mask).enhance(0.8)
+                result.paste(image, (0, 0), mask)
+                result = result.convert("RGB")
+                record[f"result_copy"] = save_image(cache_dir, result)
 
             Q.put(record)
         Q.put("Done")
@@ -363,8 +381,13 @@ def inpainting(
 def __out_processing_image(image, ratio):
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
-    assert ratio in [0.5, 1.0, 2.0]
-    size_dict = {"1.0": (768, 768), "0.5": (512, 1024), "2.0": (1024, 512)}
+    assert ratio in [0.5, 1.0, 1.9, 2.0]
+    size_dict = {
+        "1.0": (768, 768),
+        "0.5": (512, 1024),
+        "2.0": (1024, 512),
+        "1.9": (1024, 536),
+    }
     # size_dict = {"1.0": (1024, 1024), "0.5": (768, 1536), "2.0": (1536, 768)}
 
     width, height = image.size
@@ -389,8 +412,13 @@ def __out_processing_image(image, ratio):
 def __out_processing1_image(image, ratio):
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
-    assert ratio in [0.5, 1.0, 2.0]
-    size_dict = {"1.0": (768, 768), "0.5": (512, 1024), "2.0": (1024, 512)}
+    assert ratio in [0.5, 1.0, 1.9, 2.0]
+    size_dict = {
+        "1.0": (768, 768),
+        "0.5": (512, 1024),
+        "2.0": (1024, 512),
+        "1.9": (1024, 536),
+    }
     # size_dict = {"1.0": (1024, 1024), "0.5": (768, 1536), "2.0": (1536, 768)}
 
     width, height = image.size
@@ -426,8 +454,11 @@ def outpainting(
     lora_name: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
+    strength: Optional[float] = 0.95,
     processor_name: Optional[str] = "p1",
     force_restart: Optional[bool] = True,
+    do_opencv_inpainting: Optional[bool] = True,
+    do_copy: Optional[bool] = False,
     ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
 ):
     if isinstance(names, str) and names.strip() == "*":
@@ -452,6 +483,8 @@ def outpainting(
     if isinstance(ratios, str):
         ratios = re.split(r"[,;]", ratios)
         ratios = [float(n.strip()) for n in ratios]
+    if isinstance(ratios, float):
+        ratios = [ratios]
 
     assert processor_name in processors.keys()
 
@@ -509,6 +542,15 @@ def outpainting(
 
             for ratio in ratios:
                 image, mask_image = process_func(raw_image, ratio)
+                if do_opencv_inpainting:
+                    image_np = np.array(image.convert("RGB"))
+                    mask_np = np.array(mask_image.convert("L")).astype(np.uint8)
+
+                    _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+                    inpainted_image = cv2.inpaint(
+                        image_np, binary_mask, 10, cv2.INPAINT_TELEA
+                    )
+                    image = Image.fromarray(inpainted_image)
                 image_buffer = io.BytesIO()
                 image.save(image_buffer, format="JPEG")
                 mask_image_buffer = io.BytesIO()
@@ -532,11 +574,24 @@ def outpainting(
                         "guidance_scale": guidance_scale,
                         "num_timesteps": num_timesteps,
                         "seed": seed,
+                        "strength": strength,
                     },
                     files=files,
                 )
                 result = Image.open(io.BytesIO(response.content))
                 record[f"result_{ratio}"] = save_image(cache_dir, result)
+                if do_copy:
+                    image = image.resize(result.size).convert("RGBA")
+                    mask_image = ImageOps.invert(
+                        mask_image.resize(result.size)
+                    ).convert("L")
+                    result = result.convert("RGBA")
+                    image = Image.composite(image, result, mask_image)
+                    mask = mask_image.filter(ImageFilter.GaussianBlur(100))
+                    mask = ImageEnhance.Contrast(mask).enhance(0.8)
+                    result.paste(image, (0, 0), mask)
+                    result = result.convert("RGB")
+                    record[f"result_{ratio}_copy"] = save_image(cache_dir, result)
 
             Q.put(record)
         Q.put("Done")

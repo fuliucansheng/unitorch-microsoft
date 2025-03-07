@@ -8,6 +8,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.spaces import (
+    spaces_settings,
     create_element,
     create_row,
     create_column,
@@ -23,10 +24,7 @@ from unitorch_microsoft.spaces import (
     http_url as _http_url,
 )
 from unitorch_microsoft.spaces.picasso.dashboard import DashboardWebUI
-from unitorch_microsoft.spaces.picasso.example import ExampleWebUI
-
-config_path = cached_path("spaces/config.ini")
-config = CoreConfigureParser(config_path)
+from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
 
 # Picasso dashboard
 dashboards = [
@@ -38,17 +36,20 @@ dashboards = [
 ]
 
 # Picasso examples
-config.set_default_section("microsoft/spaces/picasso/examples")
-_sections = config.getoption("sections", [])
-_titles = config.getoption("titles", [])
-_descriptions = config.getoption("descriptions", [])
-_links = [
-    "/picasso/" + hashed_link(title + desc, 6)
-    for title, desc in zip(_titles, _descriptions)
-]
+expand_bg_page = ExpandBGWebUI(spaces_settings).iface
+
+examples_pages = [expand_bg_page]
+for page in examples_pages:
+    page._link = f"/picasso/{hashed_link(page._title + page._description, 6)}"
+    page.title = f"Ads Spaces | Picasso - {page._title}"
+
 examples = [
-    GenericOutputs(section=section, title=title, desc=desc, link=link)
-    for section, title, desc, link in zip(_sections, _titles, _descriptions, _links)
+    GenericOutputs(
+        title=p._title,
+        desc=p._description,
+        link=p._link,
+    )
+    for p in examples_pages
 ]
 
 
@@ -77,19 +78,10 @@ def create_picasso_page():
 picasso_page = create_picasso_page()
 picasso_page.title = "Ads Spaces | Picasso Home"
 
-dashboard_page = DashboardWebUI(config).iface
-dashboard_page.title = "Ads Spaces | Picasso Dashboard"
-
-examples_pages = {}
-for example in examples:
-    page = ExampleWebUI(
-        config, example.section, example.title, example.desc, _http_url
-    ).iface
-    page.title = "Ads Spaces | Picasso - " + example.title
-    examples_pages[example.link] = page
+dashboard_page = DashboardWebUI(spaces_settings).iface
 
 picasso_routers = {
     "/picasso": picasso_page,
     "/picasso/dashboard": dashboard_page,
-    **examples_pages,
+    **{p._link: p for p in examples_pages},
 }

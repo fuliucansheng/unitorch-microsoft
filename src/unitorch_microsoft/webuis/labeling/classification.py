@@ -416,12 +416,16 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         )
 
         # create blocks
-        text_layout = create_column(
-            *texts[: -self.num_group_text_cols],
-            create_flex_layout(
-                *texts[-self.num_group_text_cols :],
-                num_per_row=self.num_group_texts_per_row,
-            ),
+        text_layout = (
+            create_column(
+                *texts[: -self.num_group_text_cols],
+                create_flex_layout(
+                    *texts[-self.num_group_text_cols :],
+                    num_per_row=self.num_group_texts_per_row,
+                ),
+            )
+            if self.num_group_text_cols > 0
+            else create_column(*texts)
         )
         if (
             self.num_image_cols + self.num_video_cols
