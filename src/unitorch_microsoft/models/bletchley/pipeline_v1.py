@@ -28,12 +28,18 @@ from unitorch_microsoft.models.bletchley import (
 from unitorch_microsoft.models.bletchley.modeling_v1 import (
     BletchleyForPretrain as _BletchleyForPretrain,
     BletchleyForMatching as _BletchleyForMatching,
+    BletchleyForMatchingV2 as _BletchleyForMatchingV2,
 )
 from unitorch_microsoft.models.bletchley.modeling_v1 import (
     get_bletchley_text_config,
     get_bletchley_image_config,
 )
 from unitorch_microsoft.models.bletchley.processing_v1 import BletchleyProcessor
+
+ACT2FN = {
+    "sigmoid": torch.sigmoid,
+    "softmax": torch.nn.Softmax(dim=1),
+}
 
 
 class BletchleyForMatchingPipeline(_BletchleyForMatching):
@@ -150,7 +156,7 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
         return scores[0].item()
 
 
-class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
+class BletchleyForMatchingV2Pipeline(_BletchleyForMatchingV2):
     def __init__(
         self,
         config_type: str,
@@ -162,11 +168,19 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
         state_dict: Optional[Dict[str, Any]] = None,
         label_dict: Optional[Dict[str, str]] = None,
         device: Optional[Union[str, int]] = "cpu",
+        act_fn: Optional[str] = None,
     ):
+        assert label_dict is not None, "label_dict must be provided"
+
         projection_dim = get_bletchley_text_config(config_type).global_vector_size
+        self.label_keys = list(label_dict.keys())
+        self.label_values = list(label_dict.values())
+        self.act_fn = ACT2FN.get(act_fn, None)
         super().__init__(
             config_type=config_type,
             projection_dim=projection_dim,
+            labels=self.label_values,
+            max_seq_length=max_seq_length,
         )
         self.processor = BletchleyProcessor(
             max_seq_length=max_seq_length,
@@ -185,14 +199,6 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
 
         self.to(device=self._device)
 
-        assert label_dict is not None, "label_dict must be provided"
-        self.label_dict = label_dict
-
-        self.label_embs = {
-            k: self.get_text_embeds(v).cpu().numpy().reshape(-1)
-            for k, v in self.label_dict.items()
-        }
-
     @classmethod
     @add_default_section_for_init("microsoft/models/bletchley/pipeline/v1/matching/v2")
     def from_core_configure(
@@ -203,6 +209,7 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
         pretrained_lora_weight_path: Optional[str] = None,
         label_dict: Optional[Dict[str, str]] = None,
         device: Optional[str] = None,
+        act_fn: Optional[str] = None,
         **kwargs,
     ):
         config.set_default_section("microsoft/models/bletchley/pipeline/v1/matching/v2")
@@ -233,6 +240,7 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
         lora_weight = config.getoption("pretrained_lora_weight", 1.0)
         lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
         label_dict = config.getoption("label_dict", label_dict)
+        act_fn = config.getoption("act_fn", None) if act_fn is None else act_fn
 
         inst = cls(
             config_type,
@@ -243,42 +251,10 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
             lora_alpha=lora_alpha,
             label_dict=label_dict,
             device=device,
+            act_fn=act_fn,
         )
 
         return inst
-
-    @torch.no_grad()
-    def get_image_embeds(self, image: Image.Image):
-        inputs = self.processor._image_classification(image)
-        inputs = {
-            k: v.unsqueeze(0) if v is not None else v for k, v in inputs.dict().items()
-        }
-        inputs = {
-            k: v.to(device=self._device) if v is not None else v
-            for k, v in inputs.items()
-        }
-        image_outputs = self.image_encoder(inputs["images"])
-        image_embeds = self.image_projection(image_outputs[:, 0])
-        image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
-        return image_embeds
-
-    @torch.no_grad()
-    def get_text_embeds(self, text: str):
-        inputs = self.processor._text_classification(text)
-        inputs = {
-            k: v.unsqueeze(0) if v is not None else v for k, v in inputs.dict().items()
-        }
-        inputs = {
-            k: v.to(device=self._device) if v is not None else v
-            for k, v in inputs.items()
-        }
-        text_outputs = self.text_encoder(
-            input_ids=inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
-        )
-        text_embeds = self.text_projection(text_outputs[:, 0])
-        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
-        return text_embeds
 
     @torch.no_grad()
     @add_default_section_for_function(
@@ -289,10 +265,17 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForPretrain):
         image,
     ):
         assert image is not None, "image must be provided"
-        image_embeds = self.get_image_embeds(image)
-        image_embeds = image_embeds.cpu().numpy().reshape(1, -1)
-
-        results = {
-            k: (1 + np.dot(image_embeds, v)) / 2 for k, v in self.label_embs.items()
+        inputs = self.processor._image_classification(image)
+        inputs = {
+            k: v.unsqueeze(0) if v is not None else v for k, v in inputs.dict().items()
         }
-        return results
+        inputs = {
+            k: v.to(device=self._device) if v is not None else v
+            for k, v in inputs.items()
+        }
+        results = self.forward(
+            images=inputs["images"],
+        ).outputs
+        if self.act_fn is not None:
+            results = self.act_fn(results)
+        return {k: v for k, v in zip(self.label_keys, results[0])}

@@ -500,3 +500,71 @@ class BASNetProcessor:
         results["roi"] = [process_roi(m) for m in masks]
 
         return WriterOutputs(results)
+
+
+class BASNetForSegmentationPipeline(BASNetForSegmentation):
+    def __init__(
+        self,
+        n_channels: int = 3,
+        n_classes: int = 1,
+        device: Optional[Union[str, int]] = "cpu",
+    ):
+        super().__init__(
+            n_channels=n_channels,
+            n_classes=n_classes,
+        )
+        self._processor = BASNetProcessor()
+        self._device = "cpu" if device == "cpu" else int(device)
+
+        self.to(device=self._device)
+        self.eval()
+
+    @classmethod
+    @add_default_section_for_init("microsoft/picasso/pipeline/basnet")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/picasso/pipeline/basnet")
+        n_channels = config.getoption("n_channels", 3)
+        n_classes = config.getoption("n_classes", 1)
+        device = config.getoption("device", "cpu")
+
+        inst = cls(
+            n_channels=n_channels,
+            n_classes=n_classes,
+            device=device,
+        )
+
+        weight_path = config.getoption(
+            "pretrained_weight_path",
+            "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.basnet.jewelry.2503.bin",
+        )
+        if weight_path is not None:
+            inst.from_pretrained(
+                weight_path,
+            )
+
+        return inst
+
+    @torch.no_grad()
+    def __call__(
+        self,
+        image: Image.Image,
+        threshold: Optional[float] = 0.1,
+    ):
+        inputs = self._processor._segmentation_inputs(image)
+        pixel = inputs.image.unsqueeze(0).to(self._device)
+        sizes = inputs.sizes.unsqueeze(0).to(self._device)
+
+        outputs = self.forward(
+            image=pixel,
+            sizes=sizes,
+        ).masks
+
+        masks = [
+            (mask.squeeze(0).cpu().numpy() > threshold).astype(np.uint8)
+            for mask in outputs
+        ][0]
+        masks = masks.reshape(*masks.shape[:2])
+        result_image = Image.fromarray(masks * 255, mode="L")
+        result_image = result_image.resize(image.size)
+
+        return result_image

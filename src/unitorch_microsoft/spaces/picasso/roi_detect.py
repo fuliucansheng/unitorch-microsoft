@@ -13,10 +13,9 @@ from unitorch import mktempfile
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
-from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-import unitorch_microsoft.models.sam
+from unitorch_microsoft.picasso.basnet import BASNetForSegmentationPipeline
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -40,7 +39,7 @@ class ROIDetectWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🛠️ ROI Detection</div>",
+            label=f"# <div style='margin-top:10px'>🎢 ROI Detection</div>",
             interactive=False,
         )
         description = create_element(
@@ -56,10 +55,10 @@ class ROIDetectWebUI(SimpleWebUI):
         mask_threshold = create_element(
             "slider",
             "Mask Threshold",
-            default=-1.0,
-            min_value=-20,
-            max_value=20,
-            step=0.1,
+            default=0.1,
+            min_value=0,
+            max_value=1,
+            step=0.01,
         )
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image")
@@ -112,9 +111,8 @@ class ROIDetectWebUI(SimpleWebUI):
         super().__init__(config, iname="Remove Background", iface=iface)
 
     def start(self):
-        self._pipe = SamForSegmentationPipeline.from_core_configure(
+        self._pipe = BASNetForSegmentationPipeline.from_core_configure(
             config=self._config,
-            pretrained_name="sam-vit-large",
         )
         self._status = "Running"
         return self._status
@@ -128,17 +126,10 @@ class ROIDetectWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, image, mask_threshold=-2.0):
-        x1, y1, x2, y2 = 0, 0, image.size[0], image.size[1]
+    def serve(self, image, mask_threshold=0.1):
         mask = self._pipe(
             image,
-            boxes=[[(x1, y1, x2, y2)]],
-            mask_threshold=mask_threshold,
-            lora_checkpoints=["sam-lora-dis5k"],
-            lora_weights=[0.5],
-            lora_alphas=[32.0],
-            lora_urls=[None],
-            lora_files=[None],
+            threshold=mask_threshold,
         )
         mask = mask.convert("L").resize(image.size)
         result = image.convert("RGB")

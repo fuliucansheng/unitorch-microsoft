@@ -24,6 +24,8 @@ from unitorch_microsoft.spaces import (
     http_url as _http_url,
 )
 from unitorch_microsoft.spaces.picasso.dashboard import DashboardWebUI
+from unitorch_microsoft.spaces.picasso.img_insights import ImgInsightsWebUI
+from unitorch_microsoft.spaces.picasso.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
 
 # Picasso dashboard
@@ -37,8 +39,14 @@ dashboards = [
 
 # Picasso examples
 expand_bg_page = ExpandBGWebUI(spaces_settings).iface
+img_insights_page = ImgInsightsWebUI(spaces_settings).iface
+roi_detect_page = ROIDetectWebUI(spaces_settings).iface
 
-examples_pages = [expand_bg_page]
+examples_pages = [
+    img_insights_page,
+    roi_detect_page,
+    expand_bg_page,
+]
 for page in examples_pages:
     page._link = f"/picasso/{hashed_link(page._title + page._description, 6)}"
     page.title = f"Ads Spaces | Picasso - {page._title}"

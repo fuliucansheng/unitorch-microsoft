@@ -44,7 +44,7 @@ class ExpandBGWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🛠️ Expand Background</div>",
+            label=f"# <div style='margin-top:10px'>🎢 Expand Background</div>",
             interactive=False,
         )
         description = create_element(

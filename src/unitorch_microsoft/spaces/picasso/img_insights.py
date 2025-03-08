@@ -49,7 +49,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🛠️ Image Insights</div>",
+            label=f"# <div style='margin-top:10px'>🎢 Image Insights</div>",
             interactive=False,
         )
         description = create_element(
@@ -67,9 +67,12 @@ class ImgInsightsWebUI(SimpleWebUI):
         result2 = gr.Label(label="Image Type")
         result3 = gr.Label(label="General Category")
         result4 = gr.Label(label="Blurry")
+        result5 = gr.Label(label="ICE Category")
 
         left = create_column(input_image, generate)
-        right = create_column(create_row(result1, result2, result4), result3)
+        right = create_column(
+            create_row(result1, result2, result4), create_row(result3, result5)
+        )
 
         iface = create_blocks(
             toper_menus,
@@ -102,7 +105,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         generate.click(
             fn=self.serve,
             inputs=[input_image],
-            outputs=[result1, result2, result3, result4],
+            outputs=[result1, result2, result3, result4, result5],
             trigger_mode="once",
         )
 
@@ -116,6 +119,8 @@ class ImgInsightsWebUI(SimpleWebUI):
         super().__init__(config, iname="Image Insights", iface=iface)
 
     def start(self):
+        if self._status == "Running":
+            return self._status
         self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="0.8B",
@@ -129,6 +134,7 @@ class ImgInsightsWebUI(SimpleWebUI):
                 "real": "a real image, not a poster or a logo",
                 "logo": "logo image, composed of logo only",
             },
+            act_fn="sigmoid",
         )
         self._pipe2 = BletchleyV3ForImageClassificationPipeline.from_core_configure(
             self._config,
@@ -164,22 +170,55 @@ class ImgInsightsWebUI(SimpleWebUI):
             label_dict={
                 "blurry": "blurry",
             },
+            act_fn="sigmoid",
+        )
+        self._pipe4 = BletchleyV3ForImageClassificationPipeline.from_core_configure(
+            self._config,
+            config_type="2.5B",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/image/pytorch_model.bletchley.v3.cate.2.2502.bin",
+            id2label={
+                0: "Sports & Fitness",
+                1: "Home & Garden",
+                2: "Apparel",
+                3: "Others",
+                4: "Food & Groceries",
+                5: "Vehicles",
+                6: "Beauty & Personal Care",
+                7: "Hobbies & Leisure",
+                8: "Jobs & Education",
+                9: "Travel & Tourism",
+                10: "Business & Industrial",
+                11: "Arts & Entertainment",
+                12: "Occasions & Gifts",
+                13: "Health",
+                14: "Dining & Nightlife",
+                15: "Computers & Consumer Electronics",
+                16: "Family & Community",
+                17: "Real Estate",
+                18: "Law & Government",
+                19: "Internet & Telecom",
+                20: "Finance",
+                21: "Retailers & General Merchandise",
+                22: "News Media & Publications",
+            },
         )
         self._status = "Running"
         return self._status
 
     def stop(self):
+        if self._status == "Stopped":
+            return self._status
         self._pipe1.to("cpu")
         del self._pipe1
         self._pipe2.to("cpu")
         del self._pipe2
+        self._pipe3.to("cpu")
+        del self._pipe3
+        self._pipe4.to("cpu")
+        del self._pipe4
         gc.collect()
         torch.cuda.empty_cache()
-        self._pipe1 = None if not hasattr(self, "_pipe1") else self._pipe1
-        self._pipe2 = None if not hasattr(self, "_pipe2") else self._pipe2
-        self._status = (
-            "Stopped" if self._pipe1 is None or self._pipe2 is None else "Running"
-        )
+        self._status = "Stopped"
         return self._status
 
     def serve(self, image):
@@ -188,5 +227,6 @@ class ImgInsightsWebUI(SimpleWebUI):
         result2 = {k: results[k] for k in ["poster", "logo", "real"]}
         result3 = self._pipe2(image)
         result4 = self._pipe3(image)
+        result5 = self._pipe4(image)
 
-        return result1, result2, result3, result4
+        return result1, result2, result3, result4, result5
