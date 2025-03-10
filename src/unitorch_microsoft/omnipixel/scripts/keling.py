@@ -476,6 +476,7 @@ def image2video(
     aspect_ratio: Optional[str] = "16:9",
     duration: Optional[str] = "5",
     model: Optional[str] = "kling-v1-6",
+    mode: Optional[str] = "std", #'pro'
     max_queue_size: Optional[int] = 2000,
     index_col: Optional[str] = None,
 ):
@@ -484,7 +485,7 @@ def image2video(
     if isinstance(names, str):
         names = re.split(r"[,;]", names)
         names = [n.strip() for n in names]
-    data = pd.read_csv(data_file, names=names, sep="\t", quoting=3, header=None)
+    data = pd.read_csv(data_file, names=names, sep="\t", quoting=3, header=None, nrows=3)
     os.makedirs(cache_dir, exist_ok=True)
     if auth_ak == None or auth_sk == None:
         auth_ak = os.getenv("KELING_API_AK")
@@ -498,6 +499,28 @@ def image2video(
     ), f"At least one image needed."
 
     output_file = f"{cache_dir}/output.jsonl"
+    if os.path.exists(output_file):
+        uniques = []
+        with open(output_file, "r") as f:
+            for line in f:
+                row = json.loads(line)
+                uniques.append(
+                    row["prompt"] + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
+                )
+        data = data[
+            ~data.apply(
+                lambda x: x[prompt_col]
+                + " - "
+                + (x[neg_prompt_col] if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col]) else "")
+                + " - "
+                + (x[start_frame_col] if start_frame_col is not None and not pd.isna(x[start_frame_col]) else "")
+                + " - "
+                + (x[end_frame_col] if end_frame_col is not None and not pd.isna(x[end_frame_col]) else "")
+                in uniques,
+                axis=1,
+            )
+        ]
+
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
 
@@ -514,15 +537,15 @@ def image2video(
             _index_id = ""
             if index_col != None:
                 _index_id = row[index_col] if not pd.isna(row[index_col]) else ""
-            _start_frame = None
-            _end_frame = None
+            _start_frame = ""
+            _end_frame = ""
             if start_frame_col != None:
                 _start_frame = (
-                    row[start_frame_col] if not pd.isna(row[start_frame_col]) else None
+                    row[start_frame_col] if not pd.isna(row[start_frame_col]) else ""
                 )
             if end_frame_col != None:
                 _end_frame = (
-                    row[end_frame_col] if not pd.isna(row[end_frame_col]) else None
+                    row[end_frame_col] if not pd.isna(row[end_frame_col]) else ""
                 )
             print(_prompt, _neg_prompt, _index_id, _start_frame, _end_frame)
             _external_task_id = _index_id
@@ -533,6 +556,7 @@ def image2video(
                 "image": prepare_image(_start_frame),
                 "image_tail": prepare_image(_end_frame),
                 "external_task_id": _external_task_id,
+                'mode': mode
             }
             try:
                 response = send_request_retry(

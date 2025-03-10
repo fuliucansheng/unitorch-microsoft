@@ -55,45 +55,33 @@ def save_video_from_url(folder, url):
         return None
 
 
-def send_i2v_request(
-    token, prompt, aspect_ratio, model, resolution, duration, keyframes
-):
+def send_i2v_request(api,params,retry_cnt=5):
+    token = os.getenv("LUMA_API_TOKEN")
+    assert token != None, f"Column api_key not found"
     headers = {
         "accept": "application/json",
         "authorization": "Bearer " + token,
         "content-type": "application/json",
     }
     response = requests.post(
-        "https://api.lumalabs.ai/dream-machine/v1/generations",
+        api,
         timeout=600,
-        json={
-            "prompt": prompt,
-            "aspect_ratio": aspect_ratio,
-            "model": model,
-            "resolution": resolution,
-            "duration": duration,
-            "keyframes": keyframes,
-        },
+        json=params,
         headers=headers,
     ).json()
+    time.sleep(2)
     retry = 0
-    while "id" not in response and retry <= 5:
+    while "id" not in response and retry <= retry_cnt:
         retry += 1
         time.sleep(60)
         response = requests.post(
-            "https://api.lumalabs.ai/dream-machine/v1/generations",
+            api,
             timeout=600,
-            json={
-                "prompt": prompt,
-                "aspect_ratio": aspect_ratio,
-                "model": model,
-                "resolution": resolution,
-                "duration": duration,
-                "keyframes": keyframes,
-            },
+            json=params,
             headers=headers,
         ).json()
     return response
+
 
 
 def get_image_url_with_azure(image, account_name, connect_key, subfolder):
@@ -129,7 +117,6 @@ def get_image_url_with_azure(image, account_name, connect_key, subfolder):
 
 
 def text2image(
-    token: str,
     data_file: str,
     cache_dir: str,
     names: Union[str, List[str]],
@@ -169,31 +156,28 @@ def text2image(
     Q = queue.Queue(maxsize=max_queue_size)
 
     def producer():
+        token = os.getenv("LUMA_API_TOKEN")
+        assert token != None, f"Column api_key not found"
         for _, row in data.iterrows():
             while Q.full():
                 time.sleep(2)
             _prompt = row[prompt_col]
             try:
-                headers = {
-                    "authorization": "Bearer " + token,
-                    "content-type": "application/json",
-                }
-                response = requests.post(
-                    "https://api.lumalabs.ai/dream-machine/v1/generations/image",
-                    timeout=60,
-                    json={
+                api = "https://api.lumalabs.ai/dream-machine/v1/generations/image"
+                param = {
                         "prompt": _prompt,
                         "aspect_ratio": aspect_ratio,
                         "model": model,
-                    },
-                    headers=headers,
-                ).json()
+                    }
+                response = send_i2v_request(api, param)
                 Q.put(response["id"])
             except:
                 pass
         Q.put("Done")
 
     def consumer():
+        token = os.getenv("LUMA_API_TOKEN")
+        assert token != None, f"Column api_key not found"
         is_produder_done = False
         while True:
             if is_produder_done and Q.empty():
@@ -258,7 +242,6 @@ def get_random_cameras():
 
 
 def text2video(
-    token: str,
     data_file: str,
     cache_dir: str,
     names: Union[str, List[str]],
@@ -307,6 +290,8 @@ def text2video(
     Q = queue.Queue(maxsize=max_queue_size)
 
     def producer():
+        token = os.getenv("LUMA_API_TOKEN")
+        assert token != None, f"Column api_key not found"
         camera = ""
         for _, row in data.iterrows():
             while Q.full():
@@ -315,30 +300,23 @@ def text2video(
                 camera = get_random_cameras()
             _prompt = row[prompt_col] + camera
             try:
-                headers = {
-                    "accept": "application/json",
-                    "authorization": "Bearer " + token,
-                    "content-type": "application/json",
-                }
-                response = requests.post(
-                    "https://api.lumalabs.ai/dream-machine/v1/generations",
-                    timeout=600,
-                    json={
+                api = "https://api.lumalabs.ai/dream-machine/v1/generations"
+                param = {
                         "prompt": _prompt,
                         "aspect_ratio": aspect_ratio,
                         "model": model,
                         "resolution": resolution,
                         "duration": duration,
-                    },
-                    headers=headers,
-                ).json()
-
+                    }
+                response = send_i2v_request(api, param)
                 Q.put(response["id"])
             except:
                 pass
         Q.put("Done")
 
     def consumer():
+        token = os.getenv("LUMA_API_TOKEN")
+        assert token != None, f"Column api_key not found"
         is_produder_done = False
         while True:
             if is_produder_done and Q.empty():
@@ -388,12 +366,11 @@ def text2video(
 
 
 def image2video(
-    token: str,
     data_file: str,
     cache_dir: str,
     names: Union[str, List[str]],
     prompt_col: str,
-    azure_account_key: str,
+    neg_prompt_col:Optional[str] = None,
     start_frame_col: Optional[str] = None,
     end_frame_col: Optional[str] = None,
     resolution: Optional[str] = "720p",
@@ -417,6 +394,7 @@ def image2video(
         sep="\t",
         quoting=3,
         header=None,
+        nrows=3
     )
 
     os.makedirs(cache_dir, exist_ok=True)
@@ -427,11 +405,35 @@ def image2video(
     ), f"At least one image needed."
 
     output_file = f"{cache_dir}/output.jsonl"
-
+    if os.path.exists(output_file):
+        uniques = []
+        with open(output_file, "r") as f:
+            for line in f:
+                row = json.loads(line)
+                uniques.append(
+                    row["prompt"] + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
+                )
+        data = data[
+            ~data.apply(
+                lambda x: x[prompt_col]
+                + " - "
+                + (x[neg_prompt_col] if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col]) else "")
+                + " - "
+                + (x[start_frame_col] if start_frame_col is not None and not pd.isna(x[start_frame_col]) else "")
+                + " - "
+                + (x[end_frame_col] if end_frame_col is not None and not pd.isna(x[end_frame_col]) else "")
+                in uniques,
+                axis=1,
+            )
+        ]
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
 
     def producer():
+        token = os.getenv("LUMA_API_TOKEN")
+        assert token != None, f"Column api_key not found"
+        azure_account_key = os.getenv("AZURE_ACCOUNT_KEY")
+        assert azure_account_key != None, f"Need Azure account key"
         camera = ""
         for _, row in data.iterrows():
             while Q.full():
@@ -439,6 +441,10 @@ def image2video(
             if random_camera_motion:
                 camera = get_random_cameras()
             _prompt = row[prompt_col] + camera
+            _neg_prompt = ""
+            if neg_prompt_col != None:
+                _neg_prompt = row[neg_prompt_col] if not pd.isna(row[neg_prompt_col]) else ""
+                _prompt += " "+_neg_prompt
             keyframes = {}
             if start_frame_col != None and start_frame_col in data.columns:
                 url = get_image_url_with_azure(
@@ -461,9 +467,14 @@ def image2video(
             if len(keyframes) == 0:
                 continue
             try:
-                response = send_i2v_request(
-                    token, _prompt, aspect_ratio, model, resolution, duration, keyframes
-                )
+                api = "https://api.lumalabs.ai/dream-machine/v1/generations"
+                param = {"prompt":_prompt, 
+                         "aspect_ratio":aspect_ratio,
+                         "model":model,
+                         "resolution":resolution,
+                         "duration":duration,
+                         "keyframes":keyframes}
+                response = send_i2v_request(api, param)
                 Q.put(response["id"])
             except Exception as e:
                 print("Producer error {!r}".format(e))
@@ -471,6 +482,8 @@ def image2video(
         Q.put("Done")
 
     def consumer():
+        token = os.getenv("LUMA_API_TOKEN")
+        assert token != None, f"Column api_key not found"
         is_produder_done = False
         while True:
             if is_produder_done and Q.empty():
@@ -508,9 +521,11 @@ def image2video(
                         end_frame = response["request"]["keyframes"]["frame1"]["url"]
                     record = {
                         "prompt": _prompt,
-                        "url": result,
+                        "neg_prompt":"",
+                        "index_id":"",
                         "start_frame": start_frame,
                         "end_frame": end_frame,
+                        "url": result,
                         "result": save_video_from_url(cache_dir, result),
                     }
                     writer.write(json.dumps(record) + "\n")
