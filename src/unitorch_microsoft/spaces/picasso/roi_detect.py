@@ -122,7 +122,7 @@ class ROIDetectWebUI(SimpleWebUI):
         del self._pipe
         gc.collect()
         torch.cuda.empty_cache()
-        self._pipe = None if not hasattr(self, "_pipe") else self._pipe
+        self._pipe = None
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
