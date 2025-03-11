@@ -35,4 +35,5 @@ pretrained_stable_extensions_infos.update(
 
 import unitorch_microsoft.models.diffusers.pipeline_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_stable_flux
+import unitorch_microsoft.models.diffusers.modeling_stable
 import unitorch_microsoft.models.diffusers.modeling_vae
