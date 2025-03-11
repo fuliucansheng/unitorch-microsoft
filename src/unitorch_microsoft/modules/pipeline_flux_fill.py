@@ -20,14 +20,9 @@ from diffusers.pipelines.flux.pipeline_flux_fill import (
     retrieve_latents,
 )
 import unitorch
-from unitorch.utils import is_bfloat16_available
+from unitorch.utils import is_bfloat16_available, is_fastapi_available
 from unitorch.utils.decorators import replace
 from unitorch.cli import add_default_section_for_function
-from unitorch.cli.fastapis.stable_flux import (
-    StableFluxForImageInpaintingFastAPIPipeline,
-    StableFluxForReduxInpaintingFastAPIPipeline,
-)
-
 
 @replace(diffusers.pipelines.flux.pipeline_flux_fill.FluxFillPipeline)
 class FluxFillPipelineV2(FluxFillPipeline):
@@ -325,183 +320,189 @@ class FluxFillPipelineV2(FluxFillPipeline):
         return FluxPipelineOutput(images=image)
 
 
-@replace(unitorch.cli.fastapis.stable_flux.StableFluxForImageInpaintingFastAPIPipeline)
-class StableFluxForImageInpaintingFastAPIPipelineV2(
-    StableFluxForImageInpaintingFastAPIPipeline
-):
-    @torch.no_grad()
-    @autocast(
-        device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
+if is_fastapi_available():
+    from unitorch.cli.fastapis.stable_flux import (
+        StableFluxForImageInpaintingFastAPIPipeline,
+        StableFluxForReduxInpaintingFastAPIPipeline,
     )
-    @add_default_section_for_function("core/fastapi/pipeline/stable_flux/inpainting")
-    def __call__(
-        self,
-        text: str,
-        image: Image.Image,
-        mask_image: Image.Image,
-        neg_text: Optional[str] = "",
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-        guidance_scale: Optional[float] = 30.0,
-        strength: Optional[float] = 1.0,
-        num_timesteps: Optional[int] = 50,
-        seed: Optional[int] = 1123,
+    
+    @replace(unitorch.cli.fastapis.stable_flux.StableFluxForImageInpaintingFastAPIPipeline)
+    class StableFluxForImageInpaintingFastAPIPipelineV2(
+        StableFluxForImageInpaintingFastAPIPipeline
     ):
-        if width is None or height is None:
-            width, height = image.size
-        width = width // 16 * 16
-        height = height // 16 * 16
-        image = image.resize((width, height))
-        mask_image = mask_image.resize((width, height))
-
-        text_inputs = self.processor.text2image_inputs(
-            text,
-            negative_prompt=neg_text,
+        @torch.no_grad()
+        @autocast(
+            device_type=("cuda" if torch.cuda.is_available() else "cpu"),
+            dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
         )
-        image_inputs = self.processor.inpainting_inputs(image, mask_image)
-        inputs = {**text_inputs, **image_inputs}
-        self.seed = seed
+        @add_default_section_for_function("core/fastapi/pipeline/stable_flux/inpainting")
+        def __call__(
+            self,
+            text: str,
+            image: Image.Image,
+            mask_image: Image.Image,
+            neg_text: Optional[str] = "",
+            width: Optional[int] = None,
+            height: Optional[int] = None,
+            guidance_scale: Optional[float] = 30.0,
+            strength: Optional[float] = 1.0,
+            num_timesteps: Optional[int] = 50,
+            seed: Optional[int] = 1123,
+        ):
+            if width is None or height is None:
+                width, height = image.size
+            width = width // 16 * 16
+            height = height // 16 * 16
+            image = image.resize((width, height))
+            mask_image = mask_image.resize((width, height))
 
-        inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
-        inputs = {
-            k: v.to(device=self.device) if v is not None else v
-            for k, v in inputs.items()
-        }
+            text_inputs = self.processor.text2image_inputs(
+                text,
+                negative_prompt=neg_text,
+            )
+            image_inputs = self.processor.inpainting_inputs(image, mask_image)
+            inputs = {**text_inputs, **image_inputs}
+            self.seed = seed
 
-        prompt_outputs = self.get_prompt_outputs(
-            input_ids=inputs.get("input_ids"),
-            input2_ids=inputs.get("input2_ids"),
-            attention_mask=inputs.get("attention_mask"),
-            attention2_mask=inputs.get("attention2_mask"),
-            enable_cpu_offload=self._enable_cpu_offload,
-            cpu_offload_device=self._device,
-        )
+            inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
+            inputs = {
+                k: v.to(device=self.device) if v is not None else v
+                for k, v in inputs.items()
+            }
 
-        prompt_embeds = prompt_outputs.prompt_embeds
-        pooled_prompt_embeds = prompt_outputs.pooled_prompt_embeds
+            prompt_outputs = self.get_prompt_outputs(
+                input_ids=inputs.get("input_ids"),
+                input2_ids=inputs.get("input2_ids"),
+                attention_mask=inputs.get("attention_mask"),
+                attention2_mask=inputs.get("attention2_mask"),
+                enable_cpu_offload=self._enable_cpu_offload,
+                cpu_offload_device=self._device,
+            )
 
-        outputs = self.pipeline(
-            image=inputs["pixel_values"],
-            mask_image=inputs["pixel_masks"],
-            prompt_embeds=prompt_embeds,
-            pooled_prompt_embeds=pooled_prompt_embeds,
-            width=inputs["pixel_values"].size(-1),
-            height=inputs["pixel_values"].size(-2),
-            generator=torch.Generator(device=self.pipeline.device).manual_seed(
-                self.seed
-            ),
-            num_inference_steps=num_timesteps,
-            guidance_scale=guidance_scale,
-            strength=strength,
-            output_type="np.array",
-        )
+            prompt_embeds = prompt_outputs.prompt_embeds
+            pooled_prompt_embeds = prompt_outputs.pooled_prompt_embeds
 
-        images = torch.from_numpy(outputs.images)
-        images = numpy_to_pil(images.cpu().numpy())
-        return images[0]
+            outputs = self.pipeline(
+                image=inputs["pixel_values"],
+                mask_image=inputs["pixel_masks"],
+                prompt_embeds=prompt_embeds,
+                pooled_prompt_embeds=pooled_prompt_embeds,
+                width=inputs["pixel_values"].size(-1),
+                height=inputs["pixel_values"].size(-2),
+                generator=torch.Generator(device=self.pipeline.device).manual_seed(
+                    self.seed
+                ),
+                num_inference_steps=num_timesteps,
+                guidance_scale=guidance_scale,
+                strength=strength,
+                output_type="np.array",
+            )
+
+            images = torch.from_numpy(outputs.images)
+            images = numpy_to_pil(images.cpu().numpy())
+            return images[0]
 
 
-@replace(unitorch.cli.fastapis.stable_flux.StableFluxForReduxInpaintingFastAPIPipeline)
-class StableFluxForReduxInpaintingFastAPIPipelineV2(
-    StableFluxForReduxInpaintingFastAPIPipeline
-):
-    @torch.no_grad()
-    @autocast(
-        device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
-    )
-    @add_default_section_for_function(
-        "core/fastapi/pipeline/stable_flux/redux_inpainting"
-    )
-    def __call__(
-        self,
-        text: str,
-        image: Image.Image,
-        mask_image: Image.Image,
-        redux_image: Image.Image,
-        neg_text: Optional[str] = "",
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-        guidance_scale: Optional[float] = 30.0,
-        strength: Optional[float] = 1.0,
-        num_timesteps: Optional[int] = 50,
-        prompt_embeds_scale: Optional[float] = 1.0,
-        pooled_prompt_embeds_scale: Optional[float] = 1.0,
-        seed: Optional[int] = 1123,
+    @replace(unitorch.cli.fastapis.stable_flux.StableFluxForReduxInpaintingFastAPIPipeline)
+    class StableFluxForReduxInpaintingFastAPIPipelineV2(
+        StableFluxForReduxInpaintingFastAPIPipeline
     ):
-        if width is None or height is None:
-            width, height = image.size
-        width = width // 16 * 16
-        height = height // 16 * 16
-        image = image.resize((width, height))
-        mask_image = mask_image.resize((width, height))
-
-        text_inputs = self.processor.text2image_inputs(
-            text,
-            negative_prompt=neg_text,
+        @torch.no_grad()
+        @autocast(
+            device_type=("cuda" if torch.cuda.is_available() else "cpu"),
+            dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
         )
-        image_inputs = self.processor.inpainting_inputs(image, mask_image)
-        redux_image_inputs = self.processor.redux_image_inputs(redux_image)
-        inputs = {
-            **text_inputs,
-            **image_inputs,
-            **{"redux_pixel_values": redux_image_inputs["pixel_values"]},
-        }
-        self.seed = seed
-
-        inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
-        inputs = {
-            k: v.to(device=self.device) if v is not None else v
-            for k, v in inputs.items()
-        }
-
-        prompt_outputs = self.get_prompt_outputs(
-            input_ids=inputs.get("input_ids"),
-            input2_ids=inputs.get("input2_ids"),
-            attention_mask=inputs.get("attention_mask"),
-            attention2_mask=inputs.get("attention2_mask"),
-            enable_cpu_offload=self._enable_cpu_offload,
-            cpu_offload_device=self._device,
+        @add_default_section_for_function(
+            "core/fastapi/pipeline/stable_flux/redux_inpainting"
         )
+        def __call__(
+            self,
+            text: str,
+            image: Image.Image,
+            mask_image: Image.Image,
+            redux_image: Image.Image,
+            neg_text: Optional[str] = "",
+            width: Optional[int] = None,
+            height: Optional[int] = None,
+            guidance_scale: Optional[float] = 30.0,
+            strength: Optional[float] = 1.0,
+            num_timesteps: Optional[int] = 50,
+            prompt_embeds_scale: Optional[float] = 1.0,
+            pooled_prompt_embeds_scale: Optional[float] = 1.0,
+            seed: Optional[int] = 1123,
+        ):
+            if width is None or height is None:
+                width, height = image.size
+            width = width // 16 * 16
+            height = height // 16 * 16
+            image = image.resize((width, height))
+            mask_image = mask_image.resize((width, height))
 
-        if self._enable_cpu_offload:
-            self.image.to(device=self._device)
-            self.redux_image.to(device=self._device)
+            text_inputs = self.processor.text2image_inputs(
+                text,
+                negative_prompt=neg_text,
+            )
+            image_inputs = self.processor.inpainting_inputs(image, mask_image)
+            redux_image_inputs = self.processor.redux_image_inputs(redux_image)
+            inputs = {
+                **text_inputs,
+                **image_inputs,
+                **{"redux_pixel_values": redux_image_inputs["pixel_values"]},
+            }
+            self.seed = seed
 
-        redux_pixel_values = inputs["redux_pixel_values"].to(self._device)
-        redux_image_embeds = self.image(redux_pixel_values).last_hidden_state
-        redux_image_embeds = self.redux_image(redux_image_embeds).image_embeds
+            inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
+            inputs = {
+                k: v.to(device=self.device) if v is not None else v
+                for k, v in inputs.items()
+            }
 
-        if self._enable_cpu_offload:
-            self.image.to(device="cpu")
-            self.redux_image.to(device="cpu")
-            redux_image_embeds = redux_image_embeds.to("cpu")
+            prompt_outputs = self.get_prompt_outputs(
+                input_ids=inputs.get("input_ids"),
+                input2_ids=inputs.get("input2_ids"),
+                attention_mask=inputs.get("attention_mask"),
+                attention2_mask=inputs.get("attention2_mask"),
+                enable_cpu_offload=self._enable_cpu_offload,
+                cpu_offload_device=self._device,
+            )
 
-        prompt_embeds = (
-            torch.cat([prompt_outputs.prompt_embeds, redux_image_embeds], dim=1)
-            * prompt_embeds_scale
-        )
-        pooled_prompt_embeds = (
-            prompt_outputs.pooled_prompt_embeds * pooled_prompt_embeds_scale
-        )
+            if self._enable_cpu_offload:
+                self.image.to(device=self._device)
+                self.redux_image.to(device=self._device)
 
-        outputs = self.pipeline(
-            image=inputs["pixel_values"],
-            mask_image=inputs["pixel_masks"],
-            prompt_embeds=prompt_embeds,
-            pooled_prompt_embeds=pooled_prompt_embeds,
-            width=inputs["pixel_values"].size(-1),
-            height=inputs["pixel_values"].size(-2),
-            generator=torch.Generator(device=self.pipeline.device).manual_seed(
-                self.seed
-            ),
-            num_inference_steps=num_timesteps,
-            guidance_scale=guidance_scale,
-            strength=strength,
-            output_type="np.array",
-        )
+            redux_pixel_values = inputs["redux_pixel_values"].to(self._device)
+            redux_image_embeds = self.image(redux_pixel_values).last_hidden_state
+            redux_image_embeds = self.redux_image(redux_image_embeds).image_embeds
 
-        images = torch.from_numpy(outputs.images)
-        images = numpy_to_pil(images.cpu().numpy())
-        return images[0]
+            if self._enable_cpu_offload:
+                self.image.to(device="cpu")
+                self.redux_image.to(device="cpu")
+                redux_image_embeds = redux_image_embeds.to("cpu")
+
+            prompt_embeds = (
+                torch.cat([prompt_outputs.prompt_embeds, redux_image_embeds], dim=1)
+                * prompt_embeds_scale
+            )
+            pooled_prompt_embeds = (
+                prompt_outputs.pooled_prompt_embeds * pooled_prompt_embeds_scale
+            )
+
+            outputs = self.pipeline(
+                image=inputs["pixel_values"],
+                mask_image=inputs["pixel_masks"],
+                prompt_embeds=prompt_embeds,
+                pooled_prompt_embeds=pooled_prompt_embeds,
+                width=inputs["pixel_values"].size(-1),
+                height=inputs["pixel_values"].size(-2),
+                generator=torch.Generator(device=self.pipeline.device).manual_seed(
+                    self.seed
+                ),
+                num_inference_steps=num_timesteps,
+                guidance_scale=guidance_scale,
+                strength=strength,
+                output_type="np.array",
+            )
+
+            images = torch.from_numpy(outputs.images)
+            images = numpy_to_pil(images.cpu().numpy())
+            return images[0]
