@@ -222,7 +222,6 @@ def image2video(
             _neg_prompt = ""
             if neg_prompt_col != None:
                 _neg_prompt = row[neg_prompt_col] if not pd.isna(row[neg_prompt_col]) else ""
-                _prompt += " "+_neg_prompt
             _index_id = ""
             if index_col != None:
                 _index_id = row[index_col] if not pd.isna(row[index_col]) else ""

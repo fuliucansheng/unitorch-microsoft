@@ -443,7 +443,6 @@ def image2video(
             _neg_prompt = ""
             if neg_prompt_col != None:
                 _neg_prompt = row[neg_prompt_col] if not pd.isna(row[neg_prompt_col]) else ""
-                _prompt += " "+_neg_prompt
             keyframes = {}
             if start_frame_col != None and start_frame_col in data.columns:
                 url = get_image_url_with_azure(
