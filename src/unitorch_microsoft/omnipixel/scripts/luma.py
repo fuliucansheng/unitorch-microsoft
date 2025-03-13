@@ -393,8 +393,7 @@ def image2video(
         names=names,
         sep="\t",
         quoting=3,
-        header=None,
-        nrows=3
+        header=None
     )
 
     os.makedirs(cache_dir, exist_ok=True)

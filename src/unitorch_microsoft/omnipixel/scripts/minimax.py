@@ -181,8 +181,7 @@ def image2video(
         names=names,
         sep="\t",
         quoting=3,
-        header=None,
-        nrows=2
+        header=None
     )
     os.makedirs(cache_dir, exist_ok=True)
     api_key = os.getenv('MINIMAX_API_KEY')

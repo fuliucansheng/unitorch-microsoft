@@ -485,7 +485,7 @@ def image2video(
     if isinstance(names, str):
         names = re.split(r"[,;]", names)
         names = [n.strip() for n in names]
-    data = pd.read_csv(data_file, names=names, sep="\t", quoting=3, header=None, nrows=3)
+    data = pd.read_csv(data_file, names=names, sep="\t", quoting=3, header=None)
     os.makedirs(cache_dir, exist_ok=True)
     if auth_ak == None or auth_sk == None:
         auth_ak = os.getenv("KELING_API_AK")
