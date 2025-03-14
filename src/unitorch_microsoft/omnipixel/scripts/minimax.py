@@ -201,7 +201,7 @@ def image2video(
                 )
         data = data[
             ~data.apply(
-                lambda x: x[prompt_col]
+                lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
                 + " - "
                 + (x[neg_prompt_col] if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col]) else "")
                 + " - "

@@ -91,7 +91,7 @@ def send_request_retry(token, api, params, retry_cnt=5):
     sleep_time = 10
     retry = 0
     print(retry, response)
-    if response["code"] == 1201:
+    if response["code"] == 1201 or response["code"] == 1004:
         sleep_time = 1
         retry_cnt = 2
     while (
@@ -104,7 +104,7 @@ def send_request_retry(token, api, params, retry_cnt=5):
         time.sleep(sleep_time)
         response = requests.post(
             api,
-            timeout=60,
+            timeout=240,
             json=params,
             headers=headers,
         ).json()
@@ -128,22 +128,37 @@ def get_api_response(api, taskid):
         headers=headers,
     ).json()
     print(response)
-    """
-    if response["data"]["task_status"] == "succeed":
-        results = response["data"]["task_result"]["videos"]
-        imgs = ""
-        for result in results:
-            if imgs != "":
-                imgs += "[SEP]"
-            imgs+=result["url"]
-        res = save_video_from_url('./test', imgs)
-        print(imgs)
-        print(res)
-    """
-    return
+    result = ""
+    try:
+        if response["data"]["task_status"] == "succeed":
+            results = response["data"]["task_result"]["videos"]
+            imgs = ""
+            for result in results:
+                if imgs != "":
+                    imgs += "[SEP]"
+                imgs+=result["url"]
+            res = save_video_from_url('./test', imgs)
+            result = imgs+'\t'+res 
+    except:
+        pass
+
+    return result
+
+def get_api_response_fromfile(filepath):
+    api = 'https://api.klingai.com/v1/videos/image2video'
+    with open('temp_get_result.tsv', 'w') as fw:
+        with open(filepath, 'r') as fp:
+            for line in fp.readlines():
+                imgurl, taskid = line.strip().split('\t')
+                result = get_api_response(api, taskid)
+                if result != "":
+                    videourl, localvideo = result.split('\t')
+                    fw.write(imgurl+"\t"+taskid+"\t"+videourl+"\t"+localvideo+"\n")
 
 
-def get_api_response_list(api):
+
+
+def get_api_response_list(api,pageSize,pageNum=1):
     auth_ak = os.getenv("KELING_API_AK")
     auth_sk = os.getenv("KELING_API_SK")
     api_key = encode_jwt_token(auth_ak, auth_sk)
@@ -157,6 +172,8 @@ def get_api_response_list(api):
         api,
         timeout=60,
         headers=headers,
+        pageNum=pageNum,
+        pageSize=pageSize
     ).json()
     print(response)
     """
@@ -193,7 +210,7 @@ def get_account_cost():
 
 
 def prepare_image(image):
-    print("prepare image", image)
+    #print("prepare image", image)
     if image == None:
         return ""
     if "http" in image:
@@ -206,7 +223,7 @@ def prepare_image(image):
             image_buffer.seek(0)
             return base64.b64encode(image_buffer.getvalue()).decode()
         except Exception as e:
-            print("prepare image failed {!r}".format(e))
+            #print("prepare image failed {!r}".format(e))
             return ""
     else:
         return ""
@@ -249,6 +266,7 @@ def text2image(
     output_file = f"{cache_dir}/output.jsonl"
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
+
 
     def producer():
         for _, row in data.iterrows():
@@ -499,17 +517,21 @@ def image2video(
     ), f"At least one image needed."
 
     output_file = f"{cache_dir}/output.jsonl"
+    process_file = f"{cache_dir}/process.jsonl"
+    proc_writer = open(process_file, "w")
     if os.path.exists(output_file):
+        print(f"Before df {len(data)} ")
         uniques = []
         with open(output_file, "r") as f:
             for line in f:
                 row = json.loads(line)
                 uniques.append(
-                    row["prompt"] + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
+                    str(row["prompt"]) + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
                 )
+        print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
-                lambda x: x[prompt_col]
+                lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
                 + " - "
                 + (x[neg_prompt_col] if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col]) else "")
                 + " - "
@@ -520,6 +542,7 @@ def image2video(
                 axis=1,
             )
         ]
+    print(f"Need to handle {len(data)} files")
 
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
@@ -547,7 +570,7 @@ def image2video(
                 _end_frame = (
                     row[end_frame_col] if not pd.isna(row[end_frame_col]) else ""
                 )
-            print(_prompt, _neg_prompt, _index_id, _start_frame, _end_frame)
+            #print(_prompt, _neg_prompt, _index_id, _start_frame, _end_frame)
             _external_task_id = _index_id
             params = {
                 "prompt": _prompt,
@@ -559,10 +582,11 @@ def image2video(
                 'mode': mode
             }
             try:
+
                 response = send_request_retry(
                     api_key, "https://api.klingai.com/v1/videos/image2video", params
                 )
-                print(response)
+                #print(response)
                 Q.put(
                     (
                         response["data"]["task_id"],
@@ -573,6 +597,17 @@ def image2video(
                         _end_frame,
                     )
                 )
+
+                proc_record = {
+                    "taskid": response["data"]["task_id"],
+                    "prompt":_prompt,
+                    "neg_prompt":_neg_prompt,
+                    "index_id":_index_id,
+                    "start_frame":_start_frame,
+                    "end_frame":_end_frame
+                }
+                proc_writer.write(json.dumps(proc_record) + "\n")
+                proc_writer.flush()
             except:
                 pass
         Q.put(("Done", "Done", "Done", "Done", "Done", "Done"))
