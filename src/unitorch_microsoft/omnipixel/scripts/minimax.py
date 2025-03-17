@@ -167,7 +167,7 @@ def image2video(
     neg_prompt_col:Optional[str] = None,
     aspect_ratio: Optional[str] = "16:9",
     duration: Optional[str] = '5',
-    model: Optional[str] = "I2V-01", #I2V-01 I2V-01-live I2V-01-Director
+    model: Optional[str] = "I2V-01-Director", #I2V-01 I2V-01-live I2V-01-Director
     max_queue_size: Optional[int] = 2000,
     index_col: Optional[str] = None
 ):
@@ -189,16 +189,20 @@ def image2video(
 
     assert prompt_col in data.columns, f"Column {prompt_col} not found in data."
     assert start_frame_col in data.columns or end_frame_col in data.columns, f"At least one image needed."
-
+    
+    process_file = f"{cache_dir}/process.jsonl"
+    proc_writer = open(process_file, "w")
     output_file = f"{cache_dir}/output.jsonl"
     if os.path.exists(output_file):
+        print(f"Before df {len(data)} ")
         uniques = []
         with open(output_file, "r") as f:
             for line in f:
                 row = json.loads(line)
                 uniques.append(
-                    row["prompt"] + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
+                    str(row["prompt"]) + " - " + str(row["neg_prompt"]) + " - " + str(row["start_frame"]) + " - " + str(row["end_frame"])
                 )
+        print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
                 lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
@@ -212,10 +216,14 @@ def image2video(
                 axis=1,
             )
         ]
+        print(f"Need to handle {len(data)} files")
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
     def producer():
+        cnt = 0
         for _, row in data.iterrows():
+            cnt += 1
+            print(f"process {cnt} file")
             while Q.full():
                 time.sleep(2)
             _prompt = row[prompt_col] if not pd.isna(row[prompt_col]) else ""
@@ -237,9 +245,21 @@ def image2video(
                 "first_frame_image": prepare_image(_start_frame)
             }
             try:
+
                 response = send_request_retry(api_key, "https://api.minimaxi.chat/v1/video_generation", params)
                 print(response)
                 Q.put((response["task_id"],_prompt, _neg_prompt, _index_id, _start_frame, _end_frame))
+
+                proc_record = {
+                    "taskid": response["task_id"],
+                    "prompt":_prompt,
+                    "neg_prompt":_neg_prompt,
+                    "index_id":_index_id,
+                    "start_frame":_start_frame,
+                    "end_frame":_end_frame
+                }
+                proc_writer.write(json.dumps(proc_record) + "\n")
+                proc_writer.flush()
             except:
                 pass
         Q.put(("Done","Done","Done","Done","Done","Done"))

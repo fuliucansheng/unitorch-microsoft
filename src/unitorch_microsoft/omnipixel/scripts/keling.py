@@ -526,7 +526,7 @@ def image2video(
             for line in f:
                 row = json.loads(line)
                 uniques.append(
-                    str(row["prompt"]) + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
+                    str(row["prompt"]) + " - " + str(row["neg_prompt"]) + " - " + str(row["start_frame"]) + " - " + str(row["end_frame"])
                 )
         print(f"unique size {len(uniques)}")
         data = data[
@@ -548,7 +548,10 @@ def image2video(
     Q = queue.Queue(maxsize=max_queue_size)
 
     def producer():
+        cnt = 0
         for _, row in data.iterrows():
+            cnt += 1
+            print(f"process {cnt} file")
             while Q.full():
                 time.sleep(2)
             _prompt = row[prompt_col] if not pd.isna(row[prompt_col]) else ""

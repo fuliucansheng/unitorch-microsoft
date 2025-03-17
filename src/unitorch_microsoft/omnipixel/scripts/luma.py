@@ -70,6 +70,7 @@ def send_i2v_request(api,params,retry_cnt=5):
         headers=headers,
     ).json()
     time.sleep(2)
+    print(response)
     retry = 0
     while "id" not in response and retry <= retry_cnt:
         retry += 1
@@ -80,6 +81,7 @@ def send_i2v_request(api,params,retry_cnt=5):
             json=params,
             headers=headers,
         ).json()
+        print(response)
     return response
 
 
@@ -403,15 +405,19 @@ def image2video(
         start_frame_col in data.columns or end_frame_col in data.columns
     ), f"At least one image needed."
 
+    process_file = f"{cache_dir}/process.jsonl"
+    proc_writer = open(process_file, "w")
     output_file = f"{cache_dir}/output.jsonl"
     if os.path.exists(output_file):
+        print(f"Before df {len(data)} ")
         uniques = []
         with open(output_file, "r") as f:
             for line in f:
                 row = json.loads(line)
                 uniques.append(
-                    row["prompt"] + " - " + row["neg_prompt"] + " - " +row["start_frame"] + " - " + row["end_frame"]
+                    str(row["prompt"]) + " - " + str(row["neg_prompt"]) + " - " + str(row["start_frame"]) + " - " + str(row["end_frame"])
                 )
+        print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
                 lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
@@ -425,6 +431,7 @@ def image2video(
                 axis=1,
             )
         ]
+    print(f"Need to handle {len(data)} files")
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
 
@@ -434,16 +441,20 @@ def image2video(
         azure_account_key = os.getenv("AZURE_ACCOUNT_KEY")
         assert azure_account_key != None, f"Need Azure account key"
         camera = ""
+        cnt = 0
         for _, row in data.iterrows():
+            cnt += 1
+            print(f"process {cnt} file")
             while Q.full():
                 time.sleep(2)
             if random_camera_motion:
                 camera = get_random_cameras()
-            _prompt = row[prompt_col] + camera
+            _prompt = row[prompt_col] if not pd.isna(row[prompt_col]) else "" + camera
             _neg_prompt = ""
             if neg_prompt_col != None:
                 _neg_prompt = row[neg_prompt_col] if not pd.isna(row[neg_prompt_col]) else ""
             keyframes = {}
+            start_frame = ""
             if start_frame_col != None and start_frame_col in data.columns:
                 url = get_image_url_with_azure(
                     row[start_frame_col],
@@ -453,6 +464,9 @@ def image2video(
                 )
                 if url != None:
                     keyframes["frame0"] = {"type": "image", "url": url}
+                    start_frame = url
+            print(start_frame,_prompt)
+            end_frame = ""
             if end_frame_col != None and end_frame_col in data.columns:
                 url = get_image_url_with_azure(
                     row[end_frame_col],
@@ -462,6 +476,7 @@ def image2video(
                 )
                 if url != None:
                     keyframes["frame1"] = {"type": "image", "url": url}
+                    end_frame = url
             if len(keyframes) == 0:
                 continue
             try:
@@ -473,11 +488,22 @@ def image2video(
                          "duration":duration,
                          "keyframes":keyframes}
                 response = send_i2v_request(api, param)
-                Q.put(response["id"])
+                print(response)
+                Q.put((response["id"],_neg_prompt))
+                proc_record = {
+                    "taskid": response["id"],
+                    "prompt":_prompt,
+                    "neg_prompt":_neg_prompt,
+                    "index_id":"",
+                    "start_frame":start_frame,
+                    "end_frame":end_frame
+                }
+                proc_writer.write(json.dumps(proc_record) + "\n")
+                proc_writer.flush()
             except Exception as e:
                 print("Producer error {!r}".format(e))
                 pass
-        Q.put("Done")
+        Q.put(("Done", "Done"))
 
     def consumer():
         token = os.getenv("LUMA_API_TOKEN")
@@ -486,7 +512,7 @@ def image2video(
         while True:
             if is_produder_done and Q.empty():
                 break
-            trackid = Q.get()
+            trackid, _neg_prompt = Q.get()
             if trackid == "Done":
                 is_produder_done = True
                 continue
@@ -519,7 +545,7 @@ def image2video(
                         end_frame = response["request"]["keyframes"]["frame1"]["url"]
                     record = {
                         "prompt": _prompt,
-                        "neg_prompt":"",
+                        "neg_prompt":_neg_prompt,
                         "index_id":"",
                         "start_frame": start_frame,
                         "end_frame": end_frame,
@@ -533,7 +559,7 @@ def image2video(
                         f"TrackId: {trackid} - Prompt: {response['request']['prompt']} - Status: {response['state']} - Reason: {response['failure_reason']}"
                     )
                 else:
-                    Q.put(trackid)
+                    Q.put((trackid, _neg_prompt))
                     time.sleep(2)
             except Exception as e:
                 print("consumer {!r}".format(e))
