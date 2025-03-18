@@ -494,7 +494,7 @@ def image2video(
     aspect_ratio: Optional[str] = "16:9",
     duration: Optional[str] = "5",
     model: Optional[str] = "kling-v1-6",
-    mode: Optional[str] = "std", #'pro'
+    mode: Optional[str] = "pro", #'pro'
     max_queue_size: Optional[int] = 2000,
     index_col: Optional[str] = None,
 ):
