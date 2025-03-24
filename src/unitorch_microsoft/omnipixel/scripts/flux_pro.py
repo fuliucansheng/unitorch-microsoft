@@ -354,7 +354,7 @@ def __out_processing_image(image, ratio):
     size = size_dict[str(ratio)]
 
     while width > size[0] or height > size[1]:
-        image = image.resize((width // 2, height // 2))
+        image = image.resize((width // 2, height // 2), resample=Image.LANCZOS)
         width = width // 2
         height = height // 2
 
@@ -382,7 +382,9 @@ def __out_processing1_image(image, ratio):
     new_width = int(width * scale)
     new_height = int(height * scale)
 
-    image = image.resize((new_width // 8 * 8, new_height // 8 * 8))
+    image = image.resize(
+        (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+    )
 
     im_width, im_height = image.size
 

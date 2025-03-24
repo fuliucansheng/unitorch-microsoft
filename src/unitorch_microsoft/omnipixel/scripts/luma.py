@@ -55,7 +55,7 @@ def save_video_from_url(folder, url):
         return None
 
 
-def send_i2v_request(api,params,retry_cnt=5):
+def send_i2v_request(api, params, retry_cnt=5):
     token = os.getenv("LUMA_API_TOKEN")
     assert token != None, f"Column api_key not found"
     headers = {
@@ -83,7 +83,6 @@ def send_i2v_request(api,params,retry_cnt=5):
         ).json()
         print(response)
     return response
-
 
 
 def get_image_url_with_azure(image, account_name, connect_key, subfolder):
@@ -167,10 +166,10 @@ def text2image(
             try:
                 api = "https://api.lumalabs.ai/dream-machine/v1/generations/image"
                 param = {
-                        "prompt": _prompt,
-                        "aspect_ratio": aspect_ratio,
-                        "model": model,
-                    }
+                    "prompt": _prompt,
+                    "aspect_ratio": aspect_ratio,
+                    "model": model,
+                }
                 response = send_i2v_request(api, param)
                 Q.put(response["id"])
             except:
@@ -304,12 +303,12 @@ def text2video(
             try:
                 api = "https://api.lumalabs.ai/dream-machine/v1/generations"
                 param = {
-                        "prompt": _prompt,
-                        "aspect_ratio": aspect_ratio,
-                        "model": model,
-                        "resolution": resolution,
-                        "duration": duration,
-                    }
+                    "prompt": _prompt,
+                    "aspect_ratio": aspect_ratio,
+                    "model": model,
+                    "resolution": resolution,
+                    "duration": duration,
+                }
                 response = send_i2v_request(api, param)
                 Q.put(response["id"])
             except:
@@ -372,7 +371,7 @@ def image2video(
     cache_dir: str,
     names: Union[str, List[str]],
     prompt_col: str,
-    neg_prompt_col:Optional[str] = None,
+    neg_prompt_col: Optional[str] = None,
     start_frame_col: Optional[str] = None,
     end_frame_col: Optional[str] = None,
     resolution: Optional[str] = "720p",
@@ -390,13 +389,7 @@ def image2video(
         names = re.split(r"[,;]", names)
         names = [n.strip() for n in names]
 
-    data = pd.read_csv(
-        data_file,
-        names=names,
-        sep="\t",
-        quoting=3,
-        header=None
-    )
+    data = pd.read_csv(data_file, names=names, sep="\t", quoting=3, header=None)
 
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -415,18 +408,36 @@ def image2video(
             for line in f:
                 row = json.loads(line)
                 uniques.append(
-                    str(row["prompt"]) + " - " + str(row["neg_prompt"]) + " - " + str(row["start_frame"]) + " - " + str(row["end_frame"])
+                    row["prompt"]
+                    + " - "
+                    + row["neg_prompt"]
+                    + " - "
+                    + row["start_frame"]
+                    + " - "
+                    + row["end_frame"]
                 )
         print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
                 lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
                 + " - "
-                + (x[neg_prompt_col] if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col]) else "")
+                + (
+                    x[neg_prompt_col]
+                    if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col])
+                    else ""
+                )
                 + " - "
-                + (x[start_frame_col] if start_frame_col is not None and not pd.isna(x[start_frame_col]) else "")
+                + (
+                    x[start_frame_col]
+                    if start_frame_col is not None and not pd.isna(x[start_frame_col])
+                    else ""
+                )
                 + " - "
-                + (x[end_frame_col] if end_frame_col is not None and not pd.isna(x[end_frame_col]) else "")
+                + (
+                    x[end_frame_col]
+                    if end_frame_col is not None and not pd.isna(x[end_frame_col])
+                    else ""
+                )
                 in uniques,
                 axis=1,
             )
@@ -452,7 +463,9 @@ def image2video(
             _prompt = row[prompt_col] if not pd.isna(row[prompt_col]) else "" + camera
             _neg_prompt = ""
             if neg_prompt_col != None:
-                _neg_prompt = row[neg_prompt_col] if not pd.isna(row[neg_prompt_col]) else ""
+                _neg_prompt = (
+                    row[neg_prompt_col] if not pd.isna(row[neg_prompt_col]) else ""
+                )
             keyframes = {}
             start_frame = ""
             if start_frame_col != None and start_frame_col in data.columns:
@@ -481,12 +494,14 @@ def image2video(
                 continue
             try:
                 api = "https://api.lumalabs.ai/dream-machine/v1/generations"
-                param = {"prompt":_prompt, 
-                         "aspect_ratio":aspect_ratio,
-                         "model":model,
-                         "resolution":resolution,
-                         "duration":duration,
-                         "keyframes":keyframes}
+                param = {
+                    "prompt": _prompt,
+                    "aspect_ratio": aspect_ratio,
+                    "model": model,
+                    "resolution": resolution,
+                    "duration": duration,
+                    "keyframes": keyframes,
+                }
                 response = send_i2v_request(api, param)
                 print(response)
                 Q.put((response["id"],_neg_prompt))
@@ -545,8 +560,8 @@ def image2video(
                         end_frame = response["request"]["keyframes"]["frame1"]["url"]
                     record = {
                         "prompt": _prompt,
-                        "neg_prompt":_neg_prompt,
-                        "index_id":"",
+                        "neg_prompt": "",
+                        "index_id": "",
                         "start_frame": start_frame,
                         "end_frame": end_frame,
                         "url": result,

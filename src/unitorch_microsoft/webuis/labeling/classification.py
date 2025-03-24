@@ -42,6 +42,23 @@ def get_host_name():
     return socket.gethostname()
 
 
+_js = """
+() => {}
+"""
+
+_css = """
+img {
+    transform-origin: bottom;
+    transform: scale(0.85) !important;
+}
+
+video {
+    transform-origin: bottom;
+    transform: scale(0.85) !important;
+}
+"""
+
+
 @register_webui("microsoft/webui/labeling/classification")
 class GenericClassificationLabelingWebUI(SimpleWebUI):
     def __init__(
@@ -490,7 +507,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             name="Advanced",
         )
         tabs = create_tabs(tab1, tab2, tab3)
-        iface = create_blocks(guideline_header, guideline, tabs)
+        iface = create_blocks(guideline_header, guideline, tabs, js=_js, css=_css)
 
         # create events
         iface.__enter__()

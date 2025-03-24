@@ -272,6 +272,7 @@ class LAIONClipForImageClassification(GenericModel):
         outputs = self.layers(image_embeds)
         return ClassificationOutputs(outputs=outputs)
 
+
 ## image reward model
 from ImageReward.models.BLIP import init_tokenizer
 from ImageReward.models.BLIP.vit import VisionTransformer

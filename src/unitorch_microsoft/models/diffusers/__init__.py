@@ -11,13 +11,30 @@ from unitorch.cli.models.diffusers import (
     pretrained_stable_extensions_infos,
 )
 
-pretrained_stable_infos.update({})
+pretrained_stable_infos.update(
+    {
+        "stable-v1.5-x4-upscaler-ms-logo-32x32": {
+            **__hf_hub_stable_v1_5_dict__("stabilityai/stable-diffusion-x4-upscaler"),
+            **__hf_hub_vae_safetensors_dict__(
+                "stabilityai/stable-diffusion-x4-upscaler"
+            ),
+            **{
+                "unet": {
+                    "config": hf_endpoint_url(
+                        "/stabilityai/stable-diffusion-x4-upscaler/resolve/main/unet/config.json"
+                    ),
+                    "weight": "",
+                }
+            },
+        }
+    }
+)
 
 pretrained_stable_extensions_infos.update(
     {
         "stable-flux-lora-dev-fill-obj-removal": {
             "lora": {
-                "weight": "https://huggingface.co/lrzjason/ObjectRemovalFluxFill/resolve/main/fill_remove.safetensors"
+                "weight": "https://huggingface.co/lrzjason/ObjectRemovalFluxFill/resolve/main/objectRemovalBeta_AlphaRegR20-3600.safetensors"
             }
         },
         "stable-flux-lora-ms-dev-recraft": {

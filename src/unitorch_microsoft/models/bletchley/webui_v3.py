@@ -7,6 +7,7 @@ import gc
 import gradio as gr
 from typing import List, Tuple
 from PIL import Image, ImageDraw
+from unitorch.utils import is_remote_url
 from unitorch.utils import nested_dict_value
 from unitorch.cli import CoreConfigureParser, GenericWebUI
 from unitorch.cli import register_webui
@@ -165,16 +166,40 @@ class BletchleyMatchingWebUI(SimpleWebUI):
         lora_alphas = lora_params[2::5]
         lora_urls = lora_params[3::5]
         lora_files = lora_params[4::5]
+        processed_lora_files, processed_lora_weights, processed_lora_alphas = [], [], []
+        for ckpt, url, file, weight, alpha in zip(
+            lora_checkpoints, lora_urls, lora_files, lora_weights, lora_alphas
+        ):
+            if ckpt is not None:
+                processed_lora_files.append(
+                    nested_dict_value(
+                        pretrained_bletchley_v3_extensions_infos, ckpt, "weight"
+                    )
+                )
+                processed_lora_weights.append(weight)
+                processed_lora_alphas.append(alpha)
+            elif url is not None and is_remote_url(url):
+                processed_lora_files.append(url)
+                processed_lora_weights.append(weight)
+                processed_lora_alphas.append(alpha)
+            elif file is not None:
+                processed_lora_files.append(file)
+                processed_lora_weights.append(weight)
+                processed_lora_alphas.append(alpha)
+
+        if len(processed_lora_files) > 0:
+            self._pipe.load_lora_weights(
+                processed_lora_files,
+                lora_weights=processed_lora_weights,
+                lora_alphas=processed_lora_alphas,
+            )
         score = self._pipe(
             text,
             image,
             max_seq_length=max_seq_length,
-            lora_checkpoints=lora_checkpoints,
-            lora_weights=lora_weights,
-            lora_alphas=lora_alphas,
-            lora_urls=lora_urls,
-            lora_files=lora_files,
         )
+        if len(processed_lora_files) > 0:
+            self._pipe.unload_lora_weights()
         return score
 
 

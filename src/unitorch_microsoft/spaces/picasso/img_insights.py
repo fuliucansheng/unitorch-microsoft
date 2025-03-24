@@ -37,6 +37,7 @@ from unitorch_microsoft.models.bletchley.pipeline_v1 import (
 )
 from unitorch_microsoft.models.bletchley.pipeline_v3 import (
     BletchleyForMatchingPipeline as BletchleyV3ForMatchingPipeline,
+    BletchleyForMatchingV2Pipeline as BletchleyV3ForMatchingV2Pipeline,
     BletchleyForImageClassificationPipeline as BletchleyV3ForImageClassificationPipeline,
 )
 
@@ -68,10 +69,13 @@ class ImgInsightsWebUI(SimpleWebUI):
         result3 = gr.Label(label="General Category")
         result4 = gr.Label(label="Blurry")
         result5 = gr.Label(label="ICE Category")
+        result6 = gr.Label(label="Watermark")
 
-        left = create_column(input_image, generate)
+        left = create_column(input_image, generate, scale=1)
         right = create_column(
-            create_row(result1, result2, result4), create_row(result3, result5)
+            create_row(result1, result2, result4, result6),
+            create_row(result3, result5),
+            scale=1,
         )
 
         iface = create_blocks(
@@ -105,7 +109,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         generate.click(
             fn=self.serve,
             inputs=[input_image],
-            outputs=[result1, result2, result3, result4, result5],
+            outputs=[result1, result2, result3, result4, result5, result6],
             trigger_mode="once",
         )
 
@@ -202,6 +206,16 @@ class ImgInsightsWebUI(SimpleWebUI):
                 22: "News Media & Publications",
             },
         )
+        self._pipe5 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
+            self._config,
+            config_type="2.5B",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
+            label_dict={
+                "watermark": "watermarked, no watermark signature, brand logo",
+            },
+            act_fn="sigmoid",
+        )
         self._status = "Running"
         return self._status
 
@@ -216,6 +230,8 @@ class ImgInsightsWebUI(SimpleWebUI):
         del self._pipe3
         self._pipe4.to("cpu")
         del self._pipe4
+        self._pipe5.to("cpu")
+        del self._pipe5
         gc.collect()
         torch.cuda.empty_cache()
         self._status = "Stopped"
@@ -228,5 +244,6 @@ class ImgInsightsWebUI(SimpleWebUI):
         result3 = self._pipe2(image)
         result4 = self._pipe3(image)
         result5 = self._pipe4(image)
+        result6 = self._pipe5(image)
 
-        return result1, result2, result3, result4, result5
+        return result1, result2, result3, result4, result5, result6

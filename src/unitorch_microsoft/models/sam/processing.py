@@ -168,11 +168,11 @@ class SamProcessor:
         original_sizes = pixel_results.get("original_sizes")[0]  # h, w
         reshaped_input_sizes = pixel_results.get("reshaped_input_sizes")[0]  # h, w
         height, width = reshaped_input_sizes
-        # mask = mask.resize((width, height)).convert("L")
+        # mask = mask.resize((width, height), resample=Image.LANCZOS).convert("L")
         # pixel_targets = torch.zeros_like(pixel_values[0]).float()
         # pixel_targets[:height, :width] = torch.tensor(np.array(mask)).float() / 255.0
 
-        mask = mask.convert("L").resize((width, height))
+        mask = mask.convert("L").resize((width, height), resample=Image.LANCZOS)
         pixel_targets = torch.zeros_like(pixel_values[0]).float()
         pixel_targets[:height, :width] = torch.tensor(np.array(mask)).long() / 255.0
 

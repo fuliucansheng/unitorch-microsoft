@@ -2,12 +2,15 @@
 # Licensed under the MIT License.
 
 import os
+import io
 import json
 import re
+import base64
 import random
 import logging
 import requests
 import pandas as pd
+from PIL import Image
 from typing import Optional
 
 try:
@@ -46,6 +49,53 @@ def get_respone(
                     "content": prompt,
                 },
             ],
+        )
+        result = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(e)
+        result = ""
+
+    return result
+
+
+def get_gpt4o_respone(
+    prompt,
+    system_prompt: Optional[
+        str
+    ] = "You are ChatGPT, a large language model trained by OpenAI, based on the GPT-4 architecture.",
+    images: Optional[Image.Image] = None,
+    api_endpoint: Optional[str] = None,
+    api_deploy_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+):
+    client = AzureOpenAI(
+        azure_endpoint=api_endpoint, api_key=api_key, api_version="2024-08-01-preview"
+    )
+
+    try:
+        content = [{"type": "text", "text": prompt}]
+        for image in images:
+            if image is not None:
+                buf = io.BytesIO()
+                image.save(buf, format="JPEG")
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+                        },
+                    }
+                )
+        messages = [
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {"role": "user", "content": content},
+        ]
+        response = client.chat.completions.create(
+            model=api_deploy_name,
+            messages=messages,
         )
         result = response.choices[0].message.content.strip()
     except Exception as e:

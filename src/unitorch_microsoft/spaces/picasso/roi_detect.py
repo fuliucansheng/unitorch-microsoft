@@ -131,7 +131,7 @@ class ROIDetectWebUI(SimpleWebUI):
             image,
             threshold=mask_threshold,
         )
-        mask = mask.convert("L").resize(image.size)
+        mask = mask.convert("L").resize(image.size, resample=Image.LANCZOS)
         result = image.convert("RGB")
         bbox = mask.getbbox()
         if bbox:

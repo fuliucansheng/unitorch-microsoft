@@ -148,7 +148,7 @@ class ChangeBGWebUI(SimpleWebUI):
             image,
             threshold=0.5,
         )
-        mask = mask.convert("1").resize(image.size)
+        mask = mask.convert("1").resize(image.size, resample=Image.LANCZOS)
         # pos_prompt = f"cinematic photo of {prompt}, simple background, realistic, extremely detailed, photorealistic, best quality"
         pos_prompt = (
             f"{prompt}, realistic, extremely detailed, photorealistic, best quality"
@@ -178,9 +178,9 @@ class ChangeBGWebUI(SimpleWebUI):
             inpaint_controlnet_guidance_scale=0.2,
         )
 
-        # new_image = image.resize(result.size).convert("RGB")
+        # new_image = image.resize(result.size, resample=Image.LANCZOS).convert("RGB")
         # result = result.convert("RGB")
-        # mask = mask.resize(result.size)
+        # mask = mask.resize(result.size, resample=Image.LANCZOS)
         # mask = np.array(mask.convert("1"))[:, :, None]
         # result = Image.fromarray(
         #     (np.array(result) * mask + np.array(new_image) * (1 - mask)).astype(

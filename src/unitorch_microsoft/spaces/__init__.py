@@ -6,14 +6,13 @@ import importlib_resources
 from unitorch.cli import CoreConfigureParser
 
 spaces_folder = os.path.join(importlib_resources.files("unitorch_microsoft"), "spaces")
-
-local_config_path = os.path.join(spaces_folder, "config.local.ini")
-if os.path.exists(local_config_path):
-    config_path = local_config_path
-else:
+config_path = os.path.join(spaces_folder, "config.local.ini")
+if not os.path.exists(config_path):
     config_path = os.path.join(spaces_folder, "config.ini")
 
 spaces_settings = CoreConfigureParser(config_path)
+
+fastapi_endpoint = spaces_settings.getdefault("core/cli", "fastapi_endpoint", None)
 
 from unitorch_microsoft.spaces.utils import (
     create_element,
@@ -31,6 +30,7 @@ from unitorch_microsoft.spaces.utils import (
     create_cards_group,
     hashed_link,
     start_http_server,
+    call_fastapi,
 )
 
 http_url = start_http_server()

@@ -34,6 +34,7 @@ from unitorch_microsoft.spaces.picasso import picasso_routers
 from unitorch_microsoft.spaces.models import models_routers
 from unitorch_microsoft.spaces.demos import demos_routers
 from unitorch_microsoft.spaces.docs import docs_routers
+from unitorch_microsoft.spaces.betas import betas_routers
 
 app = FastAPI()
 app.add_middleware(
@@ -62,6 +63,7 @@ page_routers = {
     **models_routers,
     **demos_routers,
     **docs_routers,
+    **betas_routers,
 }
 for router, page in page_routers.items():
     page.theme_css = theme_css

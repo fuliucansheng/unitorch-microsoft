@@ -494,7 +494,7 @@ def image2video(
     aspect_ratio: Optional[str] = "16:9",
     duration: Optional[str] = "5",
     model: Optional[str] = "kling-v1-6",
-    mode: Optional[str] = "pro", #'pro'
+    mode: Optional[str] = "pro",  #'std'
     max_queue_size: Optional[int] = 2000,
     index_col: Optional[str] = None,
 ):
@@ -526,18 +526,36 @@ def image2video(
             for line in f:
                 row = json.loads(line)
                 uniques.append(
-                    str(row["prompt"]) + " - " + str(row["neg_prompt"]) + " - " + str(row["start_frame"]) + " - " + str(row["end_frame"])
+                    row["prompt"]
+                    + " - "
+                    + row["neg_prompt"]
+                    + " - "
+                    + row["start_frame"]
+                    + " - "
+                    + row["end_frame"]
                 )
         print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
                 lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
                 + " - "
-                + (x[neg_prompt_col] if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col]) else "")
+                + (
+                    x[neg_prompt_col]
+                    if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col])
+                    else ""
+                )
                 + " - "
-                + (x[start_frame_col] if start_frame_col is not None and not pd.isna(x[start_frame_col]) else "")
+                + (
+                    x[start_frame_col]
+                    if start_frame_col is not None and not pd.isna(x[start_frame_col])
+                    else ""
+                )
                 + " - "
-                + (x[end_frame_col] if end_frame_col is not None and not pd.isna(x[end_frame_col]) else "")
+                + (
+                    x[end_frame_col]
+                    if end_frame_col is not None and not pd.isna(x[end_frame_col])
+                    else ""
+                )
                 in uniques,
                 axis=1,
             )
@@ -582,7 +600,7 @@ def image2video(
                 "image": prepare_image(_start_frame),
                 "image_tail": prepare_image(_end_frame),
                 "external_task_id": _external_task_id,
-                'mode': mode
+                "mode": mode,
             }
             try:
 

@@ -130,7 +130,7 @@ class Mask2FormerWebUI(SimpleWebUI):
         )
         if output_image_type == "Object":
             result = Image.new("RGBA", image.size, (0, 0, 0, 0))
-            mask = mask.convert("L").resize(image.size)
+            mask = mask.convert("L").resize(image.size, resample=Image.LANCZOS)
             result.paste(image, (0, 0), mask)
         else:
             result = mask

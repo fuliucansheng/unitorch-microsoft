@@ -24,6 +24,7 @@ from unitorch.utils import is_bfloat16_available, is_fastapi_available
 from unitorch.utils.decorators import replace
 from unitorch.cli import add_default_section_for_function
 
+
 @replace(diffusers.pipelines.flux.pipeline_flux_fill.FluxFillPipeline)
 class FluxFillPipelineV2(FluxFillPipeline):
     def prepare_latents(
@@ -58,7 +59,11 @@ class FluxFillPipelineV2(FluxFillPipeline):
                 f" size of {batch_size}. Make sure the batch size matches the length of the generators."
             )
 
-        latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+        _noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+        noise = self._pack_latents(
+            _noise, batch_size, num_channels_latents, height, width
+        )
+        latents = _noise
         if image is not None:
             image_latents = retrieve_latents(
                 self.vae.encode(image.to(device=device, dtype=dtype)),
@@ -76,7 +81,7 @@ class FluxFillPipelineV2(FluxFillPipeline):
             batch_size, height // 2, width // 2, device, dtype
         )
 
-        return latents, latent_image_ids
+        return latents, latent_image_ids, noise
 
     def get_timesteps(self, num_inference_steps, strength, device):
         # get the original timestep using init_timestep
@@ -113,6 +118,7 @@ class FluxFillPipelineV2(FluxFillPipeline):
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         max_sequence_length: int = 512,
+        force_keep_strength: float = 0.0,
     ):
         height = height or self.default_sample_size * self.vae_scale_factor
         width = width or self.default_sample_size * self.vae_scale_factor
@@ -196,7 +202,7 @@ class FluxFillPipelineV2(FluxFillPipeline):
             num_inference_steps, strength, device
         )
         latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
-        latents, latent_image_ids = self.prepare_latents(
+        latents, latent_image_ids, noise = self.prepare_latents(
             batch_size * num_images_per_prompt,
             num_channels_latents,
             height,
@@ -234,6 +240,24 @@ class FluxFillPipelineV2(FluxFillPipeline):
                 device,
                 generator,
             )
+            force_keep_mask_height, force_keep_mask_width = (
+                2 * (int(height) // (self.vae_scale_factor * 2)),
+                2 * (int(width) // (self.vae_scale_factor * 2)),
+            )
+            force_keep_mask = torch.nn.functional.interpolate(
+                mask_image, size=(force_keep_mask_height, force_keep_mask_width)
+            )
+            force_keep_mask = force_keep_mask.to(
+                device=mask_image.device, dtype=mask_image.dtype
+            )
+            force_keep_mask = self._pack_latents(
+                force_keep_mask.repeat(1, num_channels_latents, 1, 1),
+                batch_size,
+                num_channels_latents,
+                force_keep_mask_height,
+                force_keep_mask_width,
+            )
+            force_keep_latents = masked_image_latents
             masked_image_latents = torch.cat((masked_image_latents, mask), dim=-1)
 
         num_warmup_steps = max(
@@ -249,6 +273,8 @@ class FluxFillPipelineV2(FluxFillPipeline):
             guidance = guidance.expand(latents.shape[0])
         else:
             guidance = None
+
+        force_keep_steps = int(len(timesteps) * force_keep_strength)
 
         # 7. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -276,6 +302,19 @@ class FluxFillPipelineV2(FluxFillPipeline):
                 latents = self.scheduler.step(
                     noise_pred, t, latents, return_dict=False
                 )[0]
+
+                if i < force_keep_steps:
+                    _force_keep_latents = force_keep_latents
+                    if i < len(timesteps) - 1:
+                        noise_timestep = timesteps[i + 1]
+                        _force_keep_latents = self.scheduler.scale_noise(
+                            _force_keep_latents, torch.tensor([noise_timestep]), noise
+                        )
+
+                    force_keep_mask = force_keep_mask.to(device=latents.device)
+                    latents = (
+                        1 - force_keep_mask
+                    ) * _force_keep_latents + force_keep_mask * latents
 
                 if latents.dtype != latents_dtype:
                     if torch.backends.mps.is_available():
@@ -325,8 +364,10 @@ if is_fastapi_available():
         StableFluxForImageInpaintingFastAPIPipeline,
         StableFluxForReduxInpaintingFastAPIPipeline,
     )
-    
-    @replace(unitorch.cli.fastapis.stable_flux.StableFluxForImageInpaintingFastAPIPipeline)
+
+    @replace(
+        unitorch.cli.fastapis.stable_flux.StableFluxForImageInpaintingFastAPIPipeline
+    )
     class StableFluxForImageInpaintingFastAPIPipelineV2(
         StableFluxForImageInpaintingFastAPIPipeline
     ):
@@ -335,7 +376,9 @@ if is_fastapi_available():
             device_type=("cuda" if torch.cuda.is_available() else "cpu"),
             dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
         )
-        @add_default_section_for_function("core/fastapi/pipeline/stable_flux/inpainting")
+        @add_default_section_for_function(
+            "core/fastapi/pipeline/stable_flux/inpainting"
+        )
         def __call__(
             self,
             text: str,
@@ -353,8 +396,8 @@ if is_fastapi_available():
                 width, height = image.size
             width = width // 16 * 16
             height = height // 16 * 16
-            image = image.resize((width, height))
-            mask_image = mask_image.resize((width, height))
+            image = image.resize((width, height), resample=Image.LANCZOS)
+            mask_image = mask_image.resize((width, height), resample=Image.LANCZOS)
 
             text_inputs = self.processor.text2image_inputs(
                 text,
@@ -364,7 +407,9 @@ if is_fastapi_available():
             inputs = {**text_inputs, **image_inputs}
             self.seed = seed
 
-            inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
+            inputs = {
+                k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()
+            }
             inputs = {
                 k: v.to(device=self.device) if v is not None else v
                 for k, v in inputs.items()
@@ -402,8 +447,9 @@ if is_fastapi_available():
             images = numpy_to_pil(images.cpu().numpy())
             return images[0]
 
-
-    @replace(unitorch.cli.fastapis.stable_flux.StableFluxForReduxInpaintingFastAPIPipeline)
+    @replace(
+        unitorch.cli.fastapis.stable_flux.StableFluxForReduxInpaintingFastAPIPipeline
+    )
     class StableFluxForReduxInpaintingFastAPIPipelineV2(
         StableFluxForReduxInpaintingFastAPIPipeline
     ):
@@ -435,8 +481,8 @@ if is_fastapi_available():
                 width, height = image.size
             width = width // 16 * 16
             height = height // 16 * 16
-            image = image.resize((width, height))
-            mask_image = mask_image.resize((width, height))
+            image = image.resize((width, height), resample=Image.LANCZOS)
+            mask_image = mask_image.resize((width, height), resample=Image.LANCZOS)
 
             text_inputs = self.processor.text2image_inputs(
                 text,
@@ -451,7 +497,9 @@ if is_fastapi_available():
             }
             self.seed = seed
 
-            inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
+            inputs = {
+                k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()
+            }
             inputs = {
                 k: v.to(device=self.device) if v is not None else v
                 for k, v in inputs.items()

@@ -126,6 +126,6 @@ class RemoveBGWebUI(SimpleWebUI):
             threshold=0.5,
         )
         result = Image.new("RGBA", image.size, (0, 0, 0, 64))
-        mask = mask.convert("L").resize(image.size)
+        mask = mask.convert("L").resize(image.size, resample=Image.LANCZOS)
         result.paste(image, (0, 0), mask)
         return result

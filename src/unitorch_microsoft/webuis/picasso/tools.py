@@ -89,10 +89,10 @@ class CopyWebUI(SimpleWebUI):
         threshold: Optional[int] = 200,
     ):
         if height > 0 and width > 0:
-            product = product.resize((width, height))
-            background = background.resize((width, height))
+            product = product.resize((width, height), resample=Image.LANCZOS)
+            background = background.resize((width, height), resample=Image.LANCZOS)
         if product.size != background.size:
-            product = product.resize(background.size)
+            product = product.resize(background.size, resample=Image.LANCZOS)
 
         product = product.convert("RGBA")
         background = background.convert("RGBA")
@@ -234,7 +234,9 @@ class OutpaintWebUI(SimpleWebUI):
         new_width = int(width * scale)
         new_height = int(height * scale)
 
-        image = image.resize((new_width // 8 * 8, new_height // 8 * 8))
+        image = image.resize(
+            (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+        )
 
         im_width, im_height = image.size
 
@@ -565,7 +567,9 @@ class ControlNetWebUI(SimpleWebUI):
         pad_w, pad_h = get_pad_size(w, h, roi_w, roi_h, 1.5, new_w / new_h, cateid)
         up, left = (pad_h - h) // 2, (pad_w - w) // 2
         down, right = pad_h - h - up, pad_w - w - left
-        result = get_pad_image(image, left, up, right, down).resize((new_w, new_h))
+        result = get_pad_image(image, left, up, right, down).resize(
+            (new_w, new_h), resample=Image.LANCZOS
+        )
         return result
 
 

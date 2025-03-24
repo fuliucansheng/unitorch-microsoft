@@ -24,8 +24,8 @@ import unitorch_microsoft.models.diffusers
 endpoints = [
     # "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
     # "http://br1t44-s3-17:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.163:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.163:5051/core/fastapi/stable_flux",
+    "http://10.224.120.163:5050/core/fastapi/stable_flux",
+    "http://10.224.120.163:5051/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5050/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5051/core/fastapi/stable_flux",
     # "http://10.224.120.219:5050/core/fastapi/stable_flux",
@@ -211,7 +211,6 @@ def inpainting(
     lora_alpha: Optional[float] = 32.0,
     processor_name: Optional[str] = "default",
     force_restart: Optional[bool] = True,
-    do_copy: Optional[bool] = False,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -319,19 +318,6 @@ def inpainting(
             )
             result = Image.open(io.BytesIO(response.content))
             record[f"result"] = save_image(cache_dir, result)
-            if do_copy:
-                image = image.resize(result.size).convert("RGBA")
-                mask_image = ImageOps.invert(mask_image.resize(result.size)).convert(
-                    "L"
-                )
-                result = result.convert("RGBA")
-                image = Image.composite(image, result, mask_image)
-                mask = mask_image.filter(ImageFilter.GaussianBlur(100))
-                mask = ImageEnhance.Contrast(mask).enhance(0.8)
-                result.paste(image, (0, 0), mask)
-                result = result.convert("RGB")
-                record[f"result_copy"] = save_image(cache_dir, result)
-
             Q.put(record)
         Q.put("Done")
         requests.get(endpoint + "/stop")
@@ -396,7 +382,7 @@ def __out_processing_image(image, ratio):
     size = size_dict[str(ratio)]
 
     while width > size[0] or height > size[1]:
-        image = image.resize((width // 2, height // 2))
+        image = image.resize((width // 2, height // 2), resample=Image.LANCZOS)
         width = width // 2
         height = height // 2
 
@@ -429,7 +415,83 @@ def __out_processing1_image(image, ratio):
     new_width = int(width * scale)
     new_height = int(height * scale)
 
-    image = image.resize((new_width // 8 * 8, new_height // 8 * 8))
+    image = image.resize(
+        (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+    )
+
+    im_width, im_height = image.size
+
+    mask = Image.new("L", (size[0], size[1]), 255)
+    black = Image.new("RGB", (im_width, im_height), (0, 0, 0))
+    mask.paste(black, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+    new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
+    new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+
+    return new_image, mask
+
+
+def __out_processing2_image(image, ratio):
+    if isinstance(image, str):
+        image = Image.open(image).convert("RGB")
+    assert ratio in [0.5, 1.0, 1.9, 2.0]
+    size_dict = {
+        "1.0": (1024, 1024),
+        "0.5": (1024, 2048),
+        "2.0": (2048, 1024),
+        "1.9": (2048, 1072),
+    }
+    # size_dict = {"1.0": (1024, 1024), "0.5": (768, 1536), "2.0": (1536, 768)}
+
+    width, height = image.size
+    size = size_dict[str(ratio)]
+    scale = min(size[0] / width, size[1] / height)
+    new_width = int(width * scale)
+    new_height = int(height * scale)
+
+    image = image.resize(
+        (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+    )
+
+    im_width, im_height = image.size
+
+    mask = Image.new("L", (size[0], size[1]), 255)
+    black = Image.new("RGB", (im_width, im_height), (0, 0, 0))
+    mask.paste(black, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+    new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
+    new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+
+    return new_image, mask
+
+
+def __out_processing3_image(image, ratio):
+    if isinstance(image, str):
+        image = Image.open(image).convert("RGB")
+    width, height = image.size
+
+    longest_side = 2048
+    shortest_side = (
+        int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
+    )
+    size = (longest_side, shortest_side) if ratio > 1 else (shortest_side, longest_side)
+
+    scale = min(size[0] / width, size[1] / height)
+    if scale > 1:
+        size = (int(size[0] // scale), int(size[1] // scale))
+    if size[0] < 512:
+        size = (512, int(size[1] * 512 / size[0]))
+    if size[1] < 512:
+        size = (int(size[0] * 512 / size[1]), 512)
+
+    size = (size[0] // 8 * 8, size[1] // 8 * 8)
+
+    scale = min(size[0] / width, size[1] / height)
+
+    new_width = int(width * scale)
+    new_height = int(height * scale)
+
+    image = image.resize(
+        (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+    )
 
     im_width, im_height = image.size
 
@@ -459,8 +521,9 @@ def outpainting(
     strength: Optional[float] = 0.95,
     processor_name: Optional[str] = "p1",
     force_restart: Optional[bool] = True,
-    do_opencv_inpainting: Optional[bool] = True,
     do_copy: Optional[bool] = False,
+    do_opencv_inpainting: Optional[bool] = True,
+    padding_max_ratio: Optional[float] = None,
     ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
 ):
     if isinstance(names, str) and names.strip() == "*":
@@ -480,6 +543,8 @@ def outpainting(
     processors = {
         "default": __out_processing_image,
         "p1": __out_processing1_image,
+        "p2": __out_processing2_image,
+        "p3": __out_processing3_image,
     }
 
     if isinstance(ratios, str):
@@ -535,7 +600,7 @@ def outpainting(
             )
         for _, row in part.iterrows():
             prompt = prompt_text if prompt_text is not None else row[prompt_col]
-            raw_image = row[image_col]
+            raw_image = Image.open(row[image_col])
 
             record = {
                 "prompt": prompt,
@@ -543,6 +608,12 @@ def outpainting(
             }
 
             for ratio in ratios:
+                if padding_max_ratio is not None:
+                    _ratio = raw_image.size[0] / raw_image.size[1]
+                    if ratio > _ratio and ratio > (1 + padding_max_ratio) * _ratio:
+                        ratio = (1 + padding_max_ratio) * _ratio
+                    if ratio < _ratio and ratio < _ratio / (1 + padding_max_ratio):
+                        ratio = _ratio / (1 + padding_max_ratio)
                 image, mask_image = process_func(raw_image, ratio)
                 if do_opencv_inpainting:
                     image_np = np.array(image.convert("RGB"))
@@ -581,6 +652,12 @@ def outpainting(
                     files=files,
                 )
                 result = Image.open(io.BytesIO(response.content))
+                raw_width, raw_height = raw_image.size
+                if raw_width / raw_height > ratio:
+                    result.resize((raw_width, int(raw_width / ratio)))
+                else:
+                    result.resize((int(raw_height * ratio), raw_height))
+
                 record[f"result_{ratio}"] = save_image(cache_dir, result)
                 if do_copy:
                     image = image.resize(result.size).convert("RGBA")
@@ -593,7 +670,7 @@ def outpainting(
                     mask = ImageEnhance.Contrast(mask).enhance(0.8)
                     result.paste(image, (0, 0), mask)
                     result = result.convert("RGB")
-                    record[f"result_{ratio}_copy"] = save_image(cache_dir, result)
+                    record[f"result_copy"] = save_image(cache_dir, result)
 
             Q.put(record)
         Q.put("Done")

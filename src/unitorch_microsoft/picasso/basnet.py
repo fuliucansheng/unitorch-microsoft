@@ -584,6 +584,6 @@ class BASNetForSegmentationPipeline(BASNetForSegmentation):
         ][0]
         masks = masks.reshape(*masks.shape[:2])
         result_image = Image.fromarray(masks * 255, mode="L")
-        result_image = result_image.resize(image.size)
+        result_image = result_image.resize(image.size, resample=Image.LANCZOS)
 
         return result_image

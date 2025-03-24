@@ -162,9 +162,9 @@ class ExpandBGWebUI(SimpleWebUI):
             num_timesteps=50,
             seed=42,
         )
-        # new_image = new_image.resize(result.size).convert("RGB")
+        # new_image = new_image.resize(result.size, resample=Image.LANCZOS).convert("RGB")
         # result = result.convert("RGB")
-        # mask = mask.resize(result.size)
+        # mask = mask.resize(result.size, resample=Image.LANCZOS)
         # mask = np.array(mask.convert("1"))[:, :, None]
         # result = Image.fromarray(
         #     (np.array(result) * mask + np.array(new_image) * (1 - mask)).astype(

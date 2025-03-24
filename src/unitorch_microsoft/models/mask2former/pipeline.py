@@ -105,6 +105,6 @@ class Mask2FormerPipeline(_Mask2FormerForSegmentation):
             (mask.cpu().numpy() > threshold).astype(np.uint8) for mask in outputs.masks
         ][0]
         result_image = Image.fromarray(masks * 255)
-        result_image = result_image.resize(image.size)
+        result_image = result_image.resize(image.size, resample=Image.LANCZOS)
 
         return result_image

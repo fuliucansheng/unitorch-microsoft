@@ -39,18 +39,15 @@ class ExpandBGWebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
 
-        config.set_default_section("microsoft/spaces/picasso/expand_bg")
+        config.set_default_section("microsoft/spaces/betas/expand_bg")
         self._flux_endpoint = config.getoption("flux_endpoint", None)
-        self._gpt_endpoint = config.getoption("gpt_endpoint", None)
-        self._gpt_name = config.getoption("gpt_name", None)
-        self._gpt_key = config.getoption("gpt_key", None)
 
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎢 Expand Background</div>",
+            label=f"# <div style='margin-top:10px'>✨ Expand Background</div>",
             interactive=False,
         )
         description = create_element(
@@ -66,10 +63,11 @@ class ExpandBGWebUI(SimpleWebUI):
         input_ratio = create_element(
             "slider", "Ratio", default=1.9, min_value=0.2, max_value=5.0, step=0.1
         )
+        input_prompt = create_element("text", "Prompt")
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image", lines=5)
 
-        left = create_column(input_image, input_ratio, generate)
+        left = create_column(input_image, input_ratio, input_prompt, generate)
         right = create_column(output_image)
 
         iface = create_blocks(
@@ -84,7 +82,7 @@ class ExpandBGWebUI(SimpleWebUI):
             footer,
         )
         iface._title = "Expand Background"
-        iface._description = "This is a demo for picasso expand background."
+        iface._description = "This is a demo for betas expand background."
 
         # create events
         iface.__enter__()
@@ -102,7 +100,7 @@ class ExpandBGWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.serve,
-            inputs=[input_image, input_ratio],
+            inputs=[input_image, input_ratio, input_prompt],
             outputs=[output_image],
             trigger_mode="once",
         )
@@ -186,14 +184,8 @@ class ExpandBGWebUI(SimpleWebUI):
 
         return new_image, mask
 
-    def serve(self, image, ratio):
-        caption = get_gpt4o_respone(
-            "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts.",
-            images=[image],
-            api_endpoint=self._gpt_endpoint,
-            api_deploy_name=self._gpt_name,
-            api_key=self._gpt_key,
-        )
+    def serve(self, image, ratio, prompt):
+        caption = prompt
 
         new_image, new_mask = self.process(image, ratio)
         image_np = np.array(new_image.convert("RGB"))
@@ -209,7 +201,7 @@ class ExpandBGWebUI(SimpleWebUI):
                 "mask_image": new_mask,
             },
             params={
-                "text": "no text, no watermark, no logos, no people. " + caption,
+                "text": caption,
                 "guidance_scale": 30,
                 "strength": 0.95,
                 "num_timesteps": 50,
