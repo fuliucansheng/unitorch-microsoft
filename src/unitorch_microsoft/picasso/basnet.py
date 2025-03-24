@@ -458,10 +458,12 @@ class BASNetProcessor:
         pixel_mean: List[float] = [0.406, 0.456, 0.485],
         pixel_std: List[float] = [0.225, 0.224, 0.229],
         resize_shape: List[int] = [256, 256],
+        return_mask: Optional[bool] = False,
     ):
         self.pixel_mean = torch.tensor(pixel_mean)
         self.pixel_std = torch.tensor(pixel_std)
         self.resize_shape = tuple(resize_shape)
+        self.return_mask = return_mask
 
     @classmethod
     @add_default_section_for_init("microsoft/picasso/process/basnet")
@@ -497,8 +499,25 @@ class BASNetProcessor:
             y2 = min(y + h, mh - 1)
             return f"{x1},{y1},{x2},{y2}"
 
+        def image_to_base64(image):
+            import base64
+            _, buffer = cv2.imencode(".jpg", image)
+            image = buffer.tobytes()
+            image_base64 = base64.b64encode(image).decode("utf-8")
+            return image_base64
+        
+        def process_mask(mask):
+            mask = np.array(mask)
+            # No resize back here. If need to use mask together with image, please resize it back.
+            if np.max(mask) < 2:
+                mask = (mask * 255).astype('uint8')
+            mask_output = image_to_base64(mask)
+            return mask_output
+        
         results["roi"] = [process_roi(m) for m in masks]
-
+        if self.return_mask:
+            results["mask"] = [process_mask(m) for m in masks]
+        
         return WriterOutputs(results)
 
 
