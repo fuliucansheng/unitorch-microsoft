@@ -48,7 +48,7 @@ class MMDNNv4OfferModel(GenericModel):
         num_seller = 15020
         num_brand = 1000001
 
-        image_config = get_bletchley_image_config("0.3B", gradient_checkpointing = False)
+        image_config = get_bletchley_image_config("0.3B", gradient_checkpointing=False)
         self.image_embed_dim = image_config.hidden_size
 
         self.image_encoder = BletchleyImageEncoder(
@@ -73,7 +73,7 @@ class MMDNNv4OfferModel(GenericModel):
         )
 
         self.from_pretrained(pretrained_weight_path)
-    
+
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
@@ -130,7 +130,7 @@ class MMDNNv4ForChunkInferencePipeline(GenericScript):
         pretrained_weight_path = config.getoption("pretrained_weight_path", None)
         output_path = config.getoption("output_path", None)
         max_batch_size = config.getoption("max_batch_size", 256)
-        
+
         image_transform = Compose(
             [
                 Resize([224, 224]),
@@ -147,11 +147,11 @@ class MMDNNv4ForChunkInferencePipeline(GenericScript):
 
         def load_zip_to_memory(zip_path):
             file_contents = {}
-        
-            with open(zip_path, 'rb') as f:
+
+            with open(zip_path, "rb") as f:
                 zip_buffer = io.BytesIO(f.read())
-        
-            with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
+
+            with zipfile.ZipFile(zip_buffer, "r") as zip_file:
                 for file_name in zip_file.namelist():
                     with zip_file.open(file_name) as file:
                         file_contents[file_name] = file.read()
@@ -165,34 +165,47 @@ class MMDNNv4ForChunkInferencePipeline(GenericScript):
                     return image_transform(image)
                 except Exception as e:
                     print(f"处理图片 {key} 时出错: {str(e)}")
-                    return image_transform(Image.new("RGB", [224, 224], (255, 255, 255)))
-        
+                    return image_transform(
+                        Image.new("RGB", [224, 224], (255, 255, 255))
+                    )
+
         async def async_process_image(key, zip_file_contents, executor):
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(executor, process_image, key, zip_file_contents)
+            return await loop.run_in_executor(
+                executor, process_image, key, zip_file_contents
+            )
 
         async def process_batch(images, zip_file_contents, executor):
-            tasks = [async_process_image(key, zip_file_contents, executor) for key in images.to_list()]
+            tasks = [
+                async_process_image(key, zip_file_contents, executor)
+                for key in images.to_list()
+            ]
             return await asyncio.gather(*tasks)
-        
+
         def process_num(nums, device):
             num_list = nums.str.split(",").apply(lambda x: list(map(int, x))).tolist()
             return [torch.tensor(sublist, device=device) for sublist in num_list]
-             
+
         def postprocess(rowids, embeddings):
             embedding_arrays = [t.cpu().detach().numpy() for t in embeddings]
-            expanded_rowids = rowids.str.split(',', expand=True).stack().reset_index(drop=True)
-            
-            flat_embeddings = np.vstack([arr.squeeze(0) if arr.shape[0] == 1 else arr 
-                                    for arr in embedding_arrays])
-            embedding_strings = [','.join(map(str, emb)) for emb in flat_embeddings]
-            
+            expanded_rowids = (
+                rowids.str.split(",", expand=True).stack().reset_index(drop=True)
+            )
+
+            flat_embeddings = np.vstack(
+                [
+                    arr.squeeze(0) if arr.shape[0] == 1 else arr
+                    for arr in embedding_arrays
+                ]
+            )
+            embedding_strings = [",".join(map(str, emb)) for emb in flat_embeddings]
+
             result_dict = dict(zip(expanded_rowids, embedding_strings))
             return result_dict
 
         def save_dict_to_tsv(data_dict, path):
-            pd.DataFrame.from_dict(data_dict, orient='index').reset_index().to_csv(
-                path, sep='\t', index=False, header=None
+            pd.DataFrame.from_dict(data_dict, orient="index").reset_index().to_csv(
+                path, sep="\t", index=False, header=None
             )
 
         start_time = time.time()
@@ -200,30 +213,32 @@ class MMDNNv4ForChunkInferencePipeline(GenericScript):
 
         with ThreadPoolExecutor(max_workers=16) as executor:
             for zip_file in os.listdir(zip_folder):
-                if zip_file.endswith("zip") and f"{zip_file[:-4]}_output.tsv" not in os.listdir(output_path):
+                if zip_file.endswith(
+                    "zip"
+                ) and f"{zip_file[:-4]}_output.tsv" not in os.listdir(output_path):
                     zip_start_time = time.time()
                     zip_path = os.path.join(zip_folder, zip_file)
                     zip_file_contents = load_zip_to_memory(zip_path)
                     keys = zip_file_contents.keys()
-                    result_df = df[df['image'].isin(keys)]
-                    
+                    result_df = df[df["image"].isin(keys)]
+
                     results = {}
-                    for i in range(0, len(result_df['image']), max_batch_size):
-                        images = result_df['image'][i : i + max_batch_size]
-                        sellers = result_df['seller'][i : i + max_batch_size]
-                        brands = result_df['brand'][i : i + max_batch_size]
-                        rowids = result_df['rowid'][i : i + max_batch_size]
+                    for i in range(0, len(result_df["image"]), max_batch_size):
+                        images = result_df["image"][i : i + max_batch_size]
+                        sellers = result_df["seller"][i : i + max_batch_size]
+                        brands = result_df["brand"][i : i + max_batch_size]
+                        rowids = result_df["rowid"][i : i + max_batch_size]
 
                         sellers = process_num(sellers, device)
                         brands = process_num(brands, device)
-                        
-                        images = asyncio.run(process_batch(images, zip_file_contents, executor))
+
+                        images = asyncio.run(
+                            process_batch(images, zip_file_contents, executor)
+                        )
                         images = torch.stack(images, dim=0).to(device)
 
                         embeds = model(
-                            images=images,
-                            seller_ids=sellers,
-                            brand_ids=brands
+                            images=images, seller_ids=sellers, brand_ids=brands
                         )
 
                         result_tmp_dict = postprocess(rowids, embeds)
@@ -232,10 +247,16 @@ class MMDNNv4ForChunkInferencePipeline(GenericScript):
                         del images, sellers, brands, embeds, result_tmp_dict
                         torch.cuda.empty_cache()
 
-                    save_dict_to_tsv(results, f"{output_path}/{zip_file[:-4]}_output.tsv")
+                    save_dict_to_tsv(
+                        results, f"{output_path}/{zip_file[:-4]}_output.tsv"
+                    )
                     del zip_file_contents, results
                     zip_time = time.time() - zip_start_time
-                    print(f"running time for one zip: {zip_time:.4f}s {len(result_df['image'])/zip_time} samples/s")
+                    print(
+                        f"running time for one zip: {zip_time:.4f}s {len(result_df['image'])/zip_time} samples/s"
+                    )
 
             elapsed_time = time.time() - start_time
-            print(f"total running time: {elapsed_time:.4f}s {len(df['image'])/elapsed_time} samples/s")
+            print(
+                f"total running time: {elapsed_time:.4f}s {len(df['image'])/elapsed_time} samples/s"
+            )

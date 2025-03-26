@@ -501,23 +501,24 @@ class BASNetProcessor:
 
         def image_to_base64(image):
             import base64
+
             _, buffer = cv2.imencode(".jpg", image)
             image = buffer.tobytes()
             image_base64 = base64.b64encode(image).decode("utf-8")
             return image_base64
-        
+
         def process_mask(mask):
             mask = np.array(mask)
             # No resize back here. If need to use mask together with image, please resize it back.
             if np.max(mask) < 2:
-                mask = (mask * 255).astype('uint8')
+                mask = (mask * 255).astype("uint8")
             mask_output = image_to_base64(mask)
             return mask_output
-        
+
         results["roi"] = [process_roi(m) for m in masks]
         if self.return_mask:
             results["mask"] = [process_mask(m) for m in masks]
-        
+
         return WriterOutputs(results)
 
 

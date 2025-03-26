@@ -136,29 +136,37 @@ def get_api_response(api, taskid):
             for result in results:
                 if imgs != "":
                     imgs += "[SEP]"
-                imgs+=result["url"]
-            res = save_video_from_url('./test', imgs)
-            result = imgs+'\t'+res 
+                imgs += result["url"]
+            res = save_video_from_url("./test", imgs)
+            result = imgs + "\t" + res
     except:
         pass
 
     return result
 
+
 def get_api_response_fromfile(filepath):
-    api = 'https://api.klingai.com/v1/videos/image2video'
-    with open('temp_get_result.tsv', 'w') as fw:
-        with open(filepath, 'r') as fp:
+    api = "https://api.klingai.com/v1/videos/image2video"
+    with open("temp_get_result.tsv", "w") as fw:
+        with open(filepath, "r") as fp:
             for line in fp.readlines():
-                imgurl, taskid = line.strip().split('\t')
+                imgurl, taskid = line.strip().split("\t")
                 result = get_api_response(api, taskid)
                 if result != "":
-                    videourl, localvideo = result.split('\t')
-                    fw.write(imgurl+"\t"+taskid+"\t"+videourl+"\t"+localvideo+"\n")
+                    videourl, localvideo = result.split("\t")
+                    fw.write(
+                        imgurl
+                        + "\t"
+                        + taskid
+                        + "\t"
+                        + videourl
+                        + "\t"
+                        + localvideo
+                        + "\n"
+                    )
 
 
-
-
-def get_api_response_list(api,pageSize,pageNum=1):
+def get_api_response_list(api, pageSize, pageNum=1):
     auth_ak = os.getenv("KELING_API_AK")
     auth_sk = os.getenv("KELING_API_SK")
     api_key = encode_jwt_token(auth_ak, auth_sk)
@@ -169,11 +177,7 @@ def get_api_response_list(api,pageSize,pageNum=1):
         "content-type": "application/json",
     }
     response = requests.get(
-        api,
-        timeout=60,
-        headers=headers,
-        pageNum=pageNum,
-        pageSize=pageSize
+        api, timeout=60, headers=headers, pageNum=pageNum, pageSize=pageSize
     ).json()
     print(response)
     """
@@ -210,7 +214,7 @@ def get_account_cost():
 
 
 def prepare_image(image):
-    #print("prepare image", image)
+    # print("prepare image", image)
     if image == None:
         return ""
     if "http" in image:
@@ -223,7 +227,7 @@ def prepare_image(image):
             image_buffer.seek(0)
             return base64.b64encode(image_buffer.getvalue()).decode()
         except Exception as e:
-            #print("prepare image failed {!r}".format(e))
+            # print("prepare image failed {!r}".format(e))
             return ""
     else:
         return ""
@@ -266,7 +270,6 @@ def text2image(
     output_file = f"{cache_dir}/output.jsonl"
     writer = open(output_file, "a+")
     Q = queue.Queue(maxsize=max_queue_size)
-
 
     def producer():
         for _, row in data.iterrows():
@@ -537,7 +540,11 @@ def image2video(
         print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
-                lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
+                lambda x: (
+                    x[prompt_col]
+                    if prompt_col is not None and not pd.isna(x[prompt_col])
+                    else ""
+                )
                 + " - "
                 + (
                     x[neg_prompt_col]
@@ -591,7 +598,7 @@ def image2video(
                 _end_frame = (
                     row[end_frame_col] if not pd.isna(row[end_frame_col]) else ""
                 )
-            #print(_prompt, _neg_prompt, _index_id, _start_frame, _end_frame)
+            # print(_prompt, _neg_prompt, _index_id, _start_frame, _end_frame)
             _external_task_id = _index_id
             params = {
                 "prompt": _prompt,
@@ -603,11 +610,10 @@ def image2video(
                 "mode": mode,
             }
             try:
-
                 response = send_request_retry(
                     api_key, "https://api.klingai.com/v1/videos/image2video", params
                 )
-                #print(response)
+                # print(response)
                 Q.put(
                     (
                         response["data"]["task_id"],
@@ -621,11 +627,11 @@ def image2video(
 
                 proc_record = {
                     "taskid": response["data"]["task_id"],
-                    "prompt":_prompt,
-                    "neg_prompt":_neg_prompt,
-                    "index_id":_index_id,
-                    "start_frame":_start_frame,
-                    "end_frame":_end_frame
+                    "prompt": _prompt,
+                    "neg_prompt": _neg_prompt,
+                    "index_id": _index_id,
+                    "start_frame": _start_frame,
+                    "end_frame": _end_frame,
                 }
                 proc_writer.write(json.dumps(proc_record) + "\n")
                 proc_writer.flush()

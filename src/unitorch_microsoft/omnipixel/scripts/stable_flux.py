@@ -28,11 +28,12 @@ endpoints = [
     "http://10.224.120.163:5051/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5050/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.219:5050/core/fastapi/stable_flux",
+    "http://10.224.120.219:5050/core/fastapi/stable_flux",
+    "http://10.224.120.219:5051/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.67:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.67:5051/core/fastapi/stable_flux",
+    "http://10.224.120.67:5050/core/fastapi/stable_flux",
+    "http://10.224.120.67:5051/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5050/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5051/core/fastapi/stable_flux",
     "http://10.224.120.184:5050/core/fastapi/stable_flux",
@@ -64,7 +65,8 @@ def text2image(
     lora_name: Optional[str] = None,
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
-    force_restart: Optional[bool] = True,
+    force_restart: Optional[bool] = False,
+    force_stop: Optional[bool] = False,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -134,7 +136,8 @@ def text2image(
             }
             Q.put(record)
         Q.put("Done")
-        requests.get(endpoint + "/stop")
+        if force_stop:
+            requests.get(endpoint + "/stop")
 
     def write_file(fpath, Q, cnt):
         f = open(fpath, "a+")
@@ -210,7 +213,8 @@ def inpainting(
     lora_weight: Optional[float] = 1.0,
     lora_alpha: Optional[float] = 32.0,
     processor_name: Optional[str] = "default",
-    force_restart: Optional[bool] = True,
+    force_restart: Optional[bool] = False,
+    force_stop: Optional[bool] = False,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -320,7 +324,8 @@ def inpainting(
             record[f"result"] = save_image(cache_dir, result)
             Q.put(record)
         Q.put("Done")
-        requests.get(endpoint + "/stop")
+        if force_stop:
+            requests.get(endpoint + "/stop")
 
     def write_file(fpath, Q, cnt):
         f = open(fpath, "a+")
@@ -520,7 +525,8 @@ def outpainting(
     lora_alpha: Optional[float] = 32.0,
     strength: Optional[float] = 0.95,
     processor_name: Optional[str] = "p1",
-    force_restart: Optional[bool] = True,
+    force_restart: Optional[bool] = False,
+    force_stop: Optional[bool] = False,
     do_copy: Optional[bool] = False,
     do_opencv_inpainting: Optional[bool] = True,
     padding_max_ratio: Optional[float] = None,
@@ -654,15 +660,21 @@ def outpainting(
                 result = Image.open(io.BytesIO(response.content))
                 raw_width, raw_height = raw_image.size
                 if raw_width / raw_height > ratio:
-                    result.resize((raw_width, int(raw_width / ratio)))
+                    result = result.resize(
+                        (raw_width, int(raw_width / ratio)), resample=Image.LANCZOS
+                    )
                 else:
-                    result.resize((int(raw_height * ratio), raw_height))
+                    result = result.resize(
+                        (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
+                    )
 
                 record[f"result_{ratio}"] = save_image(cache_dir, result)
                 if do_copy:
-                    image = image.resize(result.size).convert("RGBA")
+                    image = image.resize(result.size, resample=Image.LANCZOS).convert(
+                        "RGBA"
+                    )
                     mask_image = ImageOps.invert(
-                        mask_image.resize(result.size)
+                        mask_image.resize(result.size, resample=Image.LANCZOS)
                     ).convert("L")
                     result = result.convert("RGBA")
                     image = Image.composite(image, result, mask_image)
@@ -674,7 +686,8 @@ def outpainting(
 
             Q.put(record)
         Q.put("Done")
-        requests.get(endpoint + "/stop")
+        if force_stop:
+            requests.get(endpoint + "/stop")
 
     def write_file(fpath, Q, cnt):
         f = open(fpath, "a+")

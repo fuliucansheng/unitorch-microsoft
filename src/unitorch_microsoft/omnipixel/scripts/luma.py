@@ -419,7 +419,11 @@ def image2video(
         print(f"unique size {len(uniques)}")
         data = data[
             ~data.apply(
-                lambda x: (x[prompt_col] if prompt_col is not None and not pd.isna(x[prompt_col]) else "")
+                lambda x: (
+                    x[prompt_col]
+                    if prompt_col is not None and not pd.isna(x[prompt_col])
+                    else ""
+                )
                 + " - "
                 + (
                     x[neg_prompt_col]
@@ -478,7 +482,7 @@ def image2video(
                 if url != None:
                     keyframes["frame0"] = {"type": "image", "url": url}
                     start_frame = url
-            print(start_frame,_prompt)
+            print(start_frame, _prompt)
             end_frame = ""
             if end_frame_col != None and end_frame_col in data.columns:
                 url = get_image_url_with_azure(
@@ -504,14 +508,14 @@ def image2video(
                 }
                 response = send_i2v_request(api, param)
                 print(response)
-                Q.put((response["id"],_neg_prompt))
+                Q.put((response["id"], _neg_prompt))
                 proc_record = {
                     "taskid": response["id"],
-                    "prompt":_prompt,
-                    "neg_prompt":_neg_prompt,
-                    "index_id":"",
-                    "start_frame":start_frame,
-                    "end_frame":end_frame
+                    "prompt": _prompt,
+                    "neg_prompt": _neg_prompt,
+                    "index_id": "",
+                    "start_frame": start_frame,
+                    "end_frame": end_frame,
                 }
                 proc_writer.write(json.dumps(proc_record) + "\n")
                 proc_writer.flush()
