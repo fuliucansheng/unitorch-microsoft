@@ -35,7 +35,7 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class ExpandBGWebUI(SimpleWebUI):
+class ExpandBG2WebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
 
@@ -47,7 +47,7 @@ class ExpandBGWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Expand Background</div>",
+            label=f"# <div style='margin-top:10px'>✨ Expand Background 2</div>",
             interactive=False,
         )
         description = create_element(
@@ -63,11 +63,21 @@ class ExpandBGWebUI(SimpleWebUI):
         input_ratio = create_element(
             "slider", "Ratio", default=1.9, min_value=0.2, max_value=5.0, step=0.1
         )
+        input_max_pad_ratio = create_element(
+            "slider",
+            "Max Padding Ratio",
+            default=0.2,
+            min_value=0.1,
+            max_value=1.0,
+            step=0.1,
+        )
         input_prompt = create_element("text", "Prompt")
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image", lines=5)
 
-        left = create_column(input_image, input_ratio, input_prompt, generate)
+        left = create_column(
+            input_image, input_ratio, input_max_pad_ratio, input_prompt, generate
+        )
         right = create_column(output_image)
 
         iface = create_blocks(
@@ -81,8 +91,8 @@ class ExpandBGWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Expand Background"
-        iface._description = "This is a demo for betas expand background."
+        iface._title = "Expand Background 2"
+        iface._description = "This is a demo for betas expand background 2."
 
         # create events
         iface.__enter__()
@@ -100,7 +110,7 @@ class ExpandBGWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.serve,
-            inputs=[input_image, input_ratio, input_prompt],
+            inputs=[input_image, input_ratio, input_max_pad_ratio, input_prompt],
             outputs=[output_image],
             trigger_mode="once",
         )
@@ -112,7 +122,7 @@ class ExpandBGWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Expand Background", iface=iface)
+        super().__init__(config, iname="Expand Background 2", iface=iface)
 
     def start(self):
         if self._status == "Running":
@@ -185,8 +195,15 @@ class ExpandBGWebUI(SimpleWebUI):
 
         return new_image, mask
 
-    def serve(self, image, ratio, prompt):
+    def serve(self, image, ratio, pad_ratio, prompt):
         caption = prompt
+
+        ratio2 = ratio
+        _ratio = image.size[0] / image.size[1]
+        if ratio > (1 + pad_ratio) * _ratio:
+            ratio = (1 + pad_ratio) * _ratio
+        if ratio < _ratio / (1 + pad_ratio):
+            ratio = _ratio / (1 + pad_ratio)
 
         new_image, new_mask = self.process(image, ratio)
         image_np = np.array(new_image.convert("RGB"))
@@ -210,4 +227,49 @@ class ExpandBGWebUI(SimpleWebUI):
             },
             resp_type="image",
         )
+        raw_width, raw_height = image.size
+        if raw_width / raw_height > ratio:
+            result = result.resize(
+                (raw_width, int(raw_width / ratio)), resample=Image.LANCZOS
+            )
+        else:
+            result = result.resize(
+                (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
+            )
+
+        if ratio == ratio2:
+            return result
+
+        ratio = ratio2
+        new_image, new_mask = self.process(result, ratio)
+        image_np = np.array(new_image.convert("RGB"))
+        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
+        latent_image = Image.fromarray(inpainted_image)
+        result = call_fastapi(
+            self._flux_endpoint + "/generate",
+            images={
+                "image": latent_image,
+                "mask_image": new_mask,
+            },
+            params={
+                "text": caption,
+                "guidance_scale": 30,
+                "strength": 0.95,
+                "num_timesteps": 50,
+                "seed": 42,
+            },
+            resp_type="image",
+        )
+        raw_width, raw_height = image.size
+        if raw_width / raw_height > ratio:
+            result = result.resize(
+                (raw_width, int(raw_width / ratio)), resample=Image.LANCZOS
+            )
+        else:
+            result = result.resize(
+                (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
+            )
         return result

@@ -24,12 +24,15 @@ from unitorch_microsoft.spaces import (
     http_url as _http_url,
 )
 from unitorch_microsoft.spaces.betas.bg_expand import ExpandBGWebUI
+from unitorch_microsoft.spaces.betas.bg_expand2 import ExpandBG2WebUI
 
 # beta examples
 expand_bg_page = ExpandBGWebUI(spaces_settings).iface
+expand_bg_page2 = ExpandBG2WebUI(spaces_settings).iface
 
 image_pages = [
     expand_bg_page,
+    expand_bg_page2,
 ]
 
 all_pages = image_pages
