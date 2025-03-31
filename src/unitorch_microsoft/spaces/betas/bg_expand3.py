@@ -3,14 +3,13 @@
 
 import os
 import cv2
-import math
 import gc
 import json
 import requests
 import torch
 import numpy as np
 import gradio as gr
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageEnhance
 from transformers import AutoModelForImageSegmentation
 from torchvision import transforms
 from unitorch import mktempfile
@@ -36,7 +35,7 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class ExpandBG2WebUI(SimpleWebUI):
+class ExpandBG3WebUI(SimpleWebUI):
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
 
@@ -48,7 +47,7 @@ class ExpandBG2WebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Expand Background 2</div>",
+            label=f"# <div style='margin-top:10px'>✨ Expand Background 3</div>",
             interactive=False,
         )
         description = create_element(
@@ -64,14 +63,6 @@ class ExpandBG2WebUI(SimpleWebUI):
         input_ratio = create_element(
             "slider", "Ratio", default=1.9, min_value=0.2, max_value=5.0, step=0.1
         )
-        input_max_pad_ratio = create_element(
-            "slider",
-            "Max Padding Ratio",
-            default=0.4,
-            min_value=0.1,
-            max_value=1.0,
-            step=0.1,
-        )
         input_prompt = create_element("text", "Prompt")
         generate = create_element("button", "Generate")
         output_image1 = create_element("image", "Output Image 1", lines=5)
@@ -80,9 +71,7 @@ class ExpandBG2WebUI(SimpleWebUI):
         debug_image2 = create_element("image", "Debug Image 2", lines=5)
         debug_image3 = create_element("image", "Debug Image 3", lines=5)
 
-        left = create_column(
-            input_image, input_ratio, input_max_pad_ratio, input_prompt, generate
-        )
+        left = create_column(input_image, input_ratio, input_prompt, generate)
         right = create_column(
             create_row(output_image1, output_image2),
             create_row(debug_image1, debug_image2, debug_image3),
@@ -99,8 +88,8 @@ class ExpandBG2WebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Expand Background 2"
-        iface._description = "This is a demo for betas expand background 2."
+        iface._title = "Expand Background 3"
+        iface._description = "This is a demo for betas expand background 3."
 
         # create events
         iface.__enter__()
@@ -118,14 +107,8 @@ class ExpandBG2WebUI(SimpleWebUI):
 
         generate.click(
             fn=self.serve,
-            inputs=[input_image, input_ratio, input_max_pad_ratio, input_prompt],
-            outputs=[
-                output_image1,
-                output_image2,
-                debug_image1,
-                debug_image2,
-                debug_image3,
-            ],
+            inputs=[input_image, input_ratio, input_prompt],
+            outputs=[output_image1, output_image2],
             trigger_mode="once",
         )
 
@@ -136,7 +119,7 @@ class ExpandBG2WebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Expand Background 2", iface=iface)
+        super().__init__(config, iname="Expand Background 3", iface=iface)
 
     def start(self):
         if self._status == "Running":
@@ -167,10 +150,10 @@ class ExpandBG2WebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def process(self, image, ratio):
+    def process(self, image, ratio, max_size=1024):
         width, height = image.size
 
-        longest_side = 2048
+        longest_side = max_size
         shortest_side = (
             int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
         )
@@ -192,8 +175,8 @@ class ExpandBG2WebUI(SimpleWebUI):
 
         scale = min(size[0] / width, size[1] / height)
 
-        new_width = math.ceil(width * scale)
-        new_height = math.ceil(height * scale)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
 
         image = image.resize(
             (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
@@ -209,19 +192,42 @@ class ExpandBG2WebUI(SimpleWebUI):
 
         return new_image, mask
 
-    def serve(self, image, ratio, pad_ratio, prompt):
+    def process2(self, image, mask, ratio=1.9):
+        width, height = image.size
+        longest_side = 2048
+        shortest_side = (
+            int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
+        )
+        size = (
+            (longest_side, shortest_side)
+            if width > height
+            else (shortest_side, longest_side)
+        )
+        scale = min(size[0] / width, size[1] / height)
+        if scale > 1:
+            size = (int(size[0] // scale), int(size[1] // scale))
+        if size[0] < 512:
+            size = (512, int(size[1] * 512 / size[0]))
+        if size[1] < 512:
+            size = (int(size[0] * 512 / size[1]), 512)
+        size = (size[0] // 8 * 8, size[1] // 8 * 8)
+        scale = min(size[0] / width, size[1] / height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        image = image.resize(
+            (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+        )
+        mask = mask.resize(
+            (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+        )
+        return image, mask
+
+    def serve(self, image, ratio, prompt):
         caption = prompt
 
-        ratio2 = ratio
-        _ratio = image.size[0] / image.size[1]
-        if ratio > (1 + pad_ratio) * _ratio:
-            ratio = (1 + pad_ratio) * _ratio
-        if ratio < _ratio / (1 + pad_ratio):
-            ratio = _ratio / (1 + pad_ratio)
-
         new_image, new_mask = self.process(image, ratio)
-        debug_image1 = new_image
-        debug_image2 = new_mask
+        debug_image1 = new_image.copy()
+        debug_image2 = new_mask.copy()
         image_np = np.array(new_image.convert("RGB"))
         mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
 
@@ -236,8 +242,8 @@ class ExpandBG2WebUI(SimpleWebUI):
             },
             params={
                 "text": caption,
-                "guidance_scale": 30,
-                "strength": 0.95,
+                "guidance_scale": 30.0,
+                "strength": 0.9,
                 "num_timesteps": 50,
                 "seed": 42,
             },
@@ -253,30 +259,34 @@ class ExpandBG2WebUI(SimpleWebUI):
                 (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
             )
 
-        if ratio == ratio2:
-            return result, None, debug_image1, debug_image2, None
-
         result1 = result
-        ratio = ratio2
-        new_image, new_mask = self.process(result, ratio)
-        image_np = np.array(new_image.convert("RGB"))
-        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
+        new_image, new_mask = self.process(image, ratio, max_size=2048)
 
-        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
-        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
-        latent_image = Image.fromarray(inpainted_image)
+        new_image = new_image.resize(result.size, resample=Image.LANCZOS).convert(
+            "RGBA"
+        )
+        new_mask = new_mask.resize(result.size, resample=Image.LANCZOS)
+        mask_image = ImageOps.invert(new_mask).convert("L")
+        result = result.convert("RGBA")
+        new_image = Image.composite(new_image, result, mask_image)
+        mask = mask_image.filter(ImageFilter.GaussianBlur(100))
+        mask = ImageEnhance.Contrast(mask).enhance(0.8)
+        result.paste(new_image, (0, 0), mask)
+        result = result.convert("RGB")
+
+        new_image, new_mask = self.process2(result, new_mask)
         result = call_fastapi(
             self._flux_endpoint + "/generate",
             images={
-                "image": latent_image,
+                "image": new_image,
                 "mask_image": new_mask,
             },
             params={
                 "text": caption,
-                "guidance_scale": 30,
-                "strength": 0.95,
+                "guidance_scale": 30.0,
+                "strength": 0.8,
                 "num_timesteps": 50,
-                "seed": 42,
+                "seed": 1123,
             },
             resp_type="image",
         )

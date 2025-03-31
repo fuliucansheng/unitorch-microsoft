@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import os
+import math
 import cv2
 import gc
 import json
@@ -146,7 +147,7 @@ class ExpandBGWebUI(SimpleWebUI):
     def process(self, image, ratio):
         width, height = image.size
 
-        longest_side = 2048
+        longest_side = 1024
         shortest_side = (
             int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
         )
@@ -168,8 +169,8 @@ class ExpandBGWebUI(SimpleWebUI):
 
         scale = min(size[0] / width, size[1] / height)
 
-        new_width = int(width * scale)
-        new_height = int(height * scale)
+        new_width = math.ceil(width * scale)
+        new_height = math.ceil(height * scale)
 
         image = image.resize(
             (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
@@ -204,7 +205,7 @@ class ExpandBGWebUI(SimpleWebUI):
             params={
                 "text": caption,
                 "guidance_scale": 30,
-                "strength": 0.95,
+                "strength": 0.8,
                 "num_timesteps": 50,
                 "seed": 42,
             },

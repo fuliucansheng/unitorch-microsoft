@@ -26,23 +26,23 @@ endpoints = [
     # "http://br1t44-s3-17:5050/core/fastapi/stable_flux",
     # "http://br1t44-s3-17:5051/core/fastapi/stable_flux",
     "http://10.224.120.163:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.163:5051/core/fastapi/stable_flux",
+    "http://10.224.120.163:5051/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5050/core/fastapi/stable_flux",
     # "http://br1u43-s2-01:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.219:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.219:5051/core/fastapi/stable_flux",
+    "http://10.224.120.219:5050/core/fastapi/stable_flux",
+    "http://10.224.120.219:5051/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-25.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.67:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.67:5051/core/fastapi/stable_flux",
+    "http://10.224.120.67:5050/core/fastapi/stable_flux",
+    "http://10.224.120.67:5051/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5050/core/fastapi/stable_flux",
     # "http://br1t45-s1-01:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.184:5050/core/fastapi/stable_flux",
+    "http://10.224.120.184:5050/core/fastapi/stable_flux",
     # "http://10.224.120.184:5051/core/fastapi/stable_flux",
     # "http://br1t43-s3-17.guest.corp.microsoft.com:5050/core/fastapi/stable_flux",
     # "http://br1t43-s3-17.guest.corp.microsoft.com:5051/core/fastapi/stable_flux",
-    # "http://10.224.120.81:5050/core/fastapi/stable_flux",
-    # "http://10.224.120.81:5051/core/fastapi/stable_flux",
+    "http://10.224.120.81:5050/core/fastapi/stable_flux",
+    "http://10.224.120.81:5051/core/fastapi/stable_flux",
 ]
 
 
@@ -52,12 +52,12 @@ def save_image(folder, image):
     return f"{folder}/{name}"
 
 
-def __out_processing_image(image, ratio):
+def __out_processing_image(image, ratio, max_size=1024):
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
     width, height = image.size
 
-    longest_side = 2048
+    longest_side = max_size
     shortest_side = (
         int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
     )
@@ -93,6 +93,37 @@ def __out_processing_image(image, ratio):
     return new_image, mask
 
 
+def process2(image, mask, ratio=1.9):
+    width, height = image.size
+    longest_side = 2048
+    shortest_side = (
+        int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
+    )
+    size = (
+        (longest_side, shortest_side)
+        if width > height
+        else (shortest_side, longest_side)
+    )
+    scale = min(size[0] / width, size[1] / height)
+    if scale > 1:
+        size = (int(size[0] // scale), int(size[1] // scale))
+    if size[0] < 512:
+        size = (512, int(size[1] * 512 / size[0]))
+    if size[1] < 512:
+        size = (int(size[0] * 512 / size[1]), 512)
+    size = (size[0] // 8 * 8, size[1] // 8 * 8)
+    scale = min(size[0] / width, size[1] / height)
+    new_width = math.ceil(width * scale)
+    new_height = math.ceil(height * scale)
+    image = image.resize(
+        (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+    )
+    mask = mask.resize(
+        (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+    )
+    return image, mask
+
+
 def main(
     data_file: str,
     cache_dir: str,
@@ -103,16 +134,17 @@ def main(
     pretrained_name: Optional[str] = "stable-flux-dev-fill",
     guidance_scale: Optional[float] = 30.0,
     num_timesteps: Optional[int] = 50,
-    seed: Optional[int] = 1123,
+    seed1: Optional[int] = 42,
+    seed2: Optional[int] = 1123,
     lora_name: Optional[str] = "stable-flux-lora-ms-dev-fill-simple",
     lora_weight: Optional[float] = 0.2,
     lora_alpha: Optional[float] = 32.0,
-    strength: Optional[float] = 0.95,
+    strength1: Optional[float] = 0.9,
+    strength2: Optional[float] = 0.8,
     processor_name: Optional[str] = "default",
     force_restart: Optional[bool] = False,
     force_stop: Optional[bool] = False,
     do_opencv_inpainting: Optional[bool] = True,
-    padding_max_ratio: Optional[float] = 0.4,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -187,13 +219,6 @@ def main(
             }
 
             ratio = 1.9
-
-            if padding_max_ratio is not None:
-                _ratio = raw_image.size[0] / raw_image.size[1]
-                if ratio > (1 + padding_max_ratio) * _ratio:
-                    ratio = (1 + padding_max_ratio) * _ratio
-                if ratio < _ratio / (1 + padding_max_ratio):
-                    ratio = _ratio / (1 + padding_max_ratio)
             image, mask_image = process_func(raw_image, ratio)
 
             if do_opencv_inpainting:
@@ -227,8 +252,8 @@ def main(
                     "text": prompt,
                     "guidance_scale": guidance_scale,
                     "num_timesteps": num_timesteps,
-                    "seed": seed,
-                    "strength": strength,
+                    "seed": seed1,
+                    "strength": strength1,
                 },
                 files=files,
             )
@@ -245,26 +270,25 @@ def main(
 
             record[f"result_1"] = save_image(cache_dir, result)
 
-            if ratio == 1.9:
-                Q.put(record)
-                continue
+            new_image, new_mask = process_func(raw_image, ratio, max_size=2048)
 
-            ratio = 1.9
-            image, mask_image = process_func(result, ratio)
+            new_image = new_image.resize(result.size, resample=Image.LANCZOS).convert(
+                "RGBA"
+            )
+            new_mask = new_mask.resize(result.size, resample=Image.LANCZOS)
+            mask_image = ImageOps.invert(new_mask).convert("L")
+            result = result.convert("RGBA")
+            new_image = Image.composite(new_image, result, mask_image)
+            mask = mask_image.filter(ImageFilter.GaussianBlur(100))
+            mask = ImageEnhance.Contrast(mask).enhance(0.8)
+            result.paste(new_image, (0, 0), mask)
+            result = result.convert("RGB")
 
-            if do_opencv_inpainting:
-                image_np = np.array(image.convert("RGB"))
-                mask_np = np.array(mask_image.convert("L")).astype(np.uint8)
-
-                _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
-                inpainted_image = cv2.inpaint(
-                    image_np, binary_mask, 10, cv2.INPAINT_TELEA
-                )
-                image = Image.fromarray(inpainted_image)
+            new_image, new_mask = process2(result, new_mask)
             image_buffer = io.BytesIO()
-            image.save(image_buffer, format="JPEG")
+            new_image.save(image_buffer, format="JPEG")
             mask_image_buffer = io.BytesIO()
-            mask_image.save(mask_image_buffer, format="JPEG")
+            new_mask.save(mask_image_buffer, format="JPEG")
             image_buffer.seek(0)
             mask_image_buffer.seek(0)
 
@@ -283,13 +307,13 @@ def main(
                     "text": prompt,
                     "guidance_scale": guidance_scale,
                     "num_timesteps": num_timesteps,
-                    "seed": seed,
-                    "strength": strength,
+                    "seed": seed2,
+                    "strength": strength2,
                 },
                 files=files,
             )
             result = Image.open(io.BytesIO(response.content))
-            raw_width, raw_height = raw_image.size
+            raw_width, raw_height = image.size
             if raw_width / raw_height > ratio:
                 result = result.resize(
                     (raw_width, int(raw_width / ratio)), resample=Image.LANCZOS
@@ -298,7 +322,6 @@ def main(
                 result = result.resize(
                     (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
                 )
-
             record[f"result_2"] = save_image(cache_dir, result)
             Q.put(record)
 

@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import os
+import math
 import cv2
 import gc
 import json
@@ -169,8 +170,8 @@ class ExpandBGWebUI(SimpleWebUI):
 
         scale = min(size[0] / width, size[1] / height)
 
-        new_width = int(width * scale)
-        new_height = int(height * scale)
+        new_width = math.ceil(width * scale)
+        new_height = math.ceil(height * scale)
 
         image = image.resize(
             (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
@@ -188,12 +189,20 @@ class ExpandBGWebUI(SimpleWebUI):
 
     def serve(self, image, ratio):
         caption = get_gpt4o_respone(
-            "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts.",
+            "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
             images=[image],
             api_endpoint=self._gpt_endpoint,
             api_deploy_name=self._gpt_name,
             api_key=self._gpt_key,
         )
+
+        pad_ratio = 0.4
+        ratio2 = ratio
+        _ratio = image.size[0] / image.size[1]
+        if ratio > (1 + pad_ratio) * _ratio:
+            ratio = (1 + pad_ratio) * _ratio
+        if ratio < _ratio / (1 + pad_ratio):
+            ratio = _ratio / (1 + pad_ratio)
 
         new_image, new_mask = self.process(image, ratio)
         image_np = np.array(new_image.convert("RGB"))
@@ -217,4 +226,49 @@ class ExpandBGWebUI(SimpleWebUI):
             },
             resp_type="image",
         )
+        raw_width, raw_height = image.size
+        if raw_width / raw_height > ratio:
+            result = result.resize(
+                (raw_width, int(raw_width / ratio)), resample=Image.LANCZOS
+            )
+        else:
+            result = result.resize(
+                (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
+            )
+
+        if ratio == ratio2:
+            return result
+
+        ratio = ratio2
+        new_image, new_mask = self.process(result, ratio)
+        image_np = np.array(new_image.convert("RGB"))
+        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
+        latent_image = Image.fromarray(inpainted_image)
+        result = call_fastapi(
+            self._flux_endpoint + "/generate",
+            images={
+                "image": latent_image,
+                "mask_image": new_mask,
+            },
+            params={
+                "text": "no text, no watermark, no logos, no people. " + caption,
+                "guidance_scale": 30,
+                "strength": 0.95,
+                "num_timesteps": 50,
+                "seed": 42,
+            },
+            resp_type="image",
+        )
+        raw_width, raw_height = image.size
+        if raw_width / raw_height > ratio:
+            result = result.resize(
+                (raw_width, int(raw_width / ratio)), resample=Image.LANCZOS
+            )
+        else:
+            result = result.resize(
+                (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
+            )
         return result

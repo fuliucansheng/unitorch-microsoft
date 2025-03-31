@@ -222,10 +222,10 @@ class OutpaintWebUI(SimpleWebUI):
 
     def process_infer(self, image, ratio):
         size_dict = {
-            "1": (768, 768),
-            "0.5": (512, 1024),
-            "1.9": (1024, 536),
-            "2": (1024, 512),
+            "1": (1024, 1024),
+            "0.5": (1024, 2048),
+            "1.9": (2048, 1072),
+            "2": (2048, 1024),
         }
 
         width, height = image.size
