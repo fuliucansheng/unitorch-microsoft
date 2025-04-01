@@ -128,8 +128,8 @@ class ExpandBGWebUI(SimpleWebUI):
             },
             data=json.dumps(
                 {
-                    "pretrained_lora_names": None,
-                    "pretrained_lora_weights": 1,
+                    "pretrained_lora_names": "stable-flux-lora-ms-dev-fill-simple",
+                    "pretrained_lora_weights": 0.2,
                     "pretrained_lora_alphas": 32,
                 }
             ),

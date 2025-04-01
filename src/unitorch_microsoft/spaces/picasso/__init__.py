@@ -27,6 +27,7 @@ from unitorch_microsoft.spaces.picasso.dashboard import DashboardWebUI
 from unitorch_microsoft.spaces.picasso.img_insights import ImgInsightsWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
+from unitorch_microsoft.spaces.picasso.obj_generate import GenerateObjectWebUI
 
 # Picasso dashboard
 dashboards = [
@@ -41,11 +42,13 @@ dashboards = [
 expand_bg_page = ExpandBGWebUI(spaces_settings).iface
 img_insights_page = ImgInsightsWebUI(spaces_settings).iface
 roi_detect_page = ROIDetectWebUI(spaces_settings).iface
+obj_generate_page = GenerateObjectWebUI(spaces_settings).iface
 
 examples_pages = [
     img_insights_page,
     roi_detect_page,
     expand_bg_page,
+    obj_generate_page,
 ]
 for page in examples_pages:
     page._link = f"/picasso/{hashed_link(page._title + page._description, 6)}"

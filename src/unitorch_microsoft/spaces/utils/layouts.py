@@ -94,7 +94,7 @@ def create_footer():
         # """,
         """
         <div style='display:flex; justify-content: flex-end; padding-right: 20px;'>
-          <a class='ut-ms-a-none' style='color:black' href='#'>🍀&nbsp;Github</a>
+          <a class='ut-ms-a-none' style='color:inherit' href='#'>🍀&nbsp;Github</a>
         </div>
         """,
     )
