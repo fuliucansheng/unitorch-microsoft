@@ -18,6 +18,7 @@ def main(
     image_cols: str = "image",
     result_cols: str = "result",
     port: int = 12310,
+    temp_folder: str = None,
 ):
     res = pd.read_csv(f"{folder}/output.jsonl", names=["jsonl"], sep="\t", quoting=3)
     res["obj"] = res.jsonl.map(json.loads)
@@ -39,8 +40,12 @@ def main(
         f"Re_{col}" for col in result_cols
     ]
 
-    data_file = tempfile.mktemp(suffix=".data.txt")
-    res_file = tempfile.mktemp(suffix=".result.txt")
+    if temp_folder is None:
+        temp_folder = tempfile.gettempdir()
+    if not os.path.exists(temp_folder):
+        os.makedirs(temp_folder)
+    data_file = tempfile.mktemp(suffix=".data.txt", dir=temp_folder)
+    res_file = tempfile.mktemp(suffix=".result.txt", dir=temp_folder)
 
     res[text_cols + image_cols].to_csv(
         data_file, sep="\t", index=False, header=False, quoting=3

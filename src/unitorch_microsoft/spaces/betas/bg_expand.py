@@ -127,7 +127,8 @@ class ExpandBGWebUI(SimpleWebUI):
             },
             data=json.dumps(
                 {
-                    "pretrained_lora_names": "stable-flux-lora-ms-dev-fill-simple",
+                    # "pretrained_lora_names": "stable-flux-lora-ms-dev-fill-simple",
+                    "pretrained_lora_names": None,
                     "pretrained_lora_weights": 0.2,
                     "pretrained_lora_alphas": 32,
                 }
@@ -147,7 +148,7 @@ class ExpandBGWebUI(SimpleWebUI):
     def process(self, image, ratio):
         width, height = image.size
 
-        longest_side = 1024
+        longest_side = 2048
         shortest_side = (
             int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
         )
@@ -205,7 +206,7 @@ class ExpandBGWebUI(SimpleWebUI):
             params={
                 "text": caption,
                 "guidance_scale": 30,
-                "strength": 0.8,
+                "strength": 1.0,
                 "num_timesteps": 50,
                 "seed": 42,
             },

@@ -39,6 +39,7 @@ import numpy as np
 from torchvision import transforms
 import kornia.augmentation as K
 
+
 @register_model("microsoft/omnipixel/model/siglip/image")
 class SiglipForImageClassification(GenericModel):
     """CLIP model for image classification."""
@@ -281,7 +282,11 @@ from ImageReward.models.BLIP import init_tokenizer
 from ImageReward.models.BLIP.vit import VisionTransformer
 from ImageReward.models.BLIP.med import BertConfig, BertModel
 from ImageReward.ImageReward import MLP, _transform
-from unitorch.models import GenericOutputs, HfTextClassificationProcessor, HfImageClassificationProcessor
+from unitorch.models import (
+    GenericOutputs,
+    HfTextClassificationProcessor,
+    HfImageClassificationProcessor,
+)
 from unitorch.cli.models import TensorsInputs
 
 
@@ -499,29 +504,48 @@ class ImageRewardModel(GenericModel):
 
 ## image quality model: AIGC Detection: https://github.com/shilinyan99/AIDE
 
+
 def DCT_mat(size):
-    m = [[ (np.sqrt(1./size) if i == 0 else np.sqrt(2./size)) * np.cos((j + 0.5) * np.pi * i / size) for j in range(size)] for i in range(size)]
+    m = [
+        [
+            (np.sqrt(1.0 / size) if i == 0 else np.sqrt(2.0 / size))
+            * np.cos((j + 0.5) * np.pi * i / size)
+            for j in range(size)
+        ]
+        for i in range(size)
+    ]
     return m
 
+
 def generate_filter(start, end, size):
-    return [[0. if i + j > end or i + j < start else 1. for j in range(size)] for i in range(size)]
+    return [
+        [0.0 if i + j > end or i + j < start else 1.0 for j in range(size)]
+        for i in range(size)
+    ]
+
 
 def norm_sigma(x):
-    return 2. * torch.sigmoid(x) - 1.
+    return 2.0 * torch.sigmoid(x) - 1.0
+
 
 class Filter(nn.Module):
     def __init__(self, size, band_start, band_end, use_learnable=False, norm=False):
         super(Filter, self).__init__()
         self.use_learnable = use_learnable
 
-        self.base = nn.Parameter(torch.tensor(generate_filter(band_start, band_end, size)), requires_grad=False)
+        self.base = nn.Parameter(
+            torch.tensor(generate_filter(band_start, band_end, size)),
+            requires_grad=False,
+        )
         if self.use_learnable:
             self.learnable = nn.Parameter(torch.randn(size, size), requires_grad=True)
-            self.learnable.data.normal_(0., 0.1)
+            self.learnable.data.normal_(0.0, 0.1)
         self.norm = norm
         if norm:
-            self.ft_num = nn.Parameter(torch.sum(torch.tensor(generate_filter(band_start, band_end, size))), requires_grad=False)
-
+            self.ft_num = nn.Parameter(
+                torch.sum(torch.tensor(generate_filter(band_start, band_end, size))),
+                requires_grad=False,
+            )
 
     def forward(self, x):
         if self.use_learnable:
@@ -535,75 +559,87 @@ class Filter(nn.Module):
             y = x * filt
         return y
 
+
 class DCT_base_Rec_Module(nn.Module):
     """_summary_
 
     Args:
         x: [C, H, W] -> [C*level, output, output]
     """
-    def __init__(self, window_size=32, stride=16, output=256, grade_N=6, level_fliter=[0]):
+
+    def __init__(
+        self, window_size=32, stride=16, output=256, grade_N=6, level_fliter=[0]
+    ):
         super().__init__()
-        
+
         assert output % window_size == 0
         assert len(level_fliter) > 0
-        
+
         self.window_size = window_size
         self.grade_N = grade_N
         self.level_N = len(level_fliter)
         self.N = (output // window_size) * (output // window_size)
-        
-        self._DCT_patch = nn.Parameter(torch.tensor(DCT_mat(window_size)).float(), requires_grad=False)
-        self._DCT_patch_T = nn.Parameter(torch.transpose(torch.tensor(DCT_mat(window_size)).float(), 0, 1), requires_grad=False)
-        
-        self.unfold = nn.Unfold(
-            kernel_size=(window_size, window_size), stride=stride
+
+        self._DCT_patch = nn.Parameter(
+            torch.tensor(DCT_mat(window_size)).float(), requires_grad=False
         )
+        self._DCT_patch_T = nn.Parameter(
+            torch.transpose(torch.tensor(DCT_mat(window_size)).float(), 0, 1),
+            requires_grad=False,
+        )
+
+        self.unfold = nn.Unfold(kernel_size=(window_size, window_size), stride=stride)
         self.fold0 = nn.Fold(
-            output_size=(window_size, window_size), 
-            kernel_size=(window_size, window_size), 
-            stride=window_size
+            output_size=(window_size, window_size),
+            kernel_size=(window_size, window_size),
+            stride=window_size,
         )
-        
+
         lm, mh = 2.82, 2
-        level_f = [
-            Filter(window_size, 0, window_size * 2)
-        ]
-        
+        level_f = [Filter(window_size, 0, window_size * 2)]
+
         self.level_filters = nn.ModuleList([level_f[i] for i in level_fliter])
-        self.grade_filters = nn.ModuleList([Filter(window_size, window_size * 2. / grade_N * i, window_size * 2. / grade_N * (i+1), norm=True) for i in range(grade_N)])
-        
-        
+        self.grade_filters = nn.ModuleList(
+            [
+                Filter(
+                    window_size,
+                    window_size * 2.0 / grade_N * i,
+                    window_size * 2.0 / grade_N * (i + 1),
+                    norm=True,
+                )
+                for i in range(grade_N)
+            ]
+        )
+
     def forward(self, x):
-        
         N = self.N
         grade_N = self.grade_N
         level_N = self.level_N
         window_size = self.window_size
         C, W, H = x.shape
-        x_unfold = self.unfold(x.unsqueeze(0)).squeeze(0)  
-        
+        x_unfold = self.unfold(x.unsqueeze(0)).squeeze(0)
 
         _, L = x_unfold.shape
-        x_unfold = x_unfold.transpose(0, 1).reshape(L, C, window_size, window_size) 
+        x_unfold = x_unfold.transpose(0, 1).reshape(L, C, window_size, window_size)
         x_dct = self._DCT_patch @ x_unfold @ self._DCT_patch_T
-        
+
         y_list = []
         for i in range(self.level_N):
             x_pass = self.level_filters[i](x_dct)
             y = self._DCT_patch_T @ x_pass @ self._DCT_patch
             y_list.append(y)
         level_x_unfold = torch.cat(y_list, dim=1)
-        
+
         grade = torch.zeros(L).to(x.device)
         w, k = 1, 2
         for _ in range(grade_N):
             _x = torch.abs(x_dct)
             _x = torch.log(_x + 1)
             _x = self.grade_filters[_](_x)
-            _x = torch.sum(_x, dim=[1,2,3])
-            grade += w * _x            
+            _x = torch.sum(_x, dim=[1, 2, 3])
+            grade += w * _x
             w *= k
-        
+
         _, idx = torch.sort(grade)
         max_idx = torch.flip(idx, dims=[0])[:N]
         maxmax_idx = max_idx[0]
@@ -624,27 +660,41 @@ class DCT_base_Rec_Module(nn.Module):
         x_minmin1 = torch.index_select(level_x_unfold, 0, minmin_idx1)
         x_maxmax1 = torch.index_select(level_x_unfold, 0, maxmax_idx1)
 
-        x_minmin = x_minmin.reshape(1, level_N*C*window_size* window_size).transpose(0, 1)
-        x_maxmax = x_maxmax.reshape(1, level_N*C*window_size* window_size).transpose(0, 1)
-        x_minmin1 = x_minmin1.reshape(1, level_N*C*window_size* window_size).transpose(0, 1)
-        x_maxmax1 = x_maxmax1.reshape(1, level_N*C*window_size* window_size).transpose(0, 1)
+        x_minmin = x_minmin.reshape(
+            1, level_N * C * window_size * window_size
+        ).transpose(0, 1)
+        x_maxmax = x_maxmax.reshape(
+            1, level_N * C * window_size * window_size
+        ).transpose(0, 1)
+        x_minmin1 = x_minmin1.reshape(
+            1, level_N * C * window_size * window_size
+        ).transpose(0, 1)
+        x_maxmax1 = x_maxmax1.reshape(
+            1, level_N * C * window_size * window_size
+        ).transpose(0, 1)
 
         x_minmin = self.fold0(x_minmin)
         x_maxmax = self.fold0(x_maxmax)
         x_minmin1 = self.fold0(x_minmin1)
         x_maxmax1 = self.fold0(x_maxmax1)
 
-       
         return x_minmin, x_maxmax, x_minmin1, x_maxmax1
-class AIDetectProcessor():
+
+
+class AIDetectProcessor:
     def __init__(self):
-        self.transform_before = transforms.Compose([
-            transforms.ToTensor(),
+        self.transform_before = transforms.Compose(
+            [
+                transforms.ToTensor(),
             ]
         )
-        self.transform =transforms.Compose([
-            transforms.Resize([256, 256]),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize([256, 256]),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
         )
         self.dct = DCT_base_Rec_Module()
 
@@ -666,260 +716,237 @@ class AIDetectProcessor():
 
         x_minmin, x_maxmax, x_minmin1, x_maxmax1 = self.dct(image)
 
-
         x_0 = self.transform(image)
-        x_minmin = self.transform(x_minmin) 
+        x_minmin = self.transform(x_minmin)
         x_maxmax = self.transform(x_maxmax)
 
-        x_minmin1 = self.transform(x_minmin1) 
+        x_minmin1 = self.transform(x_minmin1)
         x_maxmax1 = self.transform(x_maxmax1)
-        
-        pixel_values = torch.stack([x_minmin, x_maxmax, x_minmin1, x_maxmax1, x_0], dim=0)
-    
+
+        pixel_values = torch.stack(
+            [x_minmin, x_maxmax, x_minmin1, x_maxmax1, x_0], dim=0
+        )
+
         return TensorsInputs(
             Image=pixel_values,
         )
-    
+
+
 class HPF(nn.Module):
-  def __init__(self):
-    super(HPF, self).__init__()
+    def __init__(self):
+        super(HPF, self).__init__()
 
-    #Load 30 SRM Filters
-    all_hpf_list_5x5 = []
-    all_normalized_hpf_list = self.srm_filter_kernel()
-    for hpf_item in all_normalized_hpf_list:
-      if hpf_item.shape[0] == 3:
-        hpf_item = np.pad(hpf_item, pad_width=((1, 1), (1, 1)), mode='constant')
+        # Load 30 SRM Filters
+        all_hpf_list_5x5 = []
+        all_normalized_hpf_list = self.srm_filter_kernel()
+        for hpf_item in all_normalized_hpf_list:
+            if hpf_item.shape[0] == 3:
+                hpf_item = np.pad(hpf_item, pad_width=((1, 1), (1, 1)), mode="constant")
 
-      all_hpf_list_5x5.append(hpf_item)
+            all_hpf_list_5x5.append(hpf_item)
 
-    hpf_weight = torch.Tensor(all_hpf_list_5x5).view(30, 1, 5, 5).contiguous()
-    hpf_weight = torch.nn.Parameter(hpf_weight.repeat(1, 3, 1, 1), requires_grad=False)
-   
+        hpf_weight = torch.Tensor(all_hpf_list_5x5).view(30, 1, 5, 5).contiguous()
+        hpf_weight = torch.nn.Parameter(
+            hpf_weight.repeat(1, 3, 1, 1), requires_grad=False
+        )
 
-    self.hpf = nn.Conv2d(3, 30, kernel_size=5, padding=2, bias=False)
-    self.hpf.weight = hpf_weight
+        self.hpf = nn.Conv2d(3, 30, kernel_size=5, padding=2, bias=False)
+        self.hpf.weight = hpf_weight
 
-  def srm_filter_kernel(self): 
-    filter_class_1 = [
-    np.array([
-        [1, 0, 0],
-        [0, -1, 0],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 1, 0],
-        [0, -1, 0],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 1],
-        [0, -1, 0],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [1, -1, 0],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [0, -1, 1],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [0, -1, 0],
-        [1, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [0, -1, 0],
-        [0, 1, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [0, -1, 0],
-        [0, 0, 1]
-    ], dtype=np.float32)
-    ]
+    def srm_filter_kernel(self):
+        filter_class_1 = [
+            np.array([[1, 0, 0], [0, -1, 0], [0, 0, 0]], dtype=np.float32),
+            np.array([[0, 1, 0], [0, -1, 0], [0, 0, 0]], dtype=np.float32),
+            np.array([[0, 0, 1], [0, -1, 0], [0, 0, 0]], dtype=np.float32),
+            np.array([[0, 0, 0], [1, -1, 0], [0, 0, 0]], dtype=np.float32),
+            np.array([[0, 0, 0], [0, -1, 1], [0, 0, 0]], dtype=np.float32),
+            np.array([[0, 0, 0], [0, -1, 0], [1, 0, 0]], dtype=np.float32),
+            np.array([[0, 0, 0], [0, -1, 0], [0, 1, 0]], dtype=np.float32),
+            np.array([[0, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=np.float32),
+        ]
 
+        filter_class_2 = [
+            np.array([[1, 0, 0], [0, -2, 0], [0, 0, 1]], dtype=np.float32),
+            np.array([[0, 1, 0], [0, -2, 0], [0, 1, 0]], dtype=np.float32),
+            np.array([[0, 0, 1], [0, -2, 0], [1, 0, 0]], dtype=np.float32),
+            np.array([[0, 0, 0], [1, -2, 1], [0, 0, 0]], dtype=np.float32),
+        ]
 
-    filter_class_2 = [
-    np.array([
-        [1, 0, 0],
-        [0, -2, 0],
-        [0, 0, 1]
-    ], dtype=np.float32),
-    np.array([
-        [0, 1, 0],
-        [0, -2, 0],
-        [0, 1, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 1],
-        [0, -2, 0],
-        [1, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [1, -2, 1],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    ]
+        filter_class_3 = [
+            np.array(
+                [
+                    [-1, 0, 0, 0, 0],
+                    [0, 3, 0, 0, 0],
+                    [0, 0, -3, 0, 0],
+                    [0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, -1, 0, 0],
+                    [0, 0, 3, 0, 0],
+                    [0, 0, -3, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, -1],
+                    [0, 0, 0, 3, 0],
+                    [0, 0, -3, 0, 0],
+                    [0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 1, -3, 3, -1],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0],
+                    [0, 0, -3, 0, 0],
+                    [0, 0, 0, 3, 0],
+                    [0, 0, 0, 0, -1],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, -3, 0, 0],
+                    [0, 0, 3, 0, 0],
+                    [0, 0, -1, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0],
+                    [0, 0, -3, 0, 0],
+                    [0, 3, 0, 0, 0],
+                    [-1, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [-1, 3, -3, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+        ]
 
+        filter_edge_3x3 = [
+            np.array([[-1, 2, -1], [2, -4, 2], [0, 0, 0]], dtype=np.float32),
+            np.array([[0, 2, -1], [0, -4, 2], [0, 2, -1]], dtype=np.float32),
+            np.array([[0, 0, 0], [2, -4, 2], [-1, 2, -1]], dtype=np.float32),
+            np.array([[-1, 2, 0], [2, -4, 0], [-1, 2, 0]], dtype=np.float32),
+        ]
 
-    filter_class_3 = [
-    np.array([
-        [-1, 0, 0, 0, 0],
-        [0, 3, 0, 0, 0],
-        [0, 0, -3, 0, 0],
-        [0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, -1, 0, 0],
-        [0, 0, 3, 0, 0],
-        [0, 0, -3, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 0, 0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, -1],
-        [0, 0, 0, 3, 0],
-        [0, 0, -3, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0],
-        [0, 1, -3, 3, -1],
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, -3, 0, 0],
-        [0, 0, 0, 3, 0],
-        [0, 0, 0, 0, -1]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 0, -3, 0, 0],
-        [0, 0, 3, 0, 0],
-        [0, 0, -1, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0],
-        [0, 0, -3, 0, 0],
-        [0, 3, 0, 0, 0],
-        [-1, 0, 0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0],
-        [-1, 3, -3, 1, 0],
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0]
-    ], dtype=np.float32)
-    ]
+        filter_edge_5x5 = [
+            np.array(
+                [
+                    [-1, 2, -2, 2, -1],
+                    [2, -6, 8, -6, 2],
+                    [-2, 8, -12, 8, -2],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, -2, 2, -1],
+                    [0, 0, 8, -6, 2],
+                    [0, 0, -12, 8, -2],
+                    [0, 0, 8, -6, 2],
+                    [0, 0, -2, 2, -1],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [-2, 8, -12, 8, -2],
+                    [2, -6, 8, -6, 2],
+                    [-1, 2, -2, 2, -1],
+                ],
+                dtype=np.float32,
+            ),
+            np.array(
+                [
+                    [-1, 2, -2, 0, 0],
+                    [2, -6, 8, 0, 0],
+                    [-2, 8, -12, 0, 0],
+                    [2, -6, 8, 0, 0],
+                    [-1, 2, -2, 0, 0],
+                ],
+                dtype=np.float32,
+            ),
+        ]
 
+        square_3x3 = np.array([[-1, 2, -1], [2, -4, 2], [-1, 2, -1]], dtype=np.float32)
 
-    filter_edge_3x3 = [
-    np.array([
-        [-1, 2, -1],
-        [2, -4, 2],
-        [0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 2, -1],
-        [0, -4, 2],
-        [0, 2, -1]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0],
-        [2, -4, 2],
-        [-1, 2, -1]
-    ], dtype=np.float32),
-    np.array([
-        [-1, 2, 0],
-        [2, -4, 0],
-        [-1, 2, 0]
-    ], dtype=np.float32),
-    ]
+        square_5x5 = np.array(
+            [
+                [-1, 2, -2, 2, -1],
+                [2, -6, 8, -6, 2],
+                [-2, 8, -12, 8, -2],
+                [2, -6, 8, -6, 2],
+                [-1, 2, -2, 2, -1],
+            ],
+            dtype=np.float32,
+        )
 
-    filter_edge_5x5 = [
-    np.array([
-        [-1, 2, -2, 2, -1],
-        [2, -6, 8, -6, 2],
-        [-2, 8, -12, 8, -2],
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, -2, 2, -1],
-        [0, 0, 8, -6, 2],
-        [0, 0, -12, 8, -2],
-        [0, 0, 8, -6, 2],
-        [0, 0, -2, 2, -1]
-    ], dtype=np.float32),
-    np.array([
-        [0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0],
-        [-2, 8, -12, 8, -2],
-        [2, -6, 8, -6, 2],
-        [-1, 2, -2, 2, -1]
-    ], dtype=np.float32),
-    np.array([
-        [-1, 2, -2, 0, 0],
-        [2, -6, 8, 0, 0],
-        [-2, 8, -12, 0, 0],
-        [2, -6, 8, 0, 0],
-        [-1, 2, -2, 0, 0]
-    ], dtype=np.float32),
-    ]
+        normalized_filter_class_2 = [hpf / 2 for hpf in filter_class_2]
+        normalized_filter_class_3 = [hpf / 3 for hpf in filter_class_3]
+        normalized_filter_edge_3x3 = [hpf / 4 for hpf in filter_edge_3x3]
+        normalized_square_3x3 = square_3x3 / 4
+        normalized_filter_edge_5x5 = [hpf / 12 for hpf in filter_edge_5x5]
+        normalized_square_5x5 = square_5x5 / 12
 
-    square_3x3 = np.array([
-    [-1, 2, -1],
-    [2, -4, 2],
-    [-1, 2, -1]
-    ], dtype=np.float32)
+        all_normalized_hpf_list = (
+            filter_class_1
+            + normalized_filter_class_2
+            + normalized_filter_class_3
+            + normalized_filter_edge_3x3
+            + normalized_filter_edge_5x5
+            + [normalized_square_3x3, normalized_square_5x5]
+        )
 
-    square_5x5 = np.array([
-    [-1, 2, -2, 2, -1],
-    [2, -6, 8, -6, 2],
-    [-2, 8, -12, 8, -2],
-    [2, -6, 8, -6, 2],
-    [-1, 2, -2, 2, -1]
-    ], dtype=np.float32)
+        return all_normalized_hpf_list
+
+    def forward(self, input):
+        output = self.hpf(input)
+
+        return output
 
 
-    normalized_filter_class_2 = [hpf / 2 for hpf in filter_class_2]
-    normalized_filter_class_3 = [hpf / 3 for hpf in filter_class_3]
-    normalized_filter_edge_3x3 = [hpf / 4 for hpf in filter_edge_3x3]
-    normalized_square_3x3 = square_3x3 / 4
-    normalized_filter_edge_5x5 = [hpf / 12 for hpf in filter_edge_5x5]
-    normalized_square_5x5 = square_5x5 / 12
-
-    all_normalized_hpf_list = filter_class_1 + normalized_filter_class_2 + normalized_filter_class_3 + \
-    normalized_filter_edge_3x3 + normalized_filter_edge_5x5 + [normalized_square_3x3, normalized_square_5x5]
-
-    return all_normalized_hpf_list
-
-
-  def forward(self, input):
-
-    output = self.hpf(input)
-
-    return output
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
+    )
 
 
 def conv1x1(in_planes, out_planes, stride=1):
@@ -998,13 +1025,11 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=True):
         super(ResNet, self).__init__()
 
         self.inplanes = 64
-        self.conv1 = nn.Conv2d(30, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv2d(30, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -1017,7 +1042,7 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -1049,7 +1074,6 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -1063,14 +1087,15 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
 
-
         return x
 
-class Mlp(nn.Module):
-    """ MLP as used in Vision Transformer, MLP-Mixer and related networks
-    """
 
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU):
+class Mlp(nn.Module):
+    """MLP as used in Vision Transformer, MLP-Mixer and related networks"""
+
+    def __init__(
+        self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU
+    ):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -1084,7 +1109,8 @@ class Mlp(nn.Module):
         x = self.act(x)
         x = self.fc2(x)
         return x
-      
+
+
 @register_model("microsoft/omnipixel/model/AIDetect")
 class AIDetectModel(GenericModel):
     # replace_keys_in_state_dict = {"blip.": ""}
@@ -1094,21 +1120,24 @@ class AIDetectModel(GenericModel):
         self.hpf = HPF()
         self.model_min = ResNet(Bottleneck, [3, 4, 6, 3])
         self.model_max = ResNet(Bottleneck, [3, 4, 6, 3])
-       
+
         if resnet_path is not None:
-            pretrained_dict = torch.load(resnet_path, map_location='cpu')
-        
+            pretrained_dict = torch.load(resnet_path, map_location="cpu")
+
             model_min_dict = self.model_min.state_dict()
             model_max_dict = self.model_max.state_dict()
-    
+
             for k in pretrained_dict.keys():
-                if k in model_min_dict and pretrained_dict[k].size() == model_min_dict[k].size():
+                if (
+                    k in model_min_dict
+                    and pretrained_dict[k].size() == model_min_dict[k].size()
+                ):
                     model_min_dict[k] = pretrained_dict[k]
                     model_max_dict[k] = pretrained_dict[k]
                 else:
                     print(f"Skipping layer {k} because of size mismatch")
-        
-        self.fc = Mlp(2048 + 256 , 1024, 2)
+
+        self.fc = Mlp(2048 + 256, 1024, 2)
 
         print("build model with convnext_xxl")
         self.openclip_convnext_xxl, _, _ = open_clip.create_model_and_transforms(
@@ -1120,11 +1149,10 @@ class AIDetectModel(GenericModel):
         self.openclip_convnext_xxl.head.flatten = nn.Identity()
 
         self.openclip_convnext_xxl.eval()
-        
+
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.convnext_proj = nn.Sequential(
             nn.Linear(3072, 256),
-
         )
         for param in self.openclip_convnext_xxl.parameters():
             param.requires_grad = False
@@ -1156,14 +1184,13 @@ class AIDetectModel(GenericModel):
     def forward(
         self,
         Image: torch.Tensor,
-        
     ):
         if isinstance(Image, TensorsInputs):
             Image = Image.Image
 
         b, t, c, h, w = Image.shape
 
-        x_minmin = Image[:, 0] #[b, c, h, w]
+        x_minmin = Image[:, 0]  # [b, c, h, w]
         x_maxmax = Image[:, 1]
         x_minmin1 = Image[:, 2]
         x_maxmax1 = Image[:, 3]
@@ -1175,19 +1202,28 @@ class AIDetectModel(GenericModel):
         x_maxmax1 = self.hpf(x_maxmax1)
 
         with torch.no_grad():
-            
             clip_mean = torch.Tensor([0.48145466, 0.4578275, 0.40821073])
             clip_mean = clip_mean.to(tokens, non_blocking=True).view(3, 1, 1)
             clip_std = torch.Tensor([0.26862954, 0.26130258, 0.27577711])
             clip_std = clip_std.to(tokens, non_blocking=True).view(3, 1, 1)
-            dinov2_mean = torch.Tensor([0.485, 0.456, 0.406]).to(tokens, non_blocking=True).view(3, 1, 1)
-            dinov2_std = torch.Tensor([0.229, 0.224, 0.225]).to(tokens, non_blocking=True).view(3, 1, 1)
+            dinov2_mean = (
+                torch.Tensor([0.485, 0.456, 0.406])
+                .to(tokens, non_blocking=True)
+                .view(3, 1, 1)
+            )
+            dinov2_std = (
+                torch.Tensor([0.229, 0.224, 0.225])
+                .to(tokens, non_blocking=True)
+                .view(3, 1, 1)
+            )
 
             local_convnext_image_feats = self.openclip_convnext_xxl(
                 tokens * (dinov2_std / clip_std) + (dinov2_mean - clip_mean) / clip_std
-            ) #[b, 3072, 8, 8]
+            )  # [b, 3072, 8, 8]
             assert local_convnext_image_feats.size()[1:] == (3072, 8, 8)
-            local_convnext_image_feats = self.avgpool(local_convnext_image_feats).view(tokens.size(0), -1)
+            local_convnext_image_feats = self.avgpool(local_convnext_image_feats).view(
+                tokens.size(0), -1
+            )
             x_0 = self.convnext_proj(local_convnext_image_feats)
 
         x_min = self.model_min(x_minmin)
@@ -1200,12 +1236,12 @@ class AIDetectModel(GenericModel):
         x = torch.cat([x_0, x_1], dim=1)
 
         x = self.fc(x)
-        
+
         # 确保输出是二维的 [batch_size, num_classes]
         if len(x.shape) == 1:
             x = x.unsqueeze(0)
-            
+
         # 确保输出是 float32 类型
         x = x.to(torch.float32)
-        
+
         return ClassificationOutputs(outputs=x)
