@@ -22,12 +22,51 @@ from urllib.parse import urlparse
 import random
 import numpy as np
 import jwt
+import time
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(threadName)s - %(levelname)s - %(message)s",
 )
 
+def get_meta(filename):
+    def get_videometa(videoname):
+        import cv2
+        try:
+            vcap = cv2.VideoCapture(videoname)
+            width  = vcap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            height = vcap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            duration = vcap.get(cv2.CAP_PROP_FRAME_COUNT)
+            fps = vcap.get(cv2.CAP_PROP_FPS)
+            return f"video: width {width} height {height} duration {duration} fps {fps}"
+        except:
+            return ""
+    def get_imagemeta(imgname):
+        try:
+            im = Image.open(name)
+            width,height = im.size
+            return f"image: width {width} height {height}"
+        except:
+            return ""
+        
+    _, ext = os.path.splitext(filename)
+    name = filename
+
+    if filename.startswith('http'):
+        localfolder = 'tmp'
+        if not os.path.exists(localfolder):
+            os.mkdir(localfolder)
+        name = os.path.join(localfolder, hashlib.md5(filename.encode()).hexdigest()+ext)
+        download_url_to_file(filename, name, progress=False)
+    
+    assert os.path.exists(name)
+
+    if 'mp4' in ext:
+        meta = get_videometa(name)
+        return meta
+    else:
+        meta = get_imagemeta(name)
+        return meta
 
 def encode_jwt_token(ak, sk):
     headers = {"alg": "HS256", "typ": "JWT"}
@@ -212,6 +251,8 @@ def image2video(
 
     process_file = f"{cache_dir}/process.jsonl"
     proc_writer = open(process_file, "w")
+    log_file = f"{cache_dir}/log.jsonl"
+    log_writer = open(log_file, "a")
     output_file = f"{cache_dir}/output.jsonl"
     if os.path.exists(output_file):
         print(f"Before df {len(data)} ")
@@ -308,6 +349,7 @@ def image2video(
                         _index_id,
                         _start_frame,
                         _end_frame,
+                        time.time()
                     )
                 )
 
@@ -323,7 +365,7 @@ def image2video(
                 proc_writer.flush()
             except:
                 pass
-        Q.put(("Done", "Done", "Done", "Done", "Done", "Done"))
+        Q.put(("Done", "Done", "Done", "Done", "Done", "Done", "Done"))
         print("finish")
 
     def consumer():
@@ -331,7 +373,7 @@ def image2video(
         while True:
             if is_produder_done and Q.empty():
                 break
-            trackid, _prompt, _neg_prompt, _index_id, _start_frame, _end_frame = Q.get()
+            trackid, _prompt, _neg_prompt, _index_id, _start_frame, _end_frame, _start_time = Q.get()
             if trackid == "Done":
                 is_produder_done = True
                 continue
@@ -345,6 +387,7 @@ def image2video(
                 ).json()
                 print(response)
                 if response["status"] == "SUCCEEDED":
+                    _end_time = time.time()
                     video_url = "[SEP]".join(response["output"])
                     print(video_url)
                     record = {
@@ -356,6 +399,20 @@ def image2video(
                         "url": video_url,
                         "result": save_video_from_url(cache_dir, video_url),
                     }
+                    imgmeta = get_meta(_start_frame)
+                    videometa = get_meta(record["result"])
+                    latency = _end_time - _start_time
+
+                    loginfo = {
+                        "start_frame":_start_frame,
+                        "img_meta":imgmeta,
+                        "video_url":video_url,
+                        "video_meta":videometa,
+                        "latency": latency
+                    }
+
+                    log_writer.write(json.dumps(loginfo) + "\n")
+                    log_writer.flush()
                     writer.write(json.dumps(record) + "\n")
                     writer.flush()
                 elif response["status"] == "FAILED":
@@ -371,6 +428,7 @@ def image2video(
                             _index_id,
                             _start_frame,
                             _end_frame,
+                            _start_time
                         )
                     )
                     time.sleep(2)
