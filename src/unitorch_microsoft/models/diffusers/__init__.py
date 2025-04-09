@@ -42,6 +42,31 @@ pretrained_ms_stable_extensions_infos = {
             "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.simple.bin"
         }
     },
+    "stable-flux-lora-ms-dev-fill-debug-1": {
+        "lora": {
+            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.1.bin"
+        }
+    },
+    "stable-flux-lora-ms-dev-fill-debug-2": {
+        "lora": {
+            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.2.bin"
+        }
+    },
+    "stable-flux-lora-ms-dev-fill-debug-3": {
+        "lora": {
+            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.3.bin"
+        }
+    },
+    "stable-flux-lora-ms-dev-fill-debug-4": {
+        "lora": {
+            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.5.bin"
+        }
+    },
+    "stable-flux-lora-ms-dev-fill-debug-5": {
+        "lora": {
+            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.5.bin"
+        }
+    },
 }
 
 pretrained_stable_infos.update(pretrained_ms_stable_infos)
