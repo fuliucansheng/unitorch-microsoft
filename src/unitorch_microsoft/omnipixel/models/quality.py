@@ -38,7 +38,11 @@ import open_clip
 import numpy as np
 from torchvision import transforms
 import kornia.augmentation as K
-
+import timm
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+from unitorch.models import GenericOutputs, HfTextClassificationProcessor, HfImageClassificationProcessor
+from unitorch.cli.models import TensorsInputs
 
 @register_model("microsoft/omnipixel/model/siglip/image")
 class SiglipForImageClassification(GenericModel):
@@ -503,7 +507,7 @@ class ImageRewardModel(GenericModel):
 
 
 ## image quality model: AIGC Detection: https://github.com/shilinyan99/AIDE
-
+# '0_real', '1_fake'
 
 def DCT_mat(size):
     m = [
@@ -1244,4 +1248,154 @@ class AIDetectModel(GenericModel):
         # 确保输出是 float32 类型
         x = x.to(torch.float32)
 
-        return ClassificationOutputs(outputs=x)
+        return ClassificationOutputs(outputs=x) # '0_real', '1_fake'
+
+# https://laion.ai/notes/realfake/    
+# "real": 0, "fake": 1
+class RealFakeProcessor(HfImageClassificationProcessor):
+    def __init__(
+        self,
+        img_resize: int = 256,
+        img_crop: int = 224,
+        train: bool = False
+    ):
+        self.train = train
+        self.img_resize = img_resize
+        self.img_crop = img_crop
+        self.transform = self._get_augs(train)
+        
+    def _get_augs(self, train: bool = True) -> A.Compose:
+        if train:
+            return A.Compose([
+                A.Resize(self.img_resize, self.img_resize),
+                A.RandomCrop(self.img_crop, self.img_crop),
+                A.HorizontalFlip(),
+                A.VerticalFlip(),
+                A.RandomBrightnessContrast(),
+                A.Affine(),
+                A.Rotate(),
+                A.CoarseDropout(),
+                ExpandChannels(),
+                RGBAtoRGB(),
+                A.Normalize(),
+                ToTensorV2(),
+            ])
+        else:
+            return A.Compose([
+                A.Resize(self.img_resize, self.img_resize),
+                A.CenterCrop(self.img_crop, self.img_crop),
+                ExpandChannels(),
+                RGBAtoRGB(),
+                A.Normalize(),
+                ToTensorV2(),
+            ])
+
+    @classmethod
+    @add_default_section_for_init("microsoft/omnipixel/process/realfake")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/omnipixel/process/realfake")
+        img_resize = config.getoption("img_resize", 256)
+        img_crop = config.getoption("img_crop", 224)
+        train = config.getoption("train", False)
+        return cls(img_resize=img_resize, img_crop=img_crop, train=train)
+
+    @register_process("microsoft/omnipixel/process/realfake/classification")
+    def _classification(
+        self,
+        image: Union[str, Image.Image],
+    ):
+        if isinstance(image, str):
+            image = Image.open(image).convert("RGB")
+            
+        # 转换为numpy数组
+        image = np.array(image)
+        
+        # 应用albumentations增强
+        transformed = self.transform(image=image)
+        image = transformed["image"]
+        
+        return TensorsInputs(
+            image=image
+        )
+
+class ExpandChannels(A.ImageOnlyTransform):
+    """Expands image up to three channels if the image is grayscale."""
+    
+    def __init__(self, always_apply: bool = False, p: float = 0.5):
+        super().__init__(True, 1.0)
+        
+    def apply(self, image, **params):
+        if image.ndim == 2:
+            image = np.repeat(image[..., None], 3, axis=2)
+        elif image.shape[2] == 1:
+            image = np.repeat(image, 3, axis=2)
+        return image
+
+class RGBAtoRGB(A.ImageOnlyTransform):
+    """Converts RGBA image to RGB."""
+    
+    def __init__(self, always_apply: bool = False, p: float = 0.5):
+        super().__init__(True, 1.0)
+        
+    def apply(self, image, **params):
+        if image.shape[2] == 4:
+            image = image[:, :, :3]
+        return image
+
+@register_model("microsoft/omnipixel/model/realfake") 
+class RealFakeModel(GenericModel):
+    def __init__(
+        self,
+        model_name: str = "convnext_large",
+        num_classes: int = 2,
+        pretrained: bool = True,
+        
+    ):
+        super().__init__()
+        
+        # 使用timm创建基础模型
+        self.model = timm.create_model(
+            model_name,
+            pretrained=pretrained,
+            num_classes=num_classes
+        )
+        
+    @classmethod
+    @add_default_section_for_init("microsoft/omnipixel/model/realfake")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/omnipixel/model/realfake")
+        
+        model_name = config.getoption("model_name", "convnext_tiny")
+        num_classes = config.getoption("num_classes", 2)
+        pretrained = config.getoption("pretrained", True)
+   
+
+        inst = cls(
+            model_name=model_name,
+            num_classes=num_classes,
+            pretrained=pretrained,
+            
+        )
+        
+        weight_path = config.getoption("pretrained_weight_path", None)
+        if weight_path is not None:
+            inst.from_pretrained(weight_path)
+            
+        return inst
+
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
+    def forward(
+        self,
+        image: torch.Tensor,
+    ):
+        if isinstance(image, TensorsInputs):
+            image = image.image
+            
+        # 前向传播
+        outputs = self.model(image)
+        
+        # 确保输出是float32类型
+        outputs = outputs.to(torch.float32)
+        
+        return ClassificationOutputs(outputs=outputs) # "real": 0, "fake": 1
+
