@@ -74,6 +74,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         result_file = config.getoption("result_file", None)
         force_to_relabel = config.getoption("force_to_relabel", False)
         names = config.getoption("names", "*")
+        quoting = config.getoption("quoting", 3)
         if isinstance(names, str) and names == "*":
             names = None
         if isinstance(names, str):
@@ -90,7 +91,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             names=names,
             header="infer" if names is None else None,
             sep=sep,
-            quoting=3,
+            quoting=quoting,
         )
         self.dataset["Index"] = self.dataset.index.map(lambda x: f"No.{x}")
         self.result_file = result_file

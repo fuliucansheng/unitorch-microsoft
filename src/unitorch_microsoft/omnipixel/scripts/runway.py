@@ -29,44 +29,50 @@ logging.basicConfig(
     format="%(asctime)s - %(threadName)s - %(levelname)s - %(message)s",
 )
 
+
 def get_meta(filename):
     def get_videometa(videoname):
         import cv2
+
         try:
             vcap = cv2.VideoCapture(videoname)
-            width  = vcap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            width = vcap.get(cv2.CAP_PROP_FRAME_WIDTH)
             height = vcap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             duration = vcap.get(cv2.CAP_PROP_FRAME_COUNT)
             fps = vcap.get(cv2.CAP_PROP_FPS)
             return f"video: width {width} height {height} duration {duration} fps {fps}"
         except:
             return ""
+
     def get_imagemeta(imgname):
         try:
             im = Image.open(name)
-            width,height = im.size
+            width, height = im.size
             return f"image: width {width} height {height}"
         except:
             return ""
-        
+
     _, ext = os.path.splitext(filename)
     name = filename
 
-    if filename.startswith('http'):
-        localfolder = 'tmp'
+    if filename.startswith("http"):
+        localfolder = "tmp"
         if not os.path.exists(localfolder):
             os.mkdir(localfolder)
-        name = os.path.join(localfolder, hashlib.md5(filename.encode()).hexdigest()+ext)
+        name = os.path.join(
+            localfolder, hashlib.md5(filename.encode()).hexdigest() + ext
+        )
         download_url_to_file(filename, name, progress=False)
-    
+
     assert os.path.exists(name)
 
-    if 'mp4' in ext:
+    if "mp4" in ext:
         meta = get_videometa(name)
         return meta
     else:
         meta = get_imagemeta(name)
         return meta
+
 
 def encode_jwt_token(ak, sk):
     headers = {"alg": "HS256", "typ": "JWT"}
@@ -349,7 +355,7 @@ def image2video(
                         _index_id,
                         _start_frame,
                         _end_frame,
-                        time.time()
+                        time.time(),
                     )
                 )
 
@@ -373,7 +379,15 @@ def image2video(
         while True:
             if is_produder_done and Q.empty():
                 break
-            trackid, _prompt, _neg_prompt, _index_id, _start_frame, _end_frame, _start_time = Q.get()
+            (
+                trackid,
+                _prompt,
+                _neg_prompt,
+                _index_id,
+                _start_frame,
+                _end_frame,
+                _start_time,
+            ) = Q.get()
             if trackid == "Done":
                 is_produder_done = True
                 continue
@@ -404,11 +418,11 @@ def image2video(
                     latency = _end_time - _start_time
 
                     loginfo = {
-                        "start_frame":_start_frame,
-                        "img_meta":imgmeta,
-                        "video_url":video_url,
-                        "video_meta":videometa,
-                        "latency": latency
+                        "start_frame": _start_frame,
+                        "img_meta": imgmeta,
+                        "video_url": video_url,
+                        "video_meta": videometa,
+                        "latency": latency,
                     }
 
                     log_writer.write(json.dumps(loginfo) + "\n")
@@ -428,7 +442,7 @@ def image2video(
                             _index_id,
                             _start_frame,
                             _end_frame,
-                            _start_time
+                            _start_time,
                         )
                     )
                     time.sleep(2)

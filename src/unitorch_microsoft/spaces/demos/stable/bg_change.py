@@ -117,7 +117,7 @@ class ChangeBGWebUI(SimpleWebUI):
     def start(self):
         self._pipe1 = BRIAForSegmentationPipeline.from_core_configure(
             config=self._config,
-            pretrained_weight_path="https://huggingface.co/briaai/RMBG-2.0/resolve/main/pytorch_model.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/hubfiles/resolve/main/bria_rmbg2.0_pytorch_model.bin",
         )
         self._pipe2 = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
             config=self._config,
