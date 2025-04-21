@@ -706,13 +706,13 @@ class ClipZeroClassificationProcessor:
         res = scores.to_pandas()
         scores = scores.outputs.numpy()
         topk_indices = np.argsort(scores, axis=1)[:, ::-1]  # Sort scores in descending order
-        selected_classes = set()
         topk_texts = []
         topk_scores = []
 
         for row_idx, row_indices in enumerate(topk_indices):
             row_texts = []
             row_scores = []
+            selected_classes = set()
             for idx in row_indices:
                 classname = self.classname[idx]
                 c = classname['c']
