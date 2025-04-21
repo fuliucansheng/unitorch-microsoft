@@ -583,7 +583,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
                 if classname.get("c1") is not None:
                     text = [template.format(c=classname['c'], c1=classname['c1']) for template in self.template]
                 else:
-                    text = [template.format(c=classname['c']) for template in self.template]
+                    text = [template.split(",")[0].format(c=classname['c']) for template in self.template]
                 texts.append(text)
             else:
                 raise ValueError("templates must be a list or a dict")
