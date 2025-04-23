@@ -256,9 +256,9 @@ def model_factory(model_name: str, **kwargs) -> KMeansFamily:
 
 def cluster_data(
         data_file: str,
-        names: Union[str, List[str]],
-        feature_col: str,
-        meta_col: str,
+        names: Union[str, List[str]] = "img;emb",
+        feature_col: str = "emb",
+        meta_col: str = "img",
         model_name: str = "kmeans",
         n_clusters=3, 
         max_iter=300,
