@@ -20,15 +20,14 @@ from unitorch.cli import (
     cached_path,
     add_default_section_for_init,
     add_default_section_for_function,
-    register_model
+    register_model,
 )
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
 from torch import autocast
-from unitorch.cli import WriterOutputs,register_process
+from unitorch.cli import WriterOutputs, register_process
 from unitorch.cli.models import TensorsOutputs, ClassificationOutputs
-
 
 
 class ClipInterrogatorPipeline(_ClipForPretrain):
@@ -410,6 +409,7 @@ class ClipInterrogatorScript(GenericScript):
         print("Best Prompt:", results.best_prompt)
         print("Negative Prompt:", results.negative_prompt)
 
+
 @register_model("microsoft/clip/ZeroClassification")
 class ClipZeroClassificationPipeline(_ClipForPretrain):
     def __init__(
@@ -422,7 +422,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         weight_path: Optional[Union[str, List[str]]] = None,
         state_dict: Optional[Dict[str, Any]] = None,
         topk: Optional[int] = 3,
-        classname: str="",
+        classname: str = "",
     ):
         projection_dim = nested_dict_value(
             read_json_file(config_path), "projection_dim"
@@ -442,9 +442,9 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         self.topk = topk
         Categorys = read_file(
             cached_path(
-                #hf_endpoint_url(
-                    classname #"https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt"
-                #)
+                # hf_endpoint_url(
+                classname  # "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt"
+                # )
             ),
             lines=True,
         )
@@ -490,7 +490,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
                     }
                 )
             else:
-                self.classname.append({"c":c1})
+                self.classname.append({"c": c1})
 
         self.eval()
         self.classname_embeds = self.get_text_embeds()
@@ -513,7 +513,10 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
 
         config_path = config.getoption("config_path", config_path)
         topk = config.getoption("topk", 3)
-        classname = config.getoption("classname", "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt")
+        classname = config.getoption(
+            "classname",
+            "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt",
+        )
         config_path = pop_value(
             config_path,
             nested_dict_value(pretrained_clip_infos, pretrained_name, "config"),
@@ -558,15 +561,13 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
             max_seq_length=max_seq_length,
             weight_path=weight_path,
             topk=topk,
-            classname=classname
+            classname=classname,
         )
 
         return inst
 
     def get_image_embeds(self, inputs):
-        vision_outputs = self.vision_model(
-                pixel_values=inputs
-        )
+        vision_outputs = self.vision_model(pixel_values=inputs)
         image_embeds = self.visual_projection(vision_outputs[1])
         image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
         return image_embeds
@@ -581,18 +582,22 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
             elif isinstance(self.template, list):
                 # Generic prompts that are specialized for each class by replacing {c} with the class name
                 if classname.get("c1") is not None:
-                    text = [template.format(c=classname['c'], c1=classname['c1']) for template in self.template]
+                    text = [
+                        template.format(c=classname["c"], c1=classname["c1"])
+                        for template in self.template
+                    ]
                 else:
-                    text = [template.split(",")[0].format(c=classname['c']) for template in self.template]
+                    text = [
+                        template.split(",")[0].format(c=classname["c"])
+                        for template in self.template
+                    ]
                 texts.append(text)
             else:
                 raise ValueError("templates must be a list or a dict")
-        
+
         inputs = [self.processor.text_classification(text) for text in texts]
         keys = inputs[0].keys()
-        inputs = {
-            k: torch.stack([i[k] for i in inputs]) for k in keys
-        }
+        inputs = {k: torch.stack([i[k] for i in inputs]) for k in keys}
         text_outputs = self.text_model(
             input_ids=inputs["input_ids"],
             attention_mask=inputs["attention_mask"],
@@ -601,7 +606,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         text_embeds = self.text_projection(text_outputs[1])
         text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
         return text_embeds
-    
+
     def rank_top(
         self,
         image_embeds,
@@ -613,12 +618,14 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
     ):
         if text_embeds is None:
             text_embeds = self.get_text_embeds(texts)
-        #scores = torch.einsum("te,be->tb", text_embeds, image_embeds)
-        scores = torch.einsum("te,be->tb", text_embeds.to(image_embeds.device), image_embeds)
+        # scores = torch.einsum("te,be->tb", text_embeds, image_embeds)
+        scores = torch.einsum(
+            "te,be->tb", text_embeds.to(image_embeds.device), image_embeds
+        )
         if labels is not None:
             scores = [roc_auc_score(labels, s.tolist()) for s in scores]
-        return scores.T     
-    
+        return scores.T
+
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(self, pixel_values, labels=None):
         image_embeds = self.get_image_embeds(pixel_values)
@@ -630,18 +637,19 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
             labels=labels,
         )
         return ClassificationOutputs(best_classname)
-        
+
+
 class ClipZeroClassificationProcessor:
     def __init__(
         self,
         topk: Optional[int] = 3,
-        classname: str="",
+        classname: str = "",
     ):
         Categorys = read_file(
             cached_path(
-                #hf_endpoint_url(
-                    classname #"https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt"
-                #)
+                # hf_endpoint_url(
+                classname  # "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt"
+                # )
             ),
             lines=True,
         )
@@ -687,25 +695,27 @@ class ClipZeroClassificationProcessor:
                     }
                 )
             else:
-                self.classname.append({"c":c1})
+                self.classname.append({"c": c1})
         self.topk = topk
 
     @classmethod
     @add_default_section_for_init("microsoft/clip/process/ZeroClassification")
     def from_core_configure(cls, config, **kwargs):
-        classname = config.getoption("classname", "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt")
-        topk = config.getoption("topk", 3)
-        inst = cls(
-            topk=topk,
-            classname=classname
+        classname = config.getoption(
+            "classname",
+            "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt",
         )
+        topk = config.getoption("topk", 3)
+        inst = cls(topk=topk, classname=classname)
         return inst
-        
+
     @register_process("microsoft/clip/process/ZeroClassification/classname")
     def postprocess(self, scores):
         res = scores.to_pandas()
         scores = scores.outputs.numpy()
-        topk_indices = np.argsort(scores, axis=1)[:, ::-1]  # Sort scores in descending order
+        topk_indices = np.argsort(scores, axis=1)[
+            :, ::-1
+        ]  # Sort scores in descending order
         topk_texts = []
         topk_scores = []
 
@@ -715,7 +725,7 @@ class ClipZeroClassificationProcessor:
             selected_classes = set()
             for idx in row_indices:
                 classname = self.classname[idx]
-                c = classname['c']
+                c = classname["c"]
                 if c not in selected_classes:  # Ensure c is not already selected
                     selected_classes.add(c)
                     row_texts.append(classname)
@@ -727,13 +737,20 @@ class ClipZeroClassificationProcessor:
 
         for i in range(self.topk):
             res[f"class1_{i}"] = [
-            topk_texts[row_idx][i]['c'] if i < len(topk_texts[row_idx]) else "" for row_idx in range(len(topk_texts))
+                topk_texts[row_idx][i]["c"] if i < len(topk_texts[row_idx]) else ""
+                for row_idx in range(len(topk_texts))
             ]
             res[f"class2_{i}"] = [
-            topk_texts[row_idx][i]['c1'] if i < len(topk_texts[row_idx]) and 'c1' in topk_texts[row_idx][i] else "" for row_idx in range(len(topk_texts))
+                topk_texts[row_idx][i]["c1"]
+                if i < len(topk_texts[row_idx]) and "c1" in topk_texts[row_idx][i]
+                else ""
+                for row_idx in range(len(topk_texts))
             ]
             res[f"score_{i}"] = [
-            f"{topk_scores[row_idx][i]:.6f}" if i < len(topk_scores[row_idx]) else "" for row_idx in range(len(topk_scores))
+                f"{topk_scores[row_idx][i]:.6f}"
+                if i < len(topk_scores[row_idx])
+                else ""
+                for row_idx in range(len(topk_scores))
             ]
 
         return WriterOutputs(res)

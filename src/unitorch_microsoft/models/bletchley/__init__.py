@@ -56,6 +56,14 @@ pretrained_bletchley_v3_extensions_infos = {
         "text": "#### Prompt: watermarked, no watermark signature, brand logo \n #### Max Sequence: 36",
         "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
     },
+    "lora-2.5B-picasso-badcrop": {
+        "text": "#### Prompt: bad cropped, cut off, mutilated \n #### Max Sequence: 36",
+        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.badcrop.2504.bin",
+    },
+    "lora-2.5B-picasso-whitepad": {
+        "text": "#### Prompt: photo collage, white padding \n #### Max Sequence: 36",
+        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.whitepad.2504.bin",
+    },
     "lora-2.5B-query-image-relevance": {
         "text": "#### Prompt: query text \n #### Max Sequence: 36",
         "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.image.relevance.0.9367.2409.bin",

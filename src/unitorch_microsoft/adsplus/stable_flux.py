@@ -34,7 +34,8 @@ from unitorch.models import (
 )
 from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.models.diffusers import compute_snr
-from unitorch.models.diffusers import GenericStableFluxModel
+
+# from unitorch.models.diffusers import GenericStableFluxModel
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -48,8 +49,7 @@ from unitorch.cli.models.diffusers import (
 )
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.models.diffusers.modeling_flux_utils import (
-    FluxInpaintPipelineV2,
-    FluxControlNetInpaintPipelineV2,
+    GenericStableFluxModel,
 )
 
 
@@ -248,7 +248,7 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
-        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
+        # dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def forward(
         self,

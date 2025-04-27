@@ -30,9 +30,10 @@ from unitorch.cli.models import (
     ClassificationOutputs,
 )
 
+
 @register_model("microsoft/adinsights/matching/clip")
 class ClipForMatching(GenericModel):
-    #replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
+    # replace_keys_in_peft_state_dict = {"peft_model.base_model.model.": ""}
 
     def __init__(
         self,
@@ -143,6 +144,7 @@ class ClipForMatching(GenericModel):
             inst.from_pretrained(weight_path)
 
         return inst
+
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def forward(
         self,
@@ -184,7 +186,7 @@ class ClipForMatching(GenericModel):
             text_embeds = self.text_projection(text_embeds)
             text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
             return EmbeddingOutputs(embedding=text_embeds)
-        
+
         vision_outputs = self.vision_model(
             pixel_values=pixel_values,
         )

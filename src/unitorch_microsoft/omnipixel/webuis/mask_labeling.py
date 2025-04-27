@@ -41,14 +41,14 @@ def get_host_name():
     return socket.gethostname()
 
 
-@register_webui("microsoft/picasso/webui/diffusion/inpainting/mask")
+@register_webui("microsoft/omnipixel/webui/inpainting/mask")
 class PicassoInpaintingMaskWebUI(SimpleWebUI):
     def __init__(
         self,
         config: CoreConfigureParser,
     ):
         self._config = config
-        config.set_default_section("microsoft/picasso/webui/diffusion/inpainting/mask")
+        config.set_default_section("microsoft/omnipixel/webui/inpainting/mask")
         data_file = config.getoption("data_file", None)
         result_file = config.getoption("result_file", None)
         names = config.getoption("names", "*")

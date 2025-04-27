@@ -59,7 +59,7 @@ pretrained_ms_stable_extensions_infos = {
     },
     "stable-flux-lora-ms-dev-fill-debug-4": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.5.bin"
+            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.4.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-debug-5": {

@@ -100,6 +100,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if http_url is not None:
             self.http_url = http_url
         else:
+            self.http_host = config.getoption("http_host", get_host_name())
             self.http_port = get_random_port()
             self.http_process = subprocess.Popen(
                 [
@@ -114,7 +115,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                     str(self.http_port),
                 ],
             )
-            self.http_url = f"http://{get_host_name()}:{self.http_port}/" + "{0}"
+            self.http_url = f"http://{self.http_host}:{self.http_port}/" + "{0}"
 
         # show columns
         self.group_text_cols = config.getoption("group_text_cols", None)

@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
 from functools import partial
+from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch import autocast
 from transformers.activations import quick_gelu
@@ -29,9 +30,10 @@ from unitorch_microsoft.models.bletchley.modeling_v1 import (
     BletchleyTextEncoder,
     BletchleyImageEncoder,
 )
+from unitorch_microsoft.models.bletchley.processing_v1 import BletchleyProcessor
 
 
-@register_model("microsoft/omnipixel/click/bletchley/image")
+@register_model("microsoft/omnipixel/model/click/bletchley/image")
 class BletchleyForImageClickModel(GenericModel):
     replace_keys_in_state_dict = {
         "text_encoder.projection": "text_projection",
@@ -41,7 +43,7 @@ class BletchleyForImageClickModel(GenericModel):
     def __init__(
         self,
         config_type: str,
-        projection_dim: Optional[int] = 512,
+        projection_dim: Optional[int] = 1024,
         num_classes: Optional[int] = 1,
         num_positions: Optional[int] = None,
         freeze_base_model: Optional[bool] = False,
@@ -102,9 +104,9 @@ class BletchleyForImageClickModel(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/omnipixel/click/bletchley/image")
+    @add_default_section_for_init("microsoft/omnipixel/model/click/bletchley/image")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/omnipixel/click/bletchley/image")
+        config.set_default_section("microsoft/omnipixel/model/click/bletchley/image")
         config_type = config.getoption("config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 1024)
         num_classes = config.getoption("num_classes", 1)
@@ -178,3 +180,118 @@ class BletchleyForImageClickModel(GenericModel):
             outputs += self.position(pos_emb)
 
         return ClassificationOutputs(outputs=outputs)
+
+
+class BletchleyForImageClickModelPipeline(BletchleyForImageClickModel):
+    def __init__(
+        self,
+        config_type: str,
+        projection_dim: Optional[int] = 512,
+        num_classes: Optional[int] = 1,
+        num_positions: Optional[int] = None,
+        max_seq_length: Optional[int] = 120,
+        enable_text_encoder: Optional[bool] = False,
+        pretrained_weight_path: Optional[str] = None,
+        device: Optional[Union[str, int]] = "cpu",
+    ):
+        super().__init__(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            num_classes=num_classes,
+            num_positions=num_positions,
+            enable_text_encoder=enable_text_encoder,
+        )
+        self.processor = BletchleyProcessor(max_seq_length=max_seq_length)
+        self._device = "cpu" if device == "cpu" else int(device)
+
+        if pretrained_weight_path is not None:
+            self.from_pretrained(pretrained_weight_path)
+
+        self.to(device=self._device)
+
+    @classmethod
+    @add_default_section_for_init("microsoft/omnipixel/pipeline/click/bletchley/image")
+    def from_core_configure(
+        cls,
+        config,
+        config_type: Optional[str] = None,
+        projection_dim: Optional[int] = None,
+        num_classes: Optional[int] = None,
+        num_positions: Optional[int] = None,
+        max_seq_length: Optional[int] = None,
+        enable_text_encoder: Optional[bool] = False,
+        pretrained_weight_path: Optional[str] = None,
+        device: Optional[str] = None,
+        **kwargs,
+    ):
+        config.set_default_section("microsoft/omnipixel/pipeline/click/bletchley/image")
+        config_type = (
+            config.getoption("config_type", "0.8B")
+            if config_type is None
+            else config_type
+        )
+        projection_dim = (
+            config.getoption("projection_dim", 1024)
+            if projection_dim is None
+            else projection_dim
+        )
+        num_classes = (
+            config.getoption("num_classes", 1) if num_classes is None else num_classes
+        )
+        num_positions = (
+            config.getoption("num_positions", 50)
+            if num_positions is None
+            else num_positions
+        )
+        enable_text_encoder = (
+            config.getoption("enable_text_encoder", False)
+            if enable_text_encoder is None
+            else enable_text_encoder
+        )
+        max_seq_length = (
+            config.getoption("max_seq_length", 120)
+            if max_seq_length is None
+            else max_seq_length
+        )
+        pretrained_weight_path = (
+            config.getoption("pretrained_weight_path", None)
+            if pretrained_weight_path is None
+            else pretrained_weight_path
+        )
+        device = config.getoption("device", None) if device is None else device
+        inst = cls(
+            config_type=config_type,
+            projection_dim=projection_dim,
+            num_classes=num_classes,
+            num_positions=num_positions,
+            max_seq_length=max_seq_length,
+            enable_text_encoder=enable_text_encoder,
+            pretrained_weight_path=pretrained_weight_path,
+            device=device,
+        )
+
+        return inst
+
+    @torch.no_grad()
+    def __call__(
+        self,
+        image: Image.Image,
+        text: Optional[str] = None,
+    ):
+        inputs = self.processor._image_classification(image).dict()
+        inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
+        if text is not None:
+            text_inputs = self.processor._text_classification(text).dict()
+            inputs.update(
+                {
+                    k: v.unsqueeze(0) if v is not None else v
+                    for k, v in text_inputs.items()
+                }
+            )
+
+        inputs = {
+            k: v.to(self._device) if v is not None else v for k, v in inputs.items()
+        }
+        outputs = self.forward(**inputs).outputs
+        scores = outputs.sigmoid().squeeze(0)
+        return scores[0].item()

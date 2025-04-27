@@ -26,11 +26,10 @@ from unitorch.cli import (
     register_process,
 )
 
-#ImageFile.LOAD_TRUNCATED_IMAGES = True
+# ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-def sample_frames(
-    num_frames, vlen, sample="uniform", **kwargs
-):  
+
+def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
     """
     num_frames: The number of frames to sample.
     vlen: The length of the video.
@@ -78,14 +77,17 @@ def sample_frames(
         needed_frames = (acc_samples - 1) * interval
         kwargs["start_frame"] = max(0, vlen // 2 - needed_frames // 2)
         frame_idxs = np.linspace(
-                            kwargs["start_frame"],
-                            min(kwargs["start_frame"] + needed_frames, vlen - 1),
-                            acc_samples,
-                            dtype=int)
+            kwargs["start_frame"],
+            min(kwargs["start_frame"] + needed_frames, vlen - 1),
+            acc_samples,
+            dtype=int,
+        )
 
     elif sample == "fix":
-        assert kwargs['sample_rate'] != None
-        frame_idxs = [min(math.floor(vlen*i), vlen-1) for i in kwargs['sample_rate']] 
+        assert kwargs["sample_rate"] != None
+        frame_idxs = [
+            min(math.floor(vlen * i), vlen - 1) for i in kwargs["sample_rate"]
+        ]
     else:
         raise NotImplementedError
 
@@ -102,10 +104,14 @@ class VideoProcessor(ImageProcessor):
         video_type: Optional[str] = None,
         sample_strategy: Optional[str] = None,
         http_url: Optional[str] = None,
-        sample_frame_num: Optional[int] = None, # sample_frame_num=1, sample 1 frame from video
-        start_frame: Optional[int] = None, # start_frame=0, start from the first frame
-        sample_rate: Optional[List[float]] = None, #[0.1,0.5,0.9] get 10%, 50%, 90% of the video
-        sample_factor: Optional[int] = None, # sample_factor=1 means 1 frame per second
+        sample_frame_num: Optional[
+            int
+        ] = None,  # sample_frame_num=1, sample 1 frame from video
+        start_frame: Optional[int] = None,  # start_frame=0, start from the first frame
+        sample_rate: Optional[
+            List[float]
+        ] = None,  # [0.1,0.5,0.9] get 10%, 50%, 90% of the video
+        sample_factor: Optional[int] = None,  # sample_factor=1 means 1 frame per second
     ):
         """
         Initializes a new instance of the ImageProcessor.
@@ -123,7 +129,7 @@ class VideoProcessor(ImageProcessor):
         self.start_frame = start_frame
         self.sample_rate = sample_rate
         self.sample_factor = sample_factor
-        self.tmp_download_folder = './tmp'
+        self.tmp_download_folder = "./tmp"
         if not os.path.exists(self.tmp_download_folder):
             os.makedirs(self.tmp_download_folder)
 
@@ -142,7 +148,6 @@ class VideoProcessor(ImageProcessor):
         """
         pass
 
-
     def _download_video(self, video_path):
         """
         Downloads a video from the specified URL.
@@ -158,7 +163,7 @@ class VideoProcessor(ImageProcessor):
         try:
             _, ext = os.path.splitext(video_path)
         except:
-            ext = '.mp4'
+            ext = ".mp4"
         name = hashlib.md5(video_path.encode()).hexdigest() + ext
         name = os.path.join(self.tmp_download_folder, name)
         download_url_to_file(video_path, name, progress=False)
@@ -185,27 +190,34 @@ class VideoProcessor(ImageProcessor):
         Returns:
             The processed video as a list of PIL Image objects.
         """
+
         def _read_video(path):
             reader = imageio.get_reader(path)
             meta_data = reader.get_meta_data()
             video_len = reader.count_frames()
-            fps = meta_data['fps']
+            fps = meta_data["fps"]
             meta_info = {"fps": fps, "video_len": video_len}
             return reader, meta_info
-    
+
         video_type = video_type if video_type is not None else self.video_type
-        sample_strategy = sample_strategy if sample_strategy is not None else self.sample_strategy
-        sample_frame_num = sample_frame_num if sample_frame_num is not None else self.sample_frame_num
+        sample_strategy = (
+            sample_strategy if sample_strategy is not None else self.sample_strategy
+        )
+        sample_frame_num = (
+            sample_frame_num if sample_frame_num is not None else self.sample_frame_num
+        )
         start_frame = start_frame if start_frame is not None else self.start_frame
         sample_rate = sample_rate if sample_rate is not None else self.sample_rate
-        sample_factor = sample_factor if sample_factor is not None else self.sample_factor
+        sample_factor = (
+            sample_factor if sample_factor is not None else self.sample_factor
+        )
 
-        #try:
+        # try:
         if True:
             print(f"process video {video}")
             if video.startswith("http://") or video.startswith("https://"):
                 video = self._download_video(video)
-            
+
             reader, meta_info = _read_video(video)
             if sample_strategy != None:
                 sample_kwags = {
@@ -223,19 +235,18 @@ class VideoProcessor(ImageProcessor):
             else:
                 samples = list(range(meta_info["video_len"]))
             print(f"sample frames {samples}")
-            
+
             frames = []
             for frame_id in samples:
                 frame = reader.get_data(frame_id)
                 frame = Image.fromarray(frame).convert("RGB")
                 print(f"image size {frame.size}")
                 frames.append(frame)
-            
 
             return frames
-        '''
+        """
         except Exception as e:
             logging.error(f"Error reading video: {e}")
             logging.debug(f"core/process/video/read use fake image for {video}")
             return Image.new("RGB", self.image_size, (255, 255, 255))
-        '''
+        """

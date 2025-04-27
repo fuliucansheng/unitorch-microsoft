@@ -1,4 +1,4 @@
-from sklearn.cluster import KMeans,MiniBatchKMeans,BisectingKMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans, BisectingKMeans
 import numpy as np
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 import re
@@ -8,6 +8,7 @@ import time
 import fire
 from sklearn.metrics import silhouette_score
 from sklearn.manifold import TSNE
+
 
 class KMeansFamily:
     def __init__(self, model):
@@ -32,7 +33,7 @@ class KMeansFamily:
         - X: Input data, a numpy array of shape (n_samples, n_features)
         """
         self.model.fit(X)
-    
+
     def labels(self):
         """
         Get the labels of the clusters for each sample in X.
@@ -65,21 +66,19 @@ class KMeansFamily:
         - centroids: A numpy array of shape (n_clusters, n_features)
         """
         return self.model.cluster_centers_
-    
+
     def set_centroids_members(self):
         labels = self.labels()
         for index, label in enumerate(labels):
             if label not in self.centroids_members:
                 self.centroids_members[label] = []
             self.centroids_members[label].append(index)
-        
-    
+
     def sample_within_clusters(self, cluster_id, k=5):
         members = self.centroids_members[cluster_id]
-        samples = np.random.choice(members, size=min(k,len(members)), replace=False)
+        samples = np.random.choice(members, size=min(k, len(members)), replace=False)
         return samples
 
-    
     def set_centroids_indices(self, X):
         centroids = self.get_centroids()
         labels = self.labels()
@@ -90,25 +89,26 @@ class KMeansFamily:
         valid_cnt = 0
         for cindex, centroid in enumerate(centroids):
             for index, data in enumerate(X):
-                if np.array_equal(centroid,data):
-                    exact_cnt +=1
+                if np.array_equal(centroid, data):
+                    exact_cnt += 1
                     approx_cnt += 1
                     self.centroids_indices[cindex] = index
                     if labels[index] == cindex:
                         valid_cnt += 1
                     break
-                if np.allclose(centroid,data,rtol=1e-5, atol=1e-8):
+                if np.allclose(centroid, data, rtol=1e-5, atol=1e-8):
                     approx_cnt += 1
                     self.centroids_indices[cindex] = index
                     if labels[index] == cindex:
                         valid_cnt += 1
-                    #print(f"check equal {centroid} {data}")
-                    #print(f"check {cindex} {labels[index]} {self.centroids_indices[cindex]}")
+                    # print(f"check equal {centroid} {data}")
+                    # print(f"check {cindex} {labels[index]} {self.centroids_indices[cindex]}")
                     break
-        print(f"after check center  indices {self.centroids_indices}")    
+        print(f"after check center  indices {self.centroids_indices}")
         with_label_cnt = np.count_nonzero(self.centroids_indices != -1)
-        print(f"Centroids shape: {centroids.shape} exact_cnt {exact_cnt} approx_cnt {approx_cnt} centroids found label {with_label_cnt} valid label setting {valid_cnt}")
-
+        print(
+            f"Centroids shape: {centroids.shape} exact_cnt {exact_cnt} approx_cnt {approx_cnt} centroids found label {with_label_cnt} valid label setting {valid_cnt}"
+        )
 
     def inertia(self):
         """
@@ -118,7 +118,7 @@ class KMeansFamily:
         - inertia: The sum of squared distances to the nearest cluster center
         """
         return self.model.inertia_
-    
+
     def evaluate(self, X):
         """
         Evaluate the model using silhouette score.
@@ -132,7 +132,7 @@ class KMeansFamily:
         labels = self.labels()
         centroids = self.get_centroids()
         inertia = self.inertia()
-        sil_coeff = silhouette_score(X,labels,metric = 'euclidean')
+        sil_coeff = silhouette_score(X, labels, metric="euclidean")
         cluster_sizes = {i: np.sum(labels == i) for i in range(len(centroids))}
         total_clusters = len(cluster_sizes)
         max_size_cluster = max(cluster_sizes.values())
@@ -142,16 +142,18 @@ class KMeansFamily:
         np.sort(list_cluster_size)
         print(list_cluster_size)
 
-        print("====== Evaluate =======")    
+        print("====== Evaluate =======")
         print(f"Centroids shape: {centroids.shape}")
         print(f"Labels shape: {labels.shape}")
-        print(f"Total Clusters: {total_clusters}; max_size_cluster: {max_size_cluster}; min_size_cluster: {min_size_cluster}; avg_size_cluster: {avg_size_cluster:.2f}")
+        print(
+            f"Total Clusters: {total_clusters}; max_size_cluster: {max_size_cluster}; min_size_cluster: {min_size_cluster}; avg_size_cluster: {avg_size_cluster:.2f}"
+        )
 
         print(f"Inertia: {inertia:.2f}; normalized inertia: {inertia / X.shape[0]:.2f}")
         print(f"Silhouette Coefficient: {sil_coeff:.3f}")
-        print("====== End Evaluate =======")  
+        print("====== End Evaluate =======")
         return
-    
+
     def visualize(self, X, output_file):
         """
         Visualize the clustering results.
@@ -165,12 +167,13 @@ class KMeansFamily:
         """
         import matplotlib.pyplot as plt
         import matplotlib.cm as cm
+
         # Visualization code goes here
         # For example, using t-SNE to reduce dimensionality and plot the clusters
         centroids = self.get_centroids()
         X_size = X.shape[0]
         centroids_size = centroids.shape[0]
-        total_emb = np.concatenate((X,centroids), axis=0)
+        total_emb = np.concatenate((X, centroids), axis=0)
 
         tsne = TSNE(n_components=2, random_state=42)
         X_embedded = tsne.fit_transform(total_emb)
@@ -179,28 +182,47 @@ class KMeansFamily:
         print(f"labels shape {labels.shape}")
         plt.figure(figsize=(16, 9))
         colors = [i for i in range(len(centroids))]
-        
-        '''
+
+        """
         for label,embed in zip(labels, X_embedded[:X_size]):
             x = embed[0]
             y = embed[1]
             plt.scatter(x, y, alpha=0.7, c=colors[label], cmap='viridis')
-        '''
-        plt.scatter(X_embedded[:X_size,0], X_embedded[:X_size,1], alpha=0.7, c=labels, cmap='viridis')
-        plt.scatter(X_embedded[X_size:, 0], X_embedded[X_size:, 1], c='red', marker='x', s=100, label='Centroids')
+        """
+        plt.scatter(
+            X_embedded[:X_size, 0],
+            X_embedded[:X_size, 1],
+            alpha=0.7,
+            c=labels,
+            cmap="viridis",
+        )
+        plt.scatter(
+            X_embedded[X_size:, 0],
+            X_embedded[X_size:, 1],
+            c="red",
+            marker="x",
+            s=100,
+            label="Centroids",
+        )
         for cid in range(len(centroids)):
-            plt.annotate(str(cid), alpha=0.5, xy=(X_embedded[X_size+cid, 0], X_embedded[X_size+cid, 1]), xytext=(5, 2), 
-                            textcoords='offset points', ha='right', va='bottom', size=12)
+            plt.annotate(
+                str(cid),
+                alpha=0.5,
+                xy=(X_embedded[X_size + cid, 0], X_embedded[X_size + cid, 1]),
+                xytext=(5, 2),
+                textcoords="offset points",
+                ha="right",
+                va="bottom",
+                size=12,
+            )
         print("finish")
         plt.colorbar()
-        #plt.legend(loc=4)
+        # plt.legend(loc=4)
         plt.grid(True)
-        #plt.show()
+        # plt.show()
         plt.savefig(output_file)
         plt.close()
 
-
-        
         # Plotting code goes here
         # For example, using matplotlib to create a scatter plot
         # plt.scatter(X_embedded[:, 0], X_embedded[:, 1], c=labels, cmap='viridis', marker='o', alpha=0.5)
@@ -214,8 +236,9 @@ class KMeansFamily:
         # Save the visualization to a file
         # plt.savefig(output_file)
         # plt.close()
-        #https://colab.research.google.com/github/practical-nlp/practical-nlp/blob/master/Ch3/09_Visualizing_Embeddings_Using_TSNE.ipynb?authuser=0&pli=1#scrollTo=LtOVUzKuhfAu
-        #https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html#sklearn.manifold.TSNE
+        # https://colab.research.google.com/github/practical-nlp/practical-nlp/blob/master/Ch3/09_Visualizing_Embeddings_Using_TSNE.ipynb?authuser=0&pli=1#scrollTo=LtOVUzKuhfAu
+        # https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html#sklearn.manifold.TSNE
+
 
 def model_factory(model_name: str, **kwargs) -> KMeansFamily:
     """
@@ -254,17 +277,18 @@ def model_factory(model_name: str, **kwargs) -> KMeansFamily:
     else:
         raise ValueError(f"Unknown model name: {model_name}")
 
+
 def cluster_data(
-        data_file: str,
-        names: Union[str, List[str]] = "img;emb",
-        feature_col: str = "emb",
-        meta_col: str = "img",
-        model_name: str = "kmeans",
-        n_clusters=3, 
-        max_iter=300,
-        batch_size=1024,
-        cache_dir: str = "output",
-        ):
+    data_file: str,
+    names: Union[str, List[str]] = "img;emb",
+    feature_col: str = "emb",
+    meta_col: str = "img",
+    model_name: str = "kmeans",
+    n_clusters=3,
+    max_iter=300,
+    batch_size=1024,
+    cache_dir: str = "output",
+):
     """
     Cluster the data using KMeans.
 
@@ -291,9 +315,13 @@ def cluster_data(
         quoting=3,
         header=None,
     )
-    
-    #features = data[feature_col].values
-    features = np.array(data[feature_col].apply(lambda x: list(map(float, re.split(r"[ ,;]", x)))).tolist())
+
+    # features = data[feature_col].values
+    features = np.array(
+        data[feature_col]
+        .apply(lambda x: list(map(float, re.split(r"[ ,;]", x))))
+        .tolist()
+    )
     metas = data[meta_col].tolist()
     print(f"Data shape: {features.shape}{len(metas)}")
     os.makedirs(cache_dir, exist_ok=True)
@@ -306,50 +334,51 @@ def cluster_data(
     }
     model = model_factory(model_name, **kwargs)
 
-    #fit model
+    # fit model
     time_start = time.time()
     model.fit(features)
     model.set_centroids_members()
     time_end = time.time()
     print(f"Model fitting time: {time_end - time_start:.2f} seconds")
 
-    #evaluate
+    # evaluate
     time_start = time.time()
     model.evaluate(features)
     time_end = time.time()
     print(f"Model evaluation time: {time_end - time_start:.2f} seconds")
 
-    #visualization
+    # visualization
     time_start = time.time()
     output_file = os.path.join(cache_dir, f"vis_{model_name}.png")
     model.visualize(features, output_file)
     time_end = time.time()
     print(f"Model visualization time: {time_end - time_start:.2f} seconds")
-    
-    
-    #sample for case check
+
+    # sample for case check
     output_file = f"{cache_dir}/sample.tsv"
     with open(output_file, "w") as writer:
         for i in range(len(model.get_centroids())):
             samples = model.sample_within_clusters(i)
             for sample in samples:
-                metainfo = '/home/lichenshih/VideoProcess/video_processing/'+metas[sample]
-                writer.write(str(i)+"\t"+metainfo+"\n")
+                metainfo = (
+                    "/home/lichenshih/VideoProcess/video_processing/" + metas[sample]
+                )
+                writer.write(str(i) + "\t" + metainfo + "\n")
                 writer.flush()
     output_file = f"{cache_dir}/labels.tsv"
     with open(output_file, "w") as writer:
-        for meta,label in zip(metas, model.labels()):
-            writer.write(str(meta)+"\t"+str(label)+"\n")
+        for meta, label in zip(metas, model.labels()):
+            writer.write(str(meta) + "\t" + str(label) + "\n")
             writer.flush()
     output_file = f"{cache_dir}/centroids_emb.tsv"
     with open(output_file, "w") as writer:
         for cnt, center_emb in enumerate(model.get_centroids()):
-            center_emb = ' '.join(np.array(center_emb,dtype=str))
-            writer.write(str(cnt)+"\t"+center_emb+"\n")
-            writer.flush()    
-    
+            center_emb = " ".join(np.array(center_emb, dtype=str))
+            writer.write(str(cnt) + "\t" + center_emb + "\n")
+            writer.flush()
+
     return
+
 
 if __name__ == "__main__":
     fire.Fire()
-
