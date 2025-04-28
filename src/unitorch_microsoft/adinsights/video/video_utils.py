@@ -9,6 +9,7 @@ import base64
 import json
 import logging
 import torch
+import torchvision
 import torch.nn as nn
 import numpy as np
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
@@ -25,8 +26,9 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_process,
 )
+import decord
 
-# ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 
 def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
@@ -168,6 +170,47 @@ class VideoProcessor(ImageProcessor):
         name = os.path.join(self.tmp_download_folder, name)
         download_url_to_file(video_path, name, progress=False)
         return name
+    
+    def _read_video_imageio(self, video_path):
+        reader = imageio.get_reader(video_path)
+        meta_data = reader.get_meta_data()
+        video_len = reader.count_frames()
+        fps = meta_data["fps"]
+        meta_info = {"fps": fps, "video_len": video_len}
+        return reader, meta_info
+    
+    def _sample_video_imageio(self, samples, reader):
+        frames = []
+        for frame_id in samples:
+            frame = reader.get_data(frame_id)
+            frame = Image.fromarray(frame).convert("RGB")
+            frames.append(frame)
+
+        return frames
+    
+    def _read_video_decord(self, video_path):
+        from decord import cpu,gpu
+        decord.bridge.set_bridge("torch")
+        video_reader = decord.VideoReader(video_path, num_threads=0) #width,height//check
+        vlen = len(video_reader)
+        fps = video_reader.get_avg_fps()  # note that the fps here is float.
+        meta_info = {"fps": fps, "video_len": vlen}
+        frame = video_reader[0]
+        height,width,_ = frame.shape
+        return video_reader,meta_info
+    
+    def _sample_video_decord(self, samples, reader):
+        result = []
+        frames = reader.get_batch(samples)
+        frames = frames.permute(0, 3, 1, 2)
+
+        for frame in frames:
+            frame = torchvision.transforms.functional.to_pil_image(frame).convert("RGB")
+            result.append(frame)
+
+        return result
+
+
 
     @register_process("microsoft/adinsights/process/video/read")
     def _read(
@@ -191,14 +234,6 @@ class VideoProcessor(ImageProcessor):
             The processed video as a list of PIL Image objects.
         """
 
-        def _read_video(path):
-            reader = imageio.get_reader(path)
-            meta_data = reader.get_meta_data()
-            video_len = reader.count_frames()
-            fps = meta_data["fps"]
-            meta_info = {"fps": fps, "video_len": video_len}
-            return reader, meta_info
-
         video_type = video_type if video_type is not None else self.video_type
         sample_strategy = (
             sample_strategy if sample_strategy is not None else self.sample_strategy
@@ -212,13 +247,12 @@ class VideoProcessor(ImageProcessor):
             sample_factor if sample_factor is not None else self.sample_factor
         )
 
-        # try:
-        if True:
+        try:
             print(f"process video {video}")
             if video.startswith("http://") or video.startswith("https://"):
                 video = self._download_video(video)
 
-            reader, meta_info = _read_video(video)
+            reader, meta_info = self._read_video_decord(video)
             if sample_strategy != None:
                 sample_kwags = {
                     "fps": meta_info["fps"],
@@ -234,19 +268,13 @@ class VideoProcessor(ImageProcessor):
                 )
             else:
                 samples = list(range(meta_info["video_len"]))
-            print(f"sample frames {samples}")
+            #print(f"sample frames {samples}")
 
-            frames = []
-            for frame_id in samples:
-                frame = reader.get_data(frame_id)
-                frame = Image.fromarray(frame).convert("RGB")
-                print(f"image size {frame.size}")
-                frames.append(frame)
+            frames = self._sample_video_decord(samples,reader)
 
             return frames
-        """
+
         except Exception as e:
             logging.error(f"Error reading video: {e}")
             logging.debug(f"core/process/video/read use fake image for {video}")
-            return Image.new("RGB", self.image_size, (255, 255, 255))
-        """
+            return Image.new("RGB", (256,256), (255, 255, 255))
