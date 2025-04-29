@@ -17,6 +17,7 @@ from random import random
 import hashlib
 import imageio
 import math
+import re
 from torch.hub import download_url_to_file
 from PIL import Image, ImageOps, ImageFile, ImageFilter
 from unitorch.utils import is_opencv_available
@@ -28,6 +29,7 @@ from unitorch.cli import (
 )
 import decord
 import fire
+import time
 
 
 
@@ -103,13 +105,11 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         )
         
         assert kwargs["sample_rate"] != None
-        vlen = len(middle_idxs)
+        vlensample = len(middle_idxs)
         idxs = [
-            min(math.floor(vlen * i), vlen - 1) for i in kwargs["sample_rate"]
+            min(math.floor(vlensample * i), vlensample - 1) for i in kwargs["sample_rate"]
         ]
-        
         frame_idxs = [middle_idxs[i] for i in idxs]
-        print(f"middle samples {middle_idxs} fix frames {idxs} finalidx {frame_idxs}")
     else:
         raise NotImplementedError
 
@@ -130,9 +130,7 @@ class VideoProcessor(ImageProcessor):
             int
         ] = None,  # sample_frame_num=1, sample 1 frame from video
         start_frame: Optional[int] = None,  # start_frame=0, start from the first frame
-        sample_rate: Optional[
-            List[float]
-        ] = None,  # [0.1,0.5,0.9] get 10%, 50%, 90% of the video
+        sample_rate: Optional[Union[str, List[float]]] = None,  # [0.1,0.5,0.9] get 10%, 50%, 90% of the video
         sample_factor: Optional[int] = None,  # sample_factor=1 means 1 frame per second, same as target fps
     ):
         """
@@ -149,6 +147,12 @@ class VideoProcessor(ImageProcessor):
         self.sample_strategy = sample_strategy
         self.sample_frame_num = sample_frame_num
         self.start_frame = start_frame
+        if sample_rate != None and isinstance(sample_rate, str):
+            sample_rates = re.split(r"[,;]", sample_rate)
+            sample_rate = [float(i) for i in sample_rates]
+        if sample_rate != None and not isinstance(sample_rate, list):
+            sample_rate = [sample_rate]
+        
         self.sample_rate = sample_rate
         self.sample_factor = sample_factor
         self.tmp_download_folder = "./tmp"
@@ -211,7 +215,7 @@ class VideoProcessor(ImageProcessor):
     def _read_video_decord(self, video_path):
         from decord import cpu,gpu
         decord.bridge.set_bridge("torch")
-        video_reader = decord.VideoReader(video_path, num_threads=0) #width,height//check
+        video_reader = decord.VideoReader(video_path, num_threads=0, ctx=cpu(0)) #width,height//check #gpu only works for single process
         vlen = len(video_reader)
         fps = video_reader.get_avg_fps()  # note that the fps here is float.
         meta_info = {"fps": fps, "video_len": vlen}
@@ -222,6 +226,7 @@ class VideoProcessor(ImageProcessor):
     def _sample_video_decord(self, samples, reader):
         result = []
         frames = reader.get_batch(samples)
+        #frames = reader.get_key_indices()
         frames = frames.permute(0, 3, 1, 2)
 
         for frame in frames:
@@ -288,7 +293,6 @@ class VideoProcessor(ImageProcessor):
                 )
             else:
                 samples = list(range(meta_info["video_len"]))
-            #print(f"sample frames {samples}")
 
             frames = self._sample_video_decord(samples,reader)
 
@@ -298,11 +302,42 @@ class VideoProcessor(ImageProcessor):
             logging.error(f"Error reading video: {e}")
             logging.debug(f"core/process/video/read use fake image for {video}")
             return [Image.new("RGB", (256,256), (255, 255, 255))]
-        
-'''
-def extract_frame(data_file, names, video_col, sample_strategy, sample_frame_num=81, sample_factor=16, sample_rate=[0.1,0.5,0.9], cache_dir='output'):
+
+
+def process_chunk(videos, chunk_start, chunk_size, process_id, cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate):
+    def get_base64(image):
+        #image = Image.open(image).convert("RGB")
+        if np.all(np.array(image) == [255, 255, 255]):
+            return None
+        image_buffer = io.BytesIO()
+        image.save(image_buffer, format="JPEG")
+        image_buffer.seek(0)
+        return base64.b64encode(image_buffer.getvalue()).decode()
+    
+    if process_id == num_processes - 1:
+        chunk_size = total_rows - chunk_start + 1
+    chunks = videos[chunk_start:chunk_start+chunk_size]
+    print(f"Worker {process_id} Processing rows: {chunk_start} to {chunk_start + chunk_size - 1} \n")
+
+    processor = VideoProcessor(
+        sample_factor=sample_factor,
+        sample_strategy=sample_strategy,
+        sample_frame_num=sample_frame_num,
+        sample_rate=sample_rate
+    )
+    res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
+    with open(res_file, 'w') as f:
+        for video in chunks:
+            frames = processor._read(video)
+            for index, frame in enumerate(frames):
+                base64_str = get_base64(frame)
+                if base64_str != None:
+                    f.write(video+f".{index}.png"+"\t"+base64_str+"\n")        
+
+def extract_frame(data_file, names, video_col="video", sample_strategy="middlefix", sample_frame_num=81, sample_factor=16, sample_rate=[0.1,0.5,0.9], cache_dir='output'):
     import re
     import pandas as pd
+    import multiprocessing as mp
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
@@ -316,24 +351,29 @@ def extract_frame(data_file, names, video_col, sample_strategy, sample_frame_num
         header=None,
     )
     os.makedirs(cache_dir, exist_ok=True)
-    output_file = os.path.exists(cache_dir, 'output.tsv')
     assert video_col in data.columns, f"Column {video_col} not found in data."
-
-    processor = VideoProcessor(
-        sample_factor=sample_factor,
-        sample_strategy=sample_strategy,
-        sample_frame_num=sample_frame_num,
-        sample_rate=sample_rate
-    )
     videos = data[video_col].to_list()
-    with open(output_file, 'w') as fw:
-        for video in videos:
-            frames = processor._read(video)
-            print(f"get frames {len(frames)}")
+
+    num_processes = mp.cpu_count()
+    total_rows = len(videos)
+    chunk_size = total_rows // num_processes
+    start = time.time()
+    print(f"need to process {total_rows} videos")
+
+    # for gpu: failed
+    # process_chunk(videos, 0, chunk_size, len(videos), cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate)
+
+
+    with mp.Pool(num_processes) as pool:
+        tasks = [(videos, i * chunk_size + 1, chunk_size, i, cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate) for i in range(num_processes)]
+        pool.starmap(process_chunk, tasks)
+
+    end = time.time()
+    print(f"latency: {end-start} samples: {total_rows}")
 
 
 
 if __name__ == "__main__":
     fire.Fire()
-'''
+
 
