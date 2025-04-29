@@ -156,8 +156,7 @@ class VideoProcessor(ImageProcessor):
         self.sample_rate = sample_rate
         self.sample_factor = sample_factor
         self.tmp_download_folder = "./tmp"
-        if not os.path.exists(self.tmp_download_folder):
-            os.makedirs(self.tmp_download_folder)
+
 
     @classmethod
     @add_default_section_for_init("microsoft/adinsights/process/video")
@@ -190,6 +189,8 @@ class VideoProcessor(ImageProcessor):
             _, ext = os.path.splitext(video_path)
         except:
             ext = ".mp4"
+        if not os.path.exists(self.tmp_download_folder):
+            os.makedirs(self.tmp_download_folder, exist_ok=True)
         name = hashlib.md5(video_path.encode()).hexdigest() + ext
         name = os.path.join(self.tmp_download_folder, name)
         download_url_to_file(video_path, name, progress=False)
