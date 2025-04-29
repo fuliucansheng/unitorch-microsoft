@@ -27,6 +27,7 @@ from unitorch.cli import (
     register_process,
 )
 import decord
+import fire
 
 
 
@@ -77,10 +78,10 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
     elif sample == "middle":
         interval = round(kwargs["fps"] / kwargs["sample_factor"])
         needed_frames = (acc_samples - 1) * interval
-        kwargs["start_frame"] = max(0, vlen // 2 - needed_frames // 2)
+        fix_start = max(0, vlen // 2 - needed_frames // 2)
         frame_idxs = np.linspace(
-            kwargs["start_frame"],
-            min(kwargs["start_frame"] + needed_frames, vlen - 1),
+            fix_start,
+            min(fix_start + needed_frames, vlen - 1),
             acc_samples,
             dtype=int,
         )
@@ -90,6 +91,25 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         frame_idxs = [
             min(math.floor(vlen * i), vlen - 1) for i in kwargs["sample_rate"]
         ]
+    elif sample == "middlefix":
+        interval = round(kwargs["fps"] / kwargs["sample_factor"])
+        needed_frames = (acc_samples - 1) * interval
+        fix_start = max(0, vlen // 2 - needed_frames // 2)
+        middle_idxs = np.linspace(
+            fix_start,
+            min(fix_start + needed_frames, vlen - 1),
+            acc_samples,
+            dtype=int,
+        )
+        
+        assert kwargs["sample_rate"] != None
+        vlen = len(middle_idxs)
+        idxs = [
+            min(math.floor(vlen * i), vlen - 1) for i in kwargs["sample_rate"]
+        ]
+        
+        frame_idxs = [middle_idxs[i] for i in idxs]
+        print(f"middle samples {middle_idxs} fix frames {idxs} finalidx {frame_idxs}")
     else:
         raise NotImplementedError
 
@@ -113,7 +133,7 @@ class VideoProcessor(ImageProcessor):
         sample_rate: Optional[
             List[float]
         ] = None,  # [0.1,0.5,0.9] get 10%, 50%, 90% of the video
-        sample_factor: Optional[int] = None,  # sample_factor=1 means 1 frame per second
+        sample_factor: Optional[int] = None,  # sample_factor=1 means 1 frame per second, same as target fps
     ):
         """
         Initializes a new instance of the ImageProcessor.
@@ -277,4 +297,43 @@ class VideoProcessor(ImageProcessor):
         except Exception as e:
             logging.error(f"Error reading video: {e}")
             logging.debug(f"core/process/video/read use fake image for {video}")
-            return Image.new("RGB", (256,256), (255, 255, 255))
+            return [Image.new("RGB", (256,256), (255, 255, 255))]
+        
+'''
+def extract_frame(data_file, names, video_col, sample_strategy, sample_frame_num=81, sample_factor=16, sample_rate=[0.1,0.5,0.9], cache_dir='output'):
+    import re
+    import pandas as pd
+    if isinstance(names, str) and names.strip() == "*":
+        names = None
+    if isinstance(names, str):
+        names = re.split(r"[,;]", names)
+        names = [n.strip() for n in names]
+    data = pd.read_csv(
+        data_file,
+        names=names,
+        sep="\t",
+        quoting=3,
+        header=None,
+    )
+    os.makedirs(cache_dir, exist_ok=True)
+    output_file = os.path.exists(cache_dir, 'output.tsv')
+    assert video_col in data.columns, f"Column {video_col} not found in data."
+
+    processor = VideoProcessor(
+        sample_factor=sample_factor,
+        sample_strategy=sample_strategy,
+        sample_frame_num=sample_frame_num,
+        sample_rate=sample_rate
+    )
+    videos = data[video_col].to_list()
+    with open(output_file, 'w') as fw:
+        for video in videos:
+            frames = processor._read(video)
+            print(f"get frames {len(frames)}")
+
+
+
+if __name__ == "__main__":
+    fire.Fire()
+'''
+
