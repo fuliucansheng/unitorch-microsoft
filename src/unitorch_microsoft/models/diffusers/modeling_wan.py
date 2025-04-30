@@ -61,6 +61,7 @@ from unitorch.cli.models.diffusers import (
 )
 from unitorch_microsoft.models.diffusers.modeling_wan_utils import AutoencoderKLWan
 
+
 class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
     prefix_keys_in_state_dict = {
         # vae weights
@@ -204,6 +205,7 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
         )
+
 
 @register_model(
     "microsoft/model/diffusers/peft/lora/text2video/wan", diffusion_model_decorator
@@ -408,9 +410,20 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
     ):
-        latents = self.vae.encode(pixel_values).latent_dist.sample()
+        latents = self.vae.encode(pixel_values).latent_dist.mode()
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.shape[0]
+
+        latents_mean = (
+            torch.tensor(self.vae.config.latents_mean)
+            .view(1, self.vae.config.z_dim, 1, 1, 1)
+            .to(latents.device, latents.dtype)
+        )
+        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+            1, self.vae.config.z_dim, 1, 1, 1
+        ).to(latents.device, latents.dtype)
+        latents = (latents - latents_mean) * latents_std
+
         # u = compute_density_for_timestep_sampling(
         #     weighting_scheme="none",
         #     batch_size=batch,
@@ -423,22 +436,13 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
 
         # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
         # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
+
         timesteps = torch.randint(
             0,
             self.scheduler.config.num_train_timesteps,
             (batch,),
             device=pixel_values.device,
         ).long()
-
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(latents.device, latents.dtype)
-        )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-            1, self.vae.config.z_dim, 1, 1, 1
-        ).to(latents.device, latents.dtype)
-        latents = (latents - latents_mean) * latents_std
 
         noise_latents = self.scheduler.add_noise(
             latents,
@@ -466,7 +470,9 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function("microsoft/model/diffusers/peft/lora/text2video/wan")
+    @add_default_section_for_function(
+        "microsoft/model/diffusers/peft/lora/text2video/wan"
+    )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
         dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
@@ -575,7 +581,9 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
     @classmethod
     @add_default_section_for_init("microsoft/model/diffusers/peft/lora/image2video/wan")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/diffusers/peft/lora/image2video/wan")
+        config.set_default_section(
+            "microsoft/model/diffusers/peft/lora/image2video/wan"
+        )
         pretrained_name = config.getoption("pretrained_name", "wan-v2.1-i2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
@@ -727,9 +735,19 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
     ):
-        latents = self.vae.encode(pixel_values).latent_dist.sample()
+        latents = self.vae.encode(pixel_values).latent_dist.mode()
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.shape[0]
+        latents_mean = (
+            torch.tensor(self.vae.config.latents_mean)
+            .view(1, self.vae.config.z_dim, 1, 1, 1)
+            .to(latents.device, latents.dtype)
+        )
+        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+            1, self.vae.config.z_dim, 1, 1, 1
+        ).to(latents.device, latents.dtype)
+        latents = (latents - latents_mean) * latents_std
+
         # u = compute_density_for_timestep_sampling(
         #     weighting_scheme="none",
         #     batch_size=batch,
@@ -749,16 +767,6 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
             (batch,),
             device=pixel_values.device,
         ).long()
-
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(latents.device, latents.dtype)
-        )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-            1, self.vae.config.z_dim, 1, 1, 1
-        ).to(latents.device, latents.dtype)
-        latents = (latents - latents_mean) * latents_std
 
         noise_latents = self.scheduler.add_noise(
             latents,

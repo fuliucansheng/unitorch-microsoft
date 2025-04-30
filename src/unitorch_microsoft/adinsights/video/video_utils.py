@@ -32,8 +32,6 @@ import fire
 import time
 
 
-
-
 def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
     """
     num_frames: The number of frames to sample.
@@ -103,11 +101,12 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
             acc_samples,
             dtype=int,
         )
-        
+
         assert kwargs["sample_rate"] != None
         vlensample = len(middle_idxs)
         idxs = [
-            min(math.floor(vlensample * i), vlensample - 1) for i in kwargs["sample_rate"]
+            min(math.floor(vlensample * i), vlensample - 1)
+            for i in kwargs["sample_rate"]
         ]
         frame_idxs = [middle_idxs[i] for i in idxs]
     else:
@@ -130,8 +129,12 @@ class VideoProcessor(ImageProcessor):
             int
         ] = None,  # sample_frame_num=1, sample 1 frame from video
         start_frame: Optional[int] = None,  # start_frame=0, start from the first frame
-        sample_rate: Optional[Union[str, List[float]]] = None,  # [0.1,0.5,0.9] get 10%, 50%, 90% of the video
-        sample_factor: Optional[int] = None,  # sample_factor=1 means 1 frame per second, same as target fps
+        sample_rate: Optional[
+            Union[str, List[float]]
+        ] = None,  # [0.1,0.5,0.9] get 10%, 50%, 90% of the video
+        sample_factor: Optional[
+            int
+        ] = None,  # sample_factor=1 means 1 frame per second, same as target fps
     ):
         """
         Initializes a new instance of the ImageProcessor.
@@ -152,11 +155,10 @@ class VideoProcessor(ImageProcessor):
             sample_rate = [float(i) for i in sample_rates]
         if sample_rate != None and not isinstance(sample_rate, list):
             sample_rate = [sample_rate]
-        
+
         self.sample_rate = sample_rate
         self.sample_factor = sample_factor
         self.tmp_download_folder = "./tmp"
-
 
     @classmethod
     @add_default_section_for_init("microsoft/adinsights/process/video")
@@ -195,7 +197,7 @@ class VideoProcessor(ImageProcessor):
         name = os.path.join(self.tmp_download_folder, name)
         download_url_to_file(video_path, name, progress=False)
         return name
-    
+
     def _read_video_imageio(self, video_path):
         reader = imageio.get_reader(video_path)
         meta_data = reader.get_meta_data()
@@ -203,7 +205,7 @@ class VideoProcessor(ImageProcessor):
         fps = meta_data["fps"]
         meta_info = {"fps": fps, "video_len": video_len}
         return reader, meta_info
-    
+
     def _sample_video_imageio(self, samples, reader):
         frames = []
         for frame_id in samples:
@@ -212,22 +214,25 @@ class VideoProcessor(ImageProcessor):
             frames.append(frame)
 
         return frames
-    
+
     def _read_video_decord(self, video_path):
-        from decord import cpu,gpu
+        from decord import cpu, gpu
+
         decord.bridge.set_bridge("torch")
-        video_reader = decord.VideoReader(video_path, num_threads=0, ctx=cpu(0)) #width,height//check #gpu only works for single process
+        video_reader = decord.VideoReader(
+            video_path, num_threads=0, ctx=cpu(0)
+        )  # width,height//check #gpu only works for single process
         vlen = len(video_reader)
         fps = video_reader.get_avg_fps()  # note that the fps here is float.
         meta_info = {"fps": fps, "video_len": vlen}
         frame = video_reader[0]
-        height,width,_ = frame.shape
-        return video_reader,meta_info
-    
+        height, width, _ = frame.shape
+        return video_reader, meta_info
+
     def _sample_video_decord(self, samples, reader):
         result = []
         frames = reader.get_batch(samples)
-        #frames = reader.get_key_indices()
+        # frames = reader.get_key_indices()
         frames = frames.permute(0, 3, 1, 2)
 
         for frame in frames:
@@ -235,8 +240,6 @@ class VideoProcessor(ImageProcessor):
             result.append(frame)
 
         return result
-
-
 
     @register_process("microsoft/adinsights/process/video/read")
     def _read(
@@ -295,50 +298,75 @@ class VideoProcessor(ImageProcessor):
             else:
                 samples = list(range(meta_info["video_len"]))
 
-            frames = self._sample_video_decord(samples,reader)
+            frames = self._sample_video_decord(samples, reader)
 
             return frames
 
         except Exception as e:
             logging.error(f"Error reading video: {e}")
             logging.error(f"core/process/video/read use fake image for {video}")
-            return [Image.new("RGB", (256,256), (255, 255, 255))]
+            return [Image.new("RGB", (256, 256), (255, 255, 255))]
 
 
-def process_chunk(videos, chunk_start, chunk_size, process_id, cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate):
+def process_chunk(
+    videos,
+    chunk_start,
+    chunk_size,
+    process_id,
+    cache_dir,
+    num_processes,
+    total_rows,
+    sample_factor,
+    sample_strategy,
+    sample_frame_num,
+    sample_rate,
+):
     def get_base64(image):
-        #image = Image.open(image).convert("RGB")
+        # image = Image.open(image).convert("RGB")
         if np.all(np.array(image) == [255, 255, 255]):
             return None
         image_buffer = io.BytesIO()
         image.save(image_buffer, format="JPEG")
         image_buffer.seek(0)
         return base64.b64encode(image_buffer.getvalue()).decode()
-    
+
     if process_id == num_processes - 1:
         chunk_size = total_rows - chunk_start + 1
-    chunks = videos[chunk_start:chunk_start+chunk_size]
-    print(f"Worker {process_id} Processing rows: {chunk_start} to {chunk_start + chunk_size - 1} \n")
+    chunks = videos[chunk_start : chunk_start + chunk_size]
+    print(
+        f"Worker {process_id} Processing rows: {chunk_start} to {chunk_start + chunk_size - 1} \n"
+    )
 
     processor = VideoProcessor(
         sample_factor=sample_factor,
         sample_strategy=sample_strategy,
         sample_frame_num=sample_frame_num,
-        sample_rate=sample_rate
+        sample_rate=sample_rate,
     )
     res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
-    with open(res_file, 'w') as f:
+    with open(res_file, "w") as f:
         for video in chunks:
             frames = processor._read(video)
             for index, frame in enumerate(frames):
                 base64_str = get_base64(frame)
                 if base64_str != None:
-                    f.write(video+f".{index}.png"+"\t"+base64_str+"\n")        
+                    f.write(video + f".{index}.png" + "\t" + base64_str + "\n")
 
-def extract_frame(data_file, names, video_col="video", sample_strategy="middlefix", sample_frame_num=81, sample_factor=16, sample_rate=[0.1,0.5,0.9], cache_dir='output'):
+
+def extract_frame(
+    data_file,
+    names,
+    video_col="video",
+    sample_strategy="middlefix",
+    sample_frame_num=81,
+    sample_factor=16,
+    sample_rate=[0.1, 0.5, 0.9],
+    cache_dir="output",
+):
     import re
     import pandas as pd
     import multiprocessing as mp
+
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
@@ -364,17 +392,28 @@ def extract_frame(data_file, names, video_col="video", sample_strategy="middlefi
     # for gpu: failed
     # process_chunk(videos, 0, chunk_size, len(videos), cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate)
 
-
     with mp.Pool(num_processes) as pool:
-        tasks = [(videos, i * chunk_size + 1, chunk_size, i, cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate) for i in range(num_processes)]
+        tasks = [
+            (
+                videos,
+                i * chunk_size + 1,
+                chunk_size,
+                i,
+                cache_dir,
+                num_processes,
+                total_rows,
+                sample_factor,
+                sample_strategy,
+                sample_frame_num,
+                sample_rate,
+            )
+            for i in range(num_processes)
+        ]
         pool.starmap(process_chunk, tasks)
 
     end = time.time()
     print(f"latency: {end-start} samples: {total_rows}")
 
 
-
 if __name__ == "__main__":
     fire.Fire()
-
-
