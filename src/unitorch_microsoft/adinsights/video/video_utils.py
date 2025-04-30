@@ -301,7 +301,7 @@ class VideoProcessor(ImageProcessor):
 
         except Exception as e:
             logging.error(f"Error reading video: {e}")
-            logging.debug(f"core/process/video/read use fake image for {video}")
+            logging.error(f"core/process/video/read use fake image for {video}")
             return [Image.new("RGB", (256,256), (255, 255, 255))]
 
 
