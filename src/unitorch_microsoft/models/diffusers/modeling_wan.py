@@ -239,6 +239,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         enable_transformer_adapter: Optional[bool] = True,
         seed: Optional[int] = 1123,
         gradient_checkpointing: Optional[bool] = True,
+        latent_option: Optional[int] = 3,
     ):
         super().__init__(
             config_path=config_path,
@@ -272,6 +273,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             tokenizer=None,
         )
         self.pipeline.set_progress_bar_config(disable=True)
+        self.latent_option = latent_option
 
     @classmethod
     @add_default_section_for_init("microsoft/model/diffusers/peft/lora/text2video/wan")
@@ -342,6 +344,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             "enable_transformer_adapter", True
         )
         seed = config.getoption("seed", 1123)
+        latent_option = config.getoption("latent_option", 3)
         gradient_checkpointing = config.getoption("gradient_checkpointing", True)
 
         inst = cls(
@@ -364,6 +367,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             enable_transformer_adapter=enable_transformer_adapter,
             seed=seed,
             gradient_checkpointing=gradient_checkpointing,
+            latent_option=latent_option,
         )
 
         weight_path = config.getoption("pretrained_weight_path", None)
@@ -414,64 +418,81 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         attention_mask: Optional[torch.Tensor] = None,
     ):
         # Option 1
-        latents = self.vae.encode(pixel_values).latent_dist.mode()
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(latents.device, latents.dtype)
-        )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-            1, self.vae.config.z_dim, 1, 1, 1
-        ).to(latents.device, latents.dtype)
-        latents = (latents - latents_mean) * latents_std
+        if self.latent_option == 1:
+            latents = self.vae.encode(pixel_values).latent_dist.mode()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
 
         # Option 2
-        # latents = self.vae._encode(pixel_values)
-        # latents_mean = (
-        #     torch.tensor(self.vae.config.latents_mean)
-        #     .view(1, self.vae.config.z_dim, 1, 1, 1)
-        #     .to(latents.device, latents.dtype)
-        # )
-        # latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-        #     1, self.vae.config.z_dim, 1, 1, 1
-        # ).to(latents.device, latents.dtype)
+        elif self.latent_option == 2:
+            latents = self.vae._encode(pixel_values)
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
 
-        # mu, logvar = torch.chunk(latents, 2, dim=1)
-        # mu = (mu - latents_mean) * latents_std
-        # logvar = (logvar - latents_mean) * latents_std
-        # latents = torch.cat([mu, logvar], dim=1)
+            mu, logvar = torch.chunk(latents, 2, dim=1)
+            mu = (mu - latents_mean) * latents_std
+            logvar = (logvar - latents_mean) * latents_std
+            latents = torch.cat([mu, logvar], dim=1)
 
-        # posterior = DiagonalGaussianDistribution(latents)
-        # latents = posterior.sample()
-        
+            posterior = DiagonalGaussianDistribution(latents)
+            latents = posterior.sample()
+
+        # Option 3
+        elif self.latent_option == 3:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
+        elif self.latent_option == 4:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.shape[0]
 
-        # u = compute_density_for_timestep_sampling(
-        #     weighting_scheme="none",
-        #     batch_size=batch,
-        #     logit_mean=0.0,
-        #     logit_std=1.0,
-        #     mode_scale=1.29,
-        # )
-        # indices = (u * self.scheduler.config.num_train_timesteps).long()
-        # timesteps = self.scheduler.timesteps[indices].to(device=self.device)
-
-        # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
-        # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-
-        timesteps = torch.randint(
-            0,
-            self.scheduler.config.num_train_timesteps,
-            (batch,),
-            device=pixel_values.device,
-        ).long()
-
-        noise_latents = self.scheduler.add_noise(
-            latents,
-            noise,
-            timesteps,
+        u = compute_density_for_timestep_sampling(
+            weighting_scheme="none",
+            batch_size=batch,
+            logit_mean=0.0,
+            logit_std=1.0,
+            mode_scale=1.29,
         )
+        indices = (u * self.scheduler.config.num_train_timesteps).long()
+        timesteps = self.scheduler.timesteps[indices].to(device=self.device)
+
+        sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
+        noise_latents = (1.0 - sigmas) * latents + sigmas * noise
+
+        # timesteps = torch.randint(
+        #     0,
+        #     self.scheduler.config.num_train_timesteps,
+        #     (batch,),
+        #     device=pixel_values.device,
+        # ).long()
+
+        # noise_latents = self.scheduler.add_noise(
+        #     latents,
+        #     noise,
+        #     timesteps,
+        # )
 
         encoder_hidden_states = self.text(input_ids, attention_mask)[0]
         outputs = self.transformer(
@@ -479,18 +500,18 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             timesteps,
             encoder_hidden_states,
         ).sample
-        # weighting = compute_loss_weighting_for_sd3(
-        #     weighting_scheme="none", sigmas=sigmas
-        # )
-        # target = noise - latents
-        # loss = torch.mean(
-        #     (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
-        #         target.shape[0], -1
-        #     ),
-        #     1,
-        # )
-        # loss = loss.mean()
-        loss = F.mse_loss(outputs, noise, reduction="mean")
+        weighting = compute_loss_weighting_for_sd3(
+            weighting_scheme="none", sigmas=sigmas
+        )
+        target = noise - latents
+        loss = torch.mean(
+            (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
+                target.shape[0], -1
+            ),
+            1,
+        )
+        loss = loss.mean()
+        # loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
     @add_default_section_for_function(
@@ -565,6 +586,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         enable_transformer_adapter: Optional[bool] = True,
         seed: Optional[int] = 1123,
         gradient_checkpointing: Optional[bool] = True,
+        latent_option: Optional[int] = 3,
     ):
         super().__init__(
             config_path=config_path,
@@ -600,6 +622,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
             image_processor=None,
         )
         self.pipeline.set_progress_bar_config(disable=True)
+        self.latent_option = latent_option
 
     @classmethod
     @add_default_section_for_init("microsoft/model/diffusers/peft/lora/image2video/wan")
@@ -680,6 +703,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         )
         seed = config.getoption("seed", 1123)
         gradient_checkpointing = config.getoption("gradient_checkpointing", True)
+        latent_option = config.getoption("latent_option", 3)
 
         inst = cls(
             config_path=config_path,
@@ -702,6 +726,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
             enable_transformer_adapter=enable_transformer_adapter,
             seed=seed,
             gradient_checkpointing=gradient_checkpointing,
+            latent_option=latent_option,
         )
 
         weight_path = config.getoption("pretrained_weight_path", None)
@@ -759,63 +784,81 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         attention_mask: Optional[torch.Tensor] = None,
     ):
         # Option 1
-        latents = self.vae.encode(pixel_values).latent_dist.mode()
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(latents.device, latents.dtype)
-        )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-            1, self.vae.config.z_dim, 1, 1, 1
-        ).to(latents.device, latents.dtype)
-        latents = (latents - latents_mean) * latents_std
+        if self.latent_option == 1:
+            latents = self.vae.encode(pixel_values).latent_dist.mode()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
 
         # Option 2
-        # latents = self.vae._encode(pixel_values)
-        # latents_mean = (
-        #     torch.tensor(self.vae.config.latents_mean)
-        #     .view(1, self.vae.config.z_dim, 1, 1, 1)
-        #     .to(latents.device, latents.dtype)
-        # )
-        # latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-        #     1, self.vae.config.z_dim, 1, 1, 1
-        # ).to(latents.device, latents.dtype)
+        elif self.latent_option == 2:
+            latents = self.vae._encode(pixel_values)
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
 
-        # mu, logvar = torch.chunk(latents, 2, dim=1)
-        # mu = (mu - latents_mean) * latents_std
-        # logvar = (logvar - latents_mean) * latents_std
-        # latents = torch.cat([mu, logvar], dim=1)
+            mu, logvar = torch.chunk(latents, 2, dim=1)
+            mu = (mu - latents_mean) * latents_std
+            logvar = (logvar - latents_mean) * latents_std
+            latents = torch.cat([mu, logvar], dim=1)
 
-        # posterior = DiagonalGaussianDistribution(latents)
-        # latents = posterior.sample()
+            posterior = DiagonalGaussianDistribution(latents)
+            latents = posterior.sample()
+
+        # Option 3
+        elif self.latent_option == 3:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
+        # Option 4
+        elif self.latent_option == 4:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
 
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.shape[0]
-        # u = compute_density_for_timestep_sampling(
-        #     weighting_scheme="none",
-        #     batch_size=batch,
-        #     logit_mean=0.0,
-        #     logit_std=1.0,
-        #     mode_scale=1.29,
-        # )
-        # indices = (u * self.scheduler.config.num_train_timesteps).long()
-        # timesteps = self.scheduler.timesteps[indices].to(device=self.device)
-
-        # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
-        # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-
-        timesteps = torch.randint(
-            0,
-            self.scheduler.config.num_train_timesteps,
-            (batch,),
-            device=pixel_values.device,
-        ).long()
-
-        noise_latents = self.scheduler.add_noise(
-            latents,
-            noise,
-            timesteps,
+        u = compute_density_for_timestep_sampling(
+            weighting_scheme="none",
+            batch_size=batch,
+            logit_mean=0.0,
+            logit_std=1.0,
+            mode_scale=1.29,
         )
+        indices = (u * self.scheduler.config.num_train_timesteps).long()
+        timesteps = self.scheduler.timesteps[indices].to(device=self.device)
+
+        sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
+        noise_latents = (1.0 - sigmas) * latents + sigmas * noise
+
+        # timesteps = torch.randint(
+        #     0,
+        #     self.scheduler.config.num_train_timesteps,
+        #     (batch,),
+        #     device=pixel_values.device,
+        # ).long()
+
+        # noise_latents = self.scheduler.add_noise(
+        #     latents,
+        #     noise,
+        #     timesteps,
+        # )
 
         num_frames = pixel_values.shape[-3]
 
@@ -873,18 +916,18 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
             encoder_hidden_states=encoder_hidden_states,
             encoder_hidden_states_image=condition_hidden_states,
         ).sample
-        # weighting = compute_loss_weighting_for_sd3(
-        #     weighting_scheme="none", sigmas=sigmas
-        # )
-        # target = noise - latents
-        # loss = torch.mean(
-        #     (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
-        #         target.shape[0], -1
-        #     ),
-        #     1,
-        # )
-        # loss = loss.mean()
-        loss = F.mse_loss(outputs, noise, reduction="mean")
+        weighting = compute_loss_weighting_for_sd3(
+            weighting_scheme="none", sigmas=sigmas
+        )
+        target = noise - latents
+        loss = torch.mean(
+            (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
+                target.shape[0], -1
+            ),
+            1,
+        )
+        loss = loss.mean()
+        # loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
     @add_default_section_for_function(
