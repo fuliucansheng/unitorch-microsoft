@@ -8,6 +8,7 @@ import time
 import fire
 from sklearn.metrics import silhouette_score
 from sklearn.manifold import TSNE
+import wandb
 
 
 class KMeansFamily:
@@ -277,6 +278,28 @@ def model_factory(model_name: str, **kwargs) -> KMeansFamily:
     else:
         raise ValueError(f"Unknown model name: {model_name}")
 
+def wandb_login(wandb_entity):
+    """
+    Login to Weights & Biases (wandb) using the API key from the environment variable.
+    """
+    if "WANDB_API_KEY" in os.environ:
+        try:
+            assert wandb_entity is not None, "wandb entity is None"
+            wandb.login(key=os.getenv("WANDB_API_KEY"),relogin=True)
+            current_time = time.strftime("%m/%d/%Y/%H", time.localtime())
+            wandb.init(
+                project="kmeans",
+                entity=wandb_entity,
+                name=f"kmeans_{current_time}",
+            )
+            print( "wandb login success")
+        except:
+            print("Failed to login to wandb. Please check your API key.")
+            return False
+    else:
+        print("WANDB_API_KEY not found in environment variables. Please set it.")
+        return False
+
 
 def cluster_data(
     data_file: str,
@@ -288,6 +311,8 @@ def cluster_data(
     max_iter=300,
     batch_size=1024,
     cache_dir: str = "output",
+    use_wandb=False,
+    wandb_entity=None,
 ):
     """
     Cluster the data using KMeans.
@@ -303,6 +328,11 @@ def cluster_data(
     - labels: Cluster labels for each sample
     - centroids: Centroids of the clusters
     """
+    #setup wandb
+    use_wandb_flag = False
+    if use_wandb:
+        use_wandb_flag = wandb_login(wandb_entity)
+
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
