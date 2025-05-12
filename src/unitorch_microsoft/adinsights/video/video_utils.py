@@ -46,6 +46,8 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         - 'uniform': sample frames uniformly (not recommended)
     kwargs["start_frame"]: The starting frame index. If it is not None, then it will be used as the starting frame index.
     """
+    assert num_frames != None and num_frames > 0
+    assert vlen != None and vlen > 0
     acc_samples = min(num_frames, vlen)
     if sample in ["rand", "uniform"]:
         intervals = np.linspace(start=0, stop=vlen, num=acc_samples + 1).astype(int)
@@ -62,6 +64,7 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         if sample == "equally spaced":
             raise NotImplementedError  # need to pass in the corresponding parameters
         else:
+            assert 'fps' in kwargs and 'sample_factor' in kwargs and kwargs["fps"] > 0 and kwargs["sample_factor"] > 0
             interval = round(kwargs["fps"] / kwargs["sample_factor"])
             needed_frames = (acc_samples - 1) * interval
 
@@ -76,6 +79,7 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
                 start=start, stop=min(vlen - 1, start + needed_frames), num=acc_samples
             ).astype(int)
     elif sample == "middle":
+        assert 'fps' in kwargs and 'sample_factor' in kwargs and kwargs["fps"] > 0 and kwargs["sample_factor"] > 0
         interval = round(kwargs["fps"] / kwargs["sample_factor"])
         needed_frames = (acc_samples - 1) * interval
         fix_start = max(0, vlen // 2 - needed_frames // 2)
@@ -87,11 +91,12 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         )
 
     elif sample == "fix":
-        assert kwargs["sample_rate"] != None
+        assert 'sample_rate' in kwargs and kwargs["sample_rate"] != None
         frame_idxs = [
             min(math.floor(vlen * i), vlen - 1) for i in kwargs["sample_rate"]
         ]
     elif sample == "middlefix":
+        assert 'fps' in kwargs and 'sample_factor' in kwargs and kwargs["fps"] > 0 and kwargs["sample_factor"] > 0
         interval = round(kwargs["fps"] / kwargs["sample_factor"])
         needed_frames = (acc_samples - 1) * interval
         fix_start = max(0, vlen // 2 - needed_frames // 2)
@@ -102,7 +107,7 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
             dtype=int,
         )
 
-        assert kwargs["sample_rate"] != None
+        assert 'sample_rate' in kwargs and kwargs["sample_rate"] != None
         vlensample = len(middle_idxs)
         idxs = [
             min(math.floor(vlensample * i), vlensample - 1)
@@ -119,7 +124,6 @@ class VideoProcessor(ImageProcessor):
     """
     Processor for video-related operations.
     """
-
     def __init__(
         self,
         video_type: Optional[str] = None,
@@ -150,15 +154,19 @@ class VideoProcessor(ImageProcessor):
         self.sample_strategy = sample_strategy
         self.sample_frame_num = sample_frame_num
         self.start_frame = start_frame
+        self.sample_rate = self.Tolist_float(sample_rate)
+        self.sample_factor = sample_factor
+        self.tmp_download_folder = "./tmp"
+
+    def Tolist_float(self, sample_rate):
         if sample_rate != None and isinstance(sample_rate, str):
             sample_rates = re.split(r"[,;]", sample_rate)
             sample_rate = [float(i) for i in sample_rates]
         if sample_rate != None and not isinstance(sample_rate, list):
             sample_rate = [sample_rate]
+        return sample_rate
 
-        self.sample_rate = sample_rate
-        self.sample_factor = sample_factor
-        self.tmp_download_folder = "./tmp"
+    @add_default_section_for_function("microsoft/adinsights/process/video")
 
     @classmethod
     @add_default_section_for_init("microsoft/adinsights/process/video")
@@ -245,12 +253,12 @@ class VideoProcessor(ImageProcessor):
     def _read(
         self,
         video,
-        video_type=None,
-        sample_strategy=None,
+        sample_strategy='fix',
         sample_frame_num=None,
         start_frame=None,
         sample_rate=None,
         sample_factor=None,
+        video_type=None,
     ):
         """
         Reads and processes an image.
@@ -272,10 +280,15 @@ class VideoProcessor(ImageProcessor):
         )
         start_frame = start_frame if start_frame is not None else self.start_frame
         sample_rate = sample_rate if sample_rate is not None else self.sample_rate
+        sample_rate = self.Tolist_float(sample_rate)
         sample_factor = (
             sample_factor if sample_factor is not None else self.sample_factor
         )
+        
+        if sample_frame_num is None and sample_rate != None:
+            sample_frame_num = len(sample_rate)
 
+        assert sample_frame_num != None and sample_frame_num > 0
         try:
             print(f"process video {video}")
             if video.startswith("http://") or video.startswith("https://"):
