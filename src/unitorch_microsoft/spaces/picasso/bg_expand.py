@@ -65,7 +65,7 @@ class ExpandBGWebUI(SimpleWebUI):
         stop = create_element("button", "Stop", variant="stop")
         input_image = create_element("image", "Image")
         input_ratio = create_element(
-            "slider", "Ratio", default=1.9, min_value=0.2, max_value=5.0, step=0.1
+            "slider", "Ratio", default=1.9, min_value=0.1, max_value=10.0, step=0.01
         )
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image", lines=5)
