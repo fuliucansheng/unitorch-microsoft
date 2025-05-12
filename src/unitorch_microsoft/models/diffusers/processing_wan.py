@@ -46,7 +46,7 @@ class WanProcessor(HfTextClassificationProcessor):
         image_config_path: Optional[str] = None,
         max_seq_length: Optional[int] = 77,
         position_start_id: Optional[int] = 0,
-        video_size: Optional[Tuple[int, int]] = None,
+        video_size: Optional[Tuple[int, int]] = (832,480),
     ):
         tokenizer = T5Tokenizer(
             vocab_file=vocab_path,
@@ -70,16 +70,18 @@ class WanProcessor(HfTextClassificationProcessor):
                 if isinstance(video_size, tuple)
                 else (video_size, video_size)
             )
+            self.video_size = (
+                video_size[0] // 16 * 16,
+                video_size[1] // 16 * 16
+                )
         else:
             self.video_size = None
+        self.divisor = 16
 
         if self.video_size is not None:
             self.frame_processor = Compose(
                 [
                     CenterCrop(size=(self.video_size[1], self.video_size[0])),
-                    Resize(
-                        size=(self.video_size[1], self.video_size[0]), antialias=True
-                    ),
                     ToTensor(),
                     Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
                 ]
@@ -102,7 +104,6 @@ class WanProcessor(HfTextClassificationProcessor):
             self.vision_processor = CLIPImageProcessor.from_json_file(image_config_path)
         else:
             self.vision_processor = None
-        self.divisor = 8
 
     @classmethod
     @add_default_section_for_init("microsoft/process/diffusion/wan")
@@ -170,13 +171,15 @@ class WanProcessor(HfTextClassificationProcessor):
         pixel_values = []
         for frame in frames:
             if self.frame_processor is not None:
+                width, height = frame.size
+                scale = max(self.video_size[0] / width, self.video_size[1] / height)
+                frame = frame.resize((round(width*scale), round(height*scale)), resample=Image.LANCZOS)
                 pixel_frame = self.frame_processor(frame)
                 pixel_values.append(pixel_frame)
             else:
                 raise ValueError(
                     "frame_processor is None, please set video_size to process video"
                 )
-
         pixel_values = torch.stack(pixel_values, dim=0)
         pixel_values = pixel_values.permute(1, 0, 2, 3)
 
@@ -208,19 +211,18 @@ class WanProcessor(HfTextClassificationProcessor):
 
         if image is None:
             image = frames[0].convert("RGB")
-            image = CenterCrop(size=(self.video_size[1], self.video_size[0]))(image)
+
+        width, height = image.size
+        scale = max(self.video_size[0] / width, self.video_size[1] / height)
+        image = image.resize((round(width*scale), round(height*scale)), resample=Image.LANCZOS)
+        image = CenterCrop(size=(self.video_size[1], self.video_size[0]))(image)
 
         condition_pixel_values = self.vision_processor.preprocess(
             image, return_tensors="pt"
         ).pixel_values[0]
-
-        size = image.size if self.video_size is None else self.video_size
-        size = (
-            size[0] // self.divisor * self.divisor,
-            size[1] // self.divisor * self.divisor,
-        )
-        image = image.resize(size, resample=Image.LANCZOS)
         vae_pixel_values = self.vae_image_processor.preprocess(image)[0]
+
+        
 
         return TensorsInputs(
             pixel_values=outputs.pixel_values,
@@ -256,20 +258,25 @@ class WanProcessor(HfTextClassificationProcessor):
         image: Union[Image.Image, str],
         negative_prompt: Optional[str] = "",
         max_seq_length: Optional[int] = None,
-    ):
+        keep_original_ratio: Optional[bool] = False,
+    ):  #keep original ratio
         if isinstance(image, str):
             image = Image.open(image)
         image = image.convert("RGB")
-        pixel_values = self.vision_processor.preprocess(
-            image, return_tensors="pt"
-        ).pixel_values[0]
 
-        size = image.size if self.video_size is None else self.video_size
-        size = (
-            size[0] // self.divisor * self.divisor,
-            size[1] // self.divisor * self.divisor,
-        )
-        image = image.resize(size, resample=Image.LANCZOS)
+
+        if keep_original_ratio:
+            max_area = self.video_size[0] * self.video_size[1]
+            aspect_ratio = image.height / image.width
+            height = round(np.sqrt(max_area * aspect_ratio)) // self.divisor * self.divisor
+            width = round(np.sqrt(max_area / aspect_ratio)) // self.divisor * self.divisor
+            image = image.resize((width, height), resample=Image.LANCZOS)
+        else:
+            width, height = image.size
+            scale = max(self.video_size[0] / width, self.video_size[1] / height)
+            image = image.resize((round(width*scale), round(height*scale)), resample=Image.LANCZOS)
+            image = CenterCrop(size=(self.video_size[1], self.video_size[0]))(image)
+
 
         vae_pixel_values = self.vae_image_processor.preprocess(image)[0]
         text_outputs = self.text2video_inputs(
@@ -277,6 +284,9 @@ class WanProcessor(HfTextClassificationProcessor):
             negative_prompt=negative_prompt,
             max_seq_length=max_seq_length,
         )
+        pixel_values = self.vision_processor.preprocess(
+            image, return_tensors="pt"
+        ).pixel_values[0]
 
         return TensorsInputs(
             input_ids=text_outputs.input_ids,
