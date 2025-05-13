@@ -1,6 +1,6 @@
 # Copyright (c) FULIUCANSHENG.
 # Licensed under the MIT License.
-
+import os
 import json
 import torch
 import torch.nn.functional as F
@@ -309,9 +309,40 @@ class WanForText2VideoGeneration(GenericWanModel):
         )
 
         weight_path = config.getoption("pretrained_weight_path", None)
+        pretrained_weight_folder = config.getoption("pretrained_weight_folder", None)
 
         state_dict = None
-        if weight_path is None and pretrained_infos is not None:
+        if pretrained_weight_folder is not None:
+            transformer_files = [
+                os.path.join(pretrained_weight_folder, 'transformer', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'transformer'))
+                if filename.endswith(".safetensors")
+            ]
+            text_files = [
+                os.path.join(pretrained_weight_folder, 'text_encoder', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'text_encoder'))
+                if filename.endswith(".safetensors")
+            ]
+            vae_files = [
+                os.path.join(pretrained_weight_folder, 'vae', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'vae'))
+                if filename.endswith(".safetensors")
+            ]
+            print(f"transformer_files: {transformer_files}")
+            print(f"text_files: {text_files}")
+            print(f"vae_files: {vae_files}")
+            state_dict = [
+                load_weight(
+                    transformer_files,
+                    prefix_keys={"": "transformer."},
+                ),
+                load_weight(
+                    text_files,
+                    prefix_keys={"": "text."},
+                ),
+                load_weight(
+                    vae_files,
+                    prefix_keys={"": "vae."},
+                ),
+            ]
+        elif weight_path is None and pretrained_infos is not None:
             state_dict = [
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),
@@ -605,8 +636,50 @@ class WanForImage2VideoGeneration(GenericWanModel):
 
         weight_path = config.getoption("pretrained_weight_path", None)
 
+        pretrained_weight_folder = config.getoption("pretrained_weight_folder", None)
+
         state_dict = None
-        if weight_path is None and pretrained_infos is not None:
+        if pretrained_weight_folder is not None:
+            transformer_files = [
+                os.path.join(pretrained_weight_folder, 'transformer', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'transformer'))
+                if filename.endswith(".safetensors")
+            ]
+            text_files = [
+                os.path.join(pretrained_weight_folder, 'text_encoder', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'text_encoder'))
+                if filename.endswith(".safetensors")
+            ]
+            vae_files = [
+                os.path.join(pretrained_weight_folder, 'vae', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'vae'))
+                if filename.endswith(".safetensors")
+            ]
+            image_files = [
+                os.path.join(pretrained_weight_folder, 'image_encoder', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'image_encoder'))
+                if filename.endswith(".safetensors")
+            ]
+
+            print(f"transformer_files: {transformer_files}")
+            print(f"text_files: {text_files}")
+            print(f"vae_files: {vae_files}")
+            print(f"image_files: {image_files}")
+            state_dict = [
+                load_weight(
+                    transformer_files,
+                    prefix_keys={"": "transformer."},
+                ),
+                load_weight(
+                    text_files,
+                    prefix_keys={"": "text."},
+                ),
+                load_weight(
+                    image_files,
+                    prefix_keys={"": "image."},
+                ),
+                load_weight(
+                    vae_files,
+                    prefix_keys={"": "vae."},
+                ),
+            ]
+        elif weight_path is None and pretrained_infos is not None:
             state_dict = [
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),
