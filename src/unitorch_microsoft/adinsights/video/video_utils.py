@@ -166,8 +166,6 @@ class VideoProcessor(ImageProcessor):
             sample_rate = [sample_rate]
         return sample_rate
 
-    @add_default_section_for_function("microsoft/adinsights/process/video")
-
     @classmethod
     @add_default_section_for_init("microsoft/adinsights/process/video")
     def from_core_configure(cls, config, **kwargs):
@@ -253,7 +251,7 @@ class VideoProcessor(ImageProcessor):
     def _read(
         self,
         video,
-        sample_strategy='fix',
+        sample_strategy=None,
         sample_frame_num=None,
         start_frame=None,
         sample_rate=None,
@@ -289,6 +287,9 @@ class VideoProcessor(ImageProcessor):
             sample_frame_num = len(sample_rate)
 
         assert sample_frame_num != None and sample_frame_num > 0
+        assert sample_strategy != None, "sample_strategy is None"
+        print(f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}")
+
         try:
             print(f"process video {video}")
             if video.startswith("http://") or video.startswith("https://"):
