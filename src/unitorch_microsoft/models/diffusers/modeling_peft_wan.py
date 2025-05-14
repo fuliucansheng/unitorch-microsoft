@@ -1,11 +1,14 @@
-# Copyright (c) FULIUCANSHENG.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 import os
 import json
 import torch
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from torch import autocast
+
 import diffusers.schedulers as schedulers
+from peft import LoraConfig
 from transformers import (
     PretrainedConfig,
     UMT5Config,
@@ -22,7 +25,7 @@ from diffusers.training_utils import (
     compute_density_for_timestep_sampling,
 )
 from diffusers.models import (
-    AutoencoderKLWan,
+    # AutoencoderKLWan,
     WanTransformer3DModel,
 )
 from diffusers.pipelines import (
@@ -35,32 +38,34 @@ from unitorch.models import (
     QuantizationConfig,
     QuantizationMixin,
 )
-from unitorch.models.peft import PeftWeightLoaderMixin
+from unitorch.models.peft import GenericPeftModel
 from unitorch.models.diffusers import compute_snr
-
-from unitorch.cli import (
-    cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
-    register_model,
-)
 from unitorch.utils import (
     pop_value,
     nested_dict_value,
     is_bfloat16_available,
     is_cuda_available,
 )
+from unitorch.cli import (
+    cached_path,
+    add_default_section_for_init,
+    add_default_section_for_function,
+    register_model,
+)
+from unitorch.cli.models import DiffusionOutputs, LossOutputs
+from unitorch.cli.models import diffusion_model_decorator
 from unitorch.cli.models.diffusers import (
     pretrained_stable_infos,
     pretrained_stable_extensions_infos,
     load_weight,
 )
-from torch import autocast
-from unitorch.cli.models import diffusion_model_decorator
-from unitorch.cli.models import DiffusionOutputs, LossOutputs
+from unitorch_microsoft.models.diffusers.modeling_wan_utils import (
+    DiagonalGaussianDistribution,
+    AutoencoderKLWan,
+)
 
 
-class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
+class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
     prefix_keys_in_state_dict = {
         # vae weights
         "^encoder.*": "vae.",
@@ -88,10 +93,18 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
         out_channels: Optional[int] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
-        freeze_vae_encoder: Optional[bool] = True,
-        freeze_text_encoder: Optional[bool] = True,
-        freeze_transformer_encoder: Optional[bool] = False,
         snr_gamma: Optional[float] = 5.0,
+        lora_r: Optional[int] = 16,
+        lora_alpha: Optional[int] = 32,
+        lora_dropout: Optional[float] = 0.05,
+        fan_in_fan_out: Optional[bool] = True,
+        target_modules: Optional[Union[List[str], str]] = [
+            "to_q",
+            "to_k",
+            "to_v",
+        ],
+        enable_text_adapter: Optional[bool] = True,
+        enable_transformer_adapter: Optional[bool] = True,
         seed: Optional[int] = 1123,
     ):
         super().__init__()
@@ -129,23 +142,37 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
         scheduler_config_dict["num_train_timesteps"] = num_train_timesteps
         self.scheduler = scheduler_class.from_config(scheduler_config_dict)
 
-        if freeze_vae_encoder:
-            for param in self.vae.parameters():
+        for param in self.vae.parameters():
+            param.requires_grad = False
+
+        for param in self.text.parameters():
+            param.requires_grad = False
+
+        if image_config_path is not None:
+            for param in self.image.parameters():
                 param.requires_grad = False
 
-        if freeze_text_encoder:
-            for param in self.text.parameters():
-                param.requires_grad = False
-
-        if freeze_transformer_encoder:
-            for param in self.transformer.parameters():
-                param.requires_grad = False
+        for param in self.transformer.parameters():
+            param.requires_grad = False
 
         if quant_config_path is not None:
             self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
             self.quantize(
                 self.quant_config, ignore_modules=["lm_head", "transformer", "vae"]
             )
+
+        lora_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            init_lora_weights="gaussian",
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+        )
+        if enable_text_adapter:
+            self.text.add_adapter(lora_config)
+        if enable_transformer_adapter:
+            self.transformer.add_adapter(lora_config)
 
     def get_sigmas(self, timesteps, n_dim=4, dtype=torch.float32):
         sigmas = self.scheduler.sigmas.to(device=self.device, dtype=dtype)
@@ -167,12 +194,15 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
         enable_cpu_offload: Optional[bool] = False,
         cpu_offload_device: Optional[str] = "cpu",
     ):
-        if enable_cpu_offload:
-            self.text.to(cpu_offload_device)
-            input_ids = input_ids.to(cpu_offload_device)
-            attention_mask = attention_mask.to(cpu_offload_device)
-            negative_input_ids = negative_input_ids.to(cpu_offload_device)
-            negative_attention_mask = negative_attention_mask.to(cpu_offload_device)
+        if self.enable_cpu_offload:
+            self.text.to(self.cpu_offload_device)
+            input_ids = input_ids.to(self.cpu_offload_device)
+            attention_mask = attention_mask.to(self.cpu_offload_device)
+            negative_input_ids = negative_input_ids.to(self.cpu_offload_device)
+            negative_attention_mask = negative_attention_mask.to(
+                self.cpu_offload_device
+            )
+
         prompt_embeds = self.text(
             input_ids,
             attention_mask,
@@ -185,19 +215,22 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
         negative_prompt_embeds = (
             negative_prompt_embeds * negative_attention_mask.unsqueeze(-1)
         )
-        if enable_cpu_offload:
+        if self.enable_cpu_offload:
             self.text.to("cpu")
         return GenericOutputs(
             prompt_embeds=prompt_embeds.to("cpu")
-            if enable_cpu_offload
+            if self.enable_cpu_offload
             else prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds.to("cpu")
-            if enable_cpu_offload
+            if self.enable_cpu_offload
             else negative_prompt_embeds,
         )
 
-@register_model("microsoft/model/diffusers/text2video/wan", diffusion_model_decorator)
-class WanForText2VideoGeneration(GenericWanModel):
+
+@register_model(
+    "microsoft/model/diffusers/peft/lora/text2video/wan", diffusion_model_decorator
+)
+class WanLoraForText2VideoGeneration(GenericWanLoraModel):
     def __init__(
         self,
         config_path: str,
@@ -209,11 +242,21 @@ class WanForText2VideoGeneration(GenericWanModel):
         out_channels: Optional[int] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
-        freeze_vae_encoder: Optional[bool] = True,
-        freeze_text_encoder: Optional[bool] = True,
         snr_gamma: Optional[float] = 5.0,
+        lora_r: Optional[int] = 16,
+        lora_alpha: Optional[int] = 32,
+        lora_dropout: Optional[float] = 0.05,
+        fan_in_fan_out: Optional[bool] = True,
+        target_modules: Optional[Union[List[str], str]] = [
+            "to_q",
+            "to_k",
+            "to_v",
+        ],
+        enable_text_adapter: Optional[bool] = True,
+        enable_transformer_adapter: Optional[bool] = True,
         seed: Optional[int] = 1123,
         gradient_checkpointing: Optional[bool] = True,
+        latent_option: Optional[int] = 3,
     ):
         super().__init__(
             config_path=config_path,
@@ -225,11 +268,17 @@ class WanForText2VideoGeneration(GenericWanModel):
             out_channels=out_channels,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
-            freeze_vae_encoder=freeze_vae_encoder,
-            freeze_text_encoder=freeze_text_encoder,
             snr_gamma=snr_gamma,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            enable_text_adapter=enable_text_adapter,
+            enable_transformer_adapter=enable_transformer_adapter,
             seed=seed,
         )
+
         if gradient_checkpointing:
             self.transformer.enable_gradient_checkpointing()
 
@@ -241,12 +290,13 @@ class WanForText2VideoGeneration(GenericWanModel):
             tokenizer=None,
         )
         self.pipeline.set_progress_bar_config(disable=True)
+        self.latent_option = latent_option
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/text2video/wan")
+    @add_default_section_for_init("microsoft/model/diffusers/peft/lora/text2video/wan")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/diffusers/text2video/wan")
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-t2i-1.3B")
+        config.set_default_section("microsoft/model/diffusers/peft/lora/text2video/wan")
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-t2v-1.3b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -285,10 +335,33 @@ class WanForText2VideoGeneration(GenericWanModel):
         out_channels = config.getoption("out_channels", None)
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
-        freeze_vae_encoder = config.getoption("freeze_vae_encoder", True)
-        freeze_text_encoder = config.getoption("freeze_text_encoder", True)
         snr_gamma = config.getoption("snr_gamma", 5.0)
+        lora_r = config.getoption("lora_r", 16)
+        lora_alpha = config.getoption("lora_alpha", 32)
+        lora_dropout = config.getoption("lora_dropout", 0.05)
+        fan_in_fan_out = config.getoption("fan_in_fan_out", True)
+        target_modules = config.getoption(
+            "target_modules",
+            [
+                "to_q",
+                "to_k",
+                "to_v",
+            ],
+        )
+        replace_keys = config.getoption(
+            "replace_keys",
+            {
+                "to_q.": "to_q.base_layer.",
+                "to_k.": "to_k.base_layer.",
+                "to_v.": "to_v.base_layer.",
+            },
+        )
+        enable_text_adapter = config.getoption("enable_text_adapter", True)
+        enable_transformer_adapter = config.getoption(
+            "enable_transformer_adapter", True
+        )
         seed = config.getoption("seed", 1123)
+        latent_option = config.getoption("latent_option", 3)
         gradient_checkpointing = config.getoption("gradient_checkpointing", True)
 
         inst = cls(
@@ -301,11 +374,17 @@ class WanForText2VideoGeneration(GenericWanModel):
             out_channels=out_channels,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
-            freeze_vae_encoder=freeze_vae_encoder,
-            freeze_text_encoder=freeze_text_encoder,
             snr_gamma=snr_gamma,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            enable_text_adapter=enable_text_adapter,
+            enable_transformer_adapter=enable_transformer_adapter,
             seed=seed,
             gradient_checkpointing=gradient_checkpointing,
+            latent_option=latent_option,
         )
 
         weight_path = config.getoption("pretrained_weight_path", None)
@@ -314,15 +393,24 @@ class WanForText2VideoGeneration(GenericWanModel):
         state_dict = None
         if pretrained_weight_folder is not None:
             transformer_files = [
-                os.path.join(pretrained_weight_folder, 'transformer', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'transformer'))
+                os.path.join(pretrained_weight_folder, "transformer", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "transformer")
+                )
                 if filename.endswith(".safetensors")
             ]
             text_files = [
-                os.path.join(pretrained_weight_folder, 'text_encoder', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'text_encoder'))
+                os.path.join(pretrained_weight_folder, "text_encoder", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "text_encoder")
+                )
                 if filename.endswith(".safetensors")
             ]
             vae_files = [
-                os.path.join(pretrained_weight_folder, 'vae', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'vae'))
+                os.path.join(pretrained_weight_folder, "vae", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "vae")
+                )
                 if filename.endswith(".safetensors")
             ]
             print(f"transformer_files: {transformer_files}")
@@ -332,10 +420,12 @@ class WanForText2VideoGeneration(GenericWanModel):
                 load_weight(
                     transformer_files,
                     prefix_keys={"": "transformer."},
+                    replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
                     text_files,
                     prefix_keys={"": "text."},
+                    replace_keys=replace_keys if enable_text_adapter else {},
                 ),
                 load_weight(
                     vae_files,
@@ -347,49 +437,33 @@ class WanForText2VideoGeneration(GenericWanModel):
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),
                     prefix_keys={"": "transformer."},
+                    replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
                     nested_dict_value(pretrained_infos, "text", "weight"),
                     prefix_keys={"": "text."},
+                    replace_keys=replace_keys if enable_text_adapter else {},
                 ),
                 load_weight(
                     nested_dict_value(pretrained_infos, "vae", "weight"),
                     prefix_keys={"": "vae."},
                 ),
             ]
+        elif weight_path is not None:
+            state_dict = load_weight(weight_path)
 
-        inst.from_pretrained(weight_path, state_dict=state_dict)
-
-        pretrained_lora_names = config.getoption("pretrained_lora_names", None)
-        pretrained_lora_weights = config.getoption("pretrained_lora_weights", 1.0)
-
-        if isinstance(pretrained_lora_names, str):
-            pretrained_lora_weights_path = nested_dict_value(
-                pretrained_stable_extensions_infos,
-                pretrained_lora_names,
-                "lora",
-                "weight",
-            )
-        elif isinstance(pretrained_lora_names, list):
-            pretrained_lora_weights_path = [
-                nested_dict_value(
-                    pretrained_stable_extensions_infos, name, "lora", "weight"
-                )
-                for name in pretrained_lora_names
-            ]
-        else:
-            pretrained_lora_weights_path = None
-
-        lora_weights_path = config.getoption(
-            "pretrained_lora_weights_path", pretrained_lora_weights_path
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
         )
-        if lora_weights_path is not None:
-            inst.load_lora_weights(
-                lora_weights_path,
-                pretrained_lora_weights,
-                replace_keys={},
-                save_base_state=False,
-            )
+        if pretrained_lora_weight_path is not None:
+            lora_state_dict = load_weight(pretrained_lora_weight_path)
+            if state_dict is not None:
+                state_dict.append(lora_state_dict)
+            else:
+                state_dict = lora_state_dict
+
+        if state_dict is not None:
+            inst.from_pretrained(state_dict=state_dict)
         return inst
 
     @autocast(
@@ -402,44 +476,82 @@ class WanForText2VideoGeneration(GenericWanModel):
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
     ):
-        latents = self.vae.encode(pixel_values).latent_dist.mode()
+        # Option 1
+        if self.latent_option == 1:
+            latents = self.vae.encode(pixel_values).latent_dist.mode()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
+
+        # Option 2
+        elif self.latent_option == 2:
+            latents = self.vae._encode(pixel_values)
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+
+            mu, logvar = torch.chunk(latents, 2, dim=1)
+            mu = (mu - latents_mean) * latents_std
+            logvar = (logvar - latents_mean) * latents_std
+            latents = torch.cat([mu, logvar], dim=1)
+
+            posterior = DiagonalGaussianDistribution(latents)
+            latents = posterior.sample()
+
+        # Option 3
+        elif self.latent_option == 3:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
+        elif self.latent_option == 4:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.shape[0]
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(latents.device, latents.dtype)
-        )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-            1, self.vae.config.z_dim, 1, 1, 1
-        ).to(latents.device, latents.dtype)
-        latents = (latents - latents_mean) * latents_std
 
-        # u = compute_density_for_timestep_sampling(
-        #     weighting_scheme="none",
-        #     batch_size=batch,
-        #     logit_mean=0.0,
-        #     logit_std=1.0,
-        #     mode_scale=1.29,
+        u = compute_density_for_timestep_sampling(
+            weighting_scheme="none",
+            batch_size=batch,
+            logit_mean=0.0,
+            logit_std=1.0,
+            mode_scale=1.29,
+        )
+        indices = (u * self.scheduler.config.num_train_timesteps).long()
+        timesteps = self.scheduler.timesteps[indices].to(device=self.device)
+
+        sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
+        noise_latents = (1.0 - sigmas) * latents + sigmas * noise
+
+        # timesteps = torch.randint(
+        #     0,
+        #     self.scheduler.config.num_train_timesteps,
+        #     (batch,),
+        #     device=pixel_values.device,
+        # ).long()
+
+        # noise_latents = self.scheduler.add_noise(
+        #     latents,
+        #     noise,
+        #     timesteps,
         # )
-        # indices = (u * self.scheduler.config.num_train_timesteps).long()
-        # timesteps = self.scheduler.timesteps[indices].to(device=self.device)
-
-        # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
-        # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-
-        timesteps = torch.randint(
-            0,
-            self.scheduler.config.num_train_timesteps,
-            (batch,),
-            device=pixel_values.device,
-        ).long()
-
-        noise_latents = self.scheduler.add_noise(
-            latents,
-            noise,
-            timesteps,
-        )
 
         encoder_hidden_states = self.text(input_ids, attention_mask)[0]
         outputs = self.transformer(
@@ -447,21 +559,23 @@ class WanForText2VideoGeneration(GenericWanModel):
             timesteps,
             encoder_hidden_states,
         ).sample
-        # weighting = compute_loss_weighting_for_sd3(
-        #     weighting_scheme="none", sigmas=sigmas
-        # )
-        # target = noise - latents
-        # loss = torch.mean(
-        #     (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
-        #         target.shape[0], -1
-        #     ),
-        #     1,
-        # )
-        # loss = loss.mean()
-        loss = F.mse_loss(outputs, noise, reduction="mean")
+        weighting = compute_loss_weighting_for_sd3(
+            weighting_scheme="none", sigmas=sigmas
+        )
+        target = noise - latents
+        loss = torch.mean(
+            (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
+                target.shape[0], -1
+            ),
+            1,
+        )
+        loss = loss.mean()
+        # loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
-    
-    @add_default_section_for_function("microsoft/model/diffusers/text2video/wan")
+
+    @add_default_section_for_function(
+        "microsoft/model/diffusers/peft/lora/text2video/wan"
+    )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
         dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
@@ -476,22 +590,12 @@ class WanForText2VideoGeneration(GenericWanModel):
         width: Optional[int] = 832,
         num_frames: Optional[int] = 81,
         guidance_scale: Optional[float] = 5.0,
-        enable_cpu_offload: Optional[bool] = False,
-        cpu_offload_device: Optional[str] = None,
     ):
-        if cpu_offload_device is None:
-            cpu_offload_device = torch.cuda.current_device()
-        
-        if enable_cpu_offload and cpu_offload_device != "cpu":
-            self.pipeline.enable_model_cpu_offload(cpu_offload_device)
-    
         outputs = self.get_prompt_outputs(
             input_ids=input_ids,
             negative_input_ids=negative_input_ids,
             attention_mask=attention_mask,
             negative_attention_mask=negative_attention_mask,
-            enable_cpu_offload=enable_cpu_offload,
-            cpu_offload_device=cpu_offload_device,
         )
 
         frames = self.pipeline(
@@ -508,10 +612,13 @@ class WanForText2VideoGeneration(GenericWanModel):
             output_type="pt",
         ).frames
 
-        return DiffusionOutputs(outputs=frames.float())
+        return DiffusionOutputs(outputs=frames)
 
-@register_model("microsoft/model/diffusers/image2video/wan", diffusion_model_decorator)
-class WanForImage2VideoGeneration(GenericWanModel):
+
+@register_model(
+    "microsoft/model/diffusers/peft/lora/image2video/wan", diffusion_model_decorator
+)
+class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
     def __init__(
         self,
         config_path: str,
@@ -524,11 +631,21 @@ class WanForImage2VideoGeneration(GenericWanModel):
         out_channels: Optional[int] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
-        freeze_vae_encoder: Optional[bool] = True,
-        freeze_text_encoder: Optional[bool] = True,
         snr_gamma: Optional[float] = 5.0,
+        lora_r: Optional[int] = 16,
+        lora_alpha: Optional[int] = 32,
+        lora_dropout: Optional[float] = 0.05,
+        fan_in_fan_out: Optional[bool] = True,
+        target_modules: Optional[Union[List[str], str]] = [
+            "to_q",
+            "to_k",
+            "to_v",
+        ],
+        enable_text_adapter: Optional[bool] = True,
+        enable_transformer_adapter: Optional[bool] = True,
         seed: Optional[int] = 1123,
         gradient_checkpointing: Optional[bool] = True,
+        latent_option: Optional[int] = 3,
     ):
         super().__init__(
             config_path=config_path,
@@ -541,9 +658,14 @@ class WanForImage2VideoGeneration(GenericWanModel):
             out_channels=out_channels,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
-            freeze_vae_encoder=freeze_vae_encoder,
-            freeze_text_encoder=freeze_text_encoder,
             snr_gamma=snr_gamma,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            enable_text_adapter=enable_text_adapter,
+            enable_transformer_adapter=enable_transformer_adapter,
             seed=seed,
         )
         if gradient_checkpointing:
@@ -559,12 +681,15 @@ class WanForImage2VideoGeneration(GenericWanModel):
             image_processor=None,
         )
         self.pipeline.set_progress_bar_config(disable=True)
+        self.latent_option = latent_option
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/image2video/wan")
+    @add_default_section_for_init("microsoft/model/diffusers/peft/lora/image2video/wan")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/diffusers/image2video/wan")
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-i2v-14B")
+        config.set_default_section(
+            "microsoft/model/diffusers/peft/lora/image2video/wan"
+        )
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-i2v-14b-480p")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -610,11 +735,34 @@ class WanForImage2VideoGeneration(GenericWanModel):
         out_channels = config.getoption("out_channels", None)
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
-        freeze_vae_encoder = config.getoption("freeze_vae_encoder", True)
-        freeze_text_encoder = config.getoption("freeze_text_encoder", True)
         snr_gamma = config.getoption("snr_gamma", 5.0)
+        lora_r = config.getoption("lora_r", 16)
+        lora_alpha = config.getoption("lora_alpha", 32)
+        lora_dropout = config.getoption("lora_dropout", 0.05)
+        fan_in_fan_out = config.getoption("fan_in_fan_out", True)
+        target_modules = config.getoption(
+            "target_modules",
+            [
+                "to_q",
+                "to_k",
+                "to_v",
+            ],
+        )
+        replace_keys = config.getoption(
+            "replace_keys",
+            {
+                "to_q.": "to_q.base_layer.",
+                "to_k.": "to_k.base_layer.",
+                "to_v.": "to_v.base_layer.",
+            },
+        )
+        enable_text_adapter = config.getoption("enable_text_adapter", True)
+        enable_transformer_adapter = config.getoption(
+            "enable_transformer_adapter", True
+        )
         seed = config.getoption("seed", 1123)
         gradient_checkpointing = config.getoption("gradient_checkpointing", True)
+        latent_option = config.getoption("latent_option", 3)
 
         inst = cls(
             config_path=config_path,
@@ -627,33 +775,50 @@ class WanForImage2VideoGeneration(GenericWanModel):
             out_channels=out_channels,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
-            freeze_vae_encoder=freeze_vae_encoder,
-            freeze_text_encoder=freeze_text_encoder,
             snr_gamma=snr_gamma,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            enable_text_adapter=enable_text_adapter,
+            enable_transformer_adapter=enable_transformer_adapter,
             seed=seed,
             gradient_checkpointing=gradient_checkpointing,
+            latent_option=latent_option,
         )
 
         weight_path = config.getoption("pretrained_weight_path", None)
-
         pretrained_weight_folder = config.getoption("pretrained_weight_folder", None)
 
         state_dict = None
         if pretrained_weight_folder is not None:
             transformer_files = [
-                os.path.join(pretrained_weight_folder, 'transformer', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'transformer'))
+                os.path.join(pretrained_weight_folder, "transformer", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "transformer")
+                )
                 if filename.endswith(".safetensors")
             ]
             text_files = [
-                os.path.join(pretrained_weight_folder, 'text_encoder', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'text_encoder'))
+                os.path.join(pretrained_weight_folder, "text_encoder", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "text_encoder")
+                )
                 if filename.endswith(".safetensors")
             ]
             vae_files = [
-                os.path.join(pretrained_weight_folder, 'vae', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'vae'))
+                os.path.join(pretrained_weight_folder, "vae", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "vae")
+                )
                 if filename.endswith(".safetensors")
             ]
             image_files = [
-                os.path.join(pretrained_weight_folder, 'image_encoder', filename) for filename in os.listdir(os.path.join(pretrained_weight_folder, 'image_encoder'))
+                os.path.join(pretrained_weight_folder, "image_encoder", filename)
+                for filename in os.listdir(
+                    os.path.join(pretrained_weight_folder, "image_encoder")
+                )
                 if filename.endswith(".safetensors")
             ]
 
@@ -665,10 +830,12 @@ class WanForImage2VideoGeneration(GenericWanModel):
                 load_weight(
                     transformer_files,
                     prefix_keys={"": "transformer."},
+                    replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
                     text_files,
                     prefix_keys={"": "text."},
+                    replace_keys=replace_keys if enable_text_adapter else {},
                 ),
                 load_weight(
                     image_files,
@@ -684,10 +851,12 @@ class WanForImage2VideoGeneration(GenericWanModel):
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),
                     prefix_keys={"": "transformer."},
+                    replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
                     nested_dict_value(pretrained_infos, "text", "weight"),
                     prefix_keys={"": "text."},
+                    replace_keys=replace_keys if enable_text_adapter else {},
                 ),
                 load_weight(
                     nested_dict_value(pretrained_infos, "image", "weight"),
@@ -698,43 +867,21 @@ class WanForImage2VideoGeneration(GenericWanModel):
                     prefix_keys={"": "vae."},
                 ),
             ]
-
         elif weight_path is not None:
             state_dict = load_weight(weight_path)
 
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        if pretrained_lora_weight_path is not None:
+            lora_state_dict = load_weight(pretrained_lora_weight_path)
+            if state_dict is not None:
+                state_dict.append(lora_state_dict)
+            else:
+                state_dict = lora_state_dict
+
         if state_dict is not None:
             inst.from_pretrained(state_dict=state_dict)
-
-        pretrained_lora_names = config.getoption("pretrained_lora_names", None)
-        pretrained_lora_weights = config.getoption("pretrained_lora_weights", 1.0)
-
-        if isinstance(pretrained_lora_names, str):
-            pretrained_lora_weights_path = nested_dict_value(
-                pretrained_stable_extensions_infos,
-                pretrained_lora_names,
-                "lora",
-                "weight",
-            )
-        elif isinstance(pretrained_lora_names, list):
-            pretrained_lora_weights_path = [
-                nested_dict_value(
-                    pretrained_stable_extensions_infos, name, "lora", "weight"
-                )
-                for name in pretrained_lora_names
-            ]
-        else:
-            pretrained_lora_weights_path = None
-
-        lora_weights_path = config.getoption(
-            "pretrained_lora_weights_path", pretrained_lora_weights_path
-        )
-        if lora_weights_path is not None:
-            inst.load_lora_weights(
-                lora_weights_path,
-                pretrained_lora_weights,
-                replace_keys={},
-                save_base_state=False,
-            )
         return inst
 
     @autocast(
@@ -749,47 +896,84 @@ class WanForImage2VideoGeneration(GenericWanModel):
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
     ):
-        latents = self.vae.encode(pixel_values).latent_dist.mode()
+        # Option 1
+        if self.latent_option == 1:
+            latents = self.vae.encode(pixel_values).latent_dist.mode()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
+
+        # Option 2
+        elif self.latent_option == 2:
+            latents = self.vae._encode(pixel_values)
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+
+            mu, logvar = torch.chunk(latents, 2, dim=1)
+            mu = (mu - latents_mean) * latents_std
+            logvar = (logvar - latents_mean) * latents_std
+            latents = torch.cat([mu, logvar], dim=1)
+
+            posterior = DiagonalGaussianDistribution(latents)
+            latents = posterior.sample()
+
+        # Option 3
+        elif self.latent_option == 3:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+            latents_mean = (
+                torch.tensor(self.vae.config.latents_mean)
+                .view(1, self.vae.config.z_dim, 1, 1, 1)
+                .to(latents.device, latents.dtype)
+            )
+            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            ).to(latents.device, latents.dtype)
+            latents = (latents - latents_mean) * latents_std
+        # Option 4
+        elif self.latent_option == 4:
+            latents = self.vae.encode(pixel_values).latent_dist.sample()
+
         noise = torch.randn(latents.shape).to(latents.device)
         batch = latents.shape[0]
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(latents.device, latents.dtype)
+        u = compute_density_for_timestep_sampling(
+            weighting_scheme="none",
+            batch_size=batch,
+            logit_mean=0.0,
+            logit_std=1.0,
+            mode_scale=1.29,
         )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(
-            1, self.vae.config.z_dim, 1, 1, 1
-        ).to(latents.device, latents.dtype)
-        latents = (latents - latents_mean) * latents_std
+        indices = (u * self.scheduler.config.num_train_timesteps).long()
+        timesteps = self.scheduler.timesteps[indices].to(device=self.device)
 
-        # u = compute_density_for_timestep_sampling(
-        #     weighting_scheme="none",
-        #     batch_size=batch,
-        #     logit_mean=0.0,
-        #     logit_std=1.0,
-        #     mode_scale=1.29,
+        sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
+        noise_latents = (1.0 - sigmas) * latents + sigmas * noise
+
+        # timesteps = torch.randint(
+        #     0,
+        #     self.scheduler.config.num_train_timesteps,
+        #     (batch,),
+        #     device=pixel_values.device,
+        # ).long()
+
+        # noise_latents = self.scheduler.add_noise(
+        #     latents,
+        #     noise,
+        #     timesteps,
         # )
-        # indices = (u * self.scheduler.config.num_train_timesteps).long()
-        # timesteps = self.scheduler.timesteps[indices].to(device=self.device)
-
-        # sigmas = self.get_sigmas(timesteps, n_dim=latents.ndim, dtype=latents.dtype)
-        # noise_latents = (1.0 - sigmas) * latents + sigmas * noise
-
-        timesteps = torch.randint(
-            0,
-            self.scheduler.config.num_train_timesteps,
-            (batch,),
-            device=pixel_values.device,
-        ).long()
-
-        noise_latents = self.scheduler.add_noise(
-            latents,
-            noise,
-            timesteps,
-        )
 
         num_frames = pixel_values.shape[-3]
-
         video_condition = torch.cat(
             [
                 vae_pixel_values.unsqueeze(2),
@@ -804,6 +988,7 @@ class WanForImage2VideoGeneration(GenericWanModel):
             ],
             dim=2,
         )
+
         latent_condition = self.vae.encode(video_condition).latent_dist.mode()
         latent_condition = latent_condition.repeat(latents.shape[0], 1, 1, 1, 1).to(
             latents.dtype
@@ -844,21 +1029,23 @@ class WanForImage2VideoGeneration(GenericWanModel):
             encoder_hidden_states=encoder_hidden_states,
             encoder_hidden_states_image=condition_hidden_states,
         ).sample
-        # weighting = compute_loss_weighting_for_sd3(
-        #     weighting_scheme="none", sigmas=sigmas
-        # )
-        # target = noise - latents
-        # loss = torch.mean(
-        #     (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
-        #         target.shape[0], -1
-        #     ),
-        #     1,
-        # )
-        # loss = loss.mean()
-        loss = F.mse_loss(outputs, noise, reduction="mean")
+        weighting = compute_loss_weighting_for_sd3(
+            weighting_scheme="none", sigmas=sigmas
+        )
+        target = noise - latents
+        loss = torch.mean(
+            (weighting.float() * (outputs.float() - target.float()) ** 2).reshape(
+                target.shape[0], -1
+            ),
+            1,
+        )
+        loss = loss.mean()
+        # loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function("microsoft/model/diffusers/image2video/wan")
+    @add_default_section_for_function(
+        "microsoft/model/diffusers/peft/lora/image2video/wan"
+    )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
         dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
@@ -873,36 +1060,18 @@ class WanForImage2VideoGeneration(GenericWanModel):
         negative_attention_mask: Optional[torch.Tensor] = None,
         num_frames: Optional[int] = 81,
         guidance_scale: Optional[float] = 5.0,
-        enable_cpu_offload: Optional[bool] = False,
-        cpu_offload_device: Optional[str] = None,
     ):
-        if cpu_offload_device is None:
-            cpu_offload_device = torch.cuda.current_device()
-        
-        if enable_cpu_offload and cpu_offload_device != "cpu":
-            self.pipeline.enable_model_cpu_offload(cpu_offload_device)
-
-
         outputs = self.get_prompt_outputs(
             input_ids=input_ids,
             negative_input_ids=negative_input_ids,
             attention_mask=attention_mask,
             negative_attention_mask=negative_attention_mask,
-            enable_cpu_offload=enable_cpu_offload,
-            cpu_offload_device=cpu_offload_device,
         )
 
-        if enable_cpu_offload:
-            self.image.to(device=cpu_offload_device)
-        
         condition_hidden_states = self.image(
-            condition_pixel_values.to(device=cpu_offload_device),
+            condition_pixel_values,
             output_hidden_states=True,
         ).hidden_states[-2]
-
-        if enable_cpu_offload:
-            self.image.to(device="cpu")
-            condition_hidden_states = condition_hidden_states.to("cpu")
 
         frames = self.pipeline(
             image=vae_pixel_values,
@@ -920,4 +1089,4 @@ class WanForImage2VideoGeneration(GenericWanModel):
             output_type="pt",
         ).frames
 
-        return DiffusionOutputs(outputs=frames.float())
+        return DiffusionOutputs(outputs=outputs.frames)

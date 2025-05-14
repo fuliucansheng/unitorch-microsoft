@@ -64,7 +64,12 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         if sample == "equally spaced":
             raise NotImplementedError  # need to pass in the corresponding parameters
         else:
-            assert 'fps' in kwargs and 'sample_factor' in kwargs and kwargs["fps"] > 0 and kwargs["sample_factor"] > 0
+            assert (
+                "fps" in kwargs
+                and "sample_factor" in kwargs
+                and kwargs["fps"] > 0
+                and kwargs["sample_factor"] > 0
+            )
             interval = round(kwargs["fps"] / kwargs["sample_factor"])
             needed_frames = (acc_samples - 1) * interval
 
@@ -79,7 +84,12 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
                 start=start, stop=min(vlen - 1, start + needed_frames), num=acc_samples
             ).astype(int)
     elif sample == "middle":
-        assert 'fps' in kwargs and 'sample_factor' in kwargs and kwargs["fps"] > 0 and kwargs["sample_factor"] > 0
+        assert (
+            "fps" in kwargs
+            and "sample_factor" in kwargs
+            and kwargs["fps"] > 0
+            and kwargs["sample_factor"] > 0
+        )
         interval = round(kwargs["fps"] / kwargs["sample_factor"])
         needed_frames = (acc_samples - 1) * interval
         fix_start = max(0, vlen // 2 - needed_frames // 2)
@@ -91,12 +101,17 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
         )
 
     elif sample == "fix":
-        assert 'sample_rate' in kwargs and kwargs["sample_rate"] != None
+        assert "sample_rate" in kwargs and kwargs["sample_rate"] != None
         frame_idxs = [
             min(math.floor(vlen * i), vlen - 1) for i in kwargs["sample_rate"]
         ]
     elif sample == "middlefix":
-        assert 'fps' in kwargs and 'sample_factor' in kwargs and kwargs["fps"] > 0 and kwargs["sample_factor"] > 0
+        assert (
+            "fps" in kwargs
+            and "sample_factor" in kwargs
+            and kwargs["fps"] > 0
+            and kwargs["sample_factor"] > 0
+        )
         interval = round(kwargs["fps"] / kwargs["sample_factor"])
         needed_frames = (acc_samples - 1) * interval
         fix_start = max(0, vlen // 2 - needed_frames // 2)
@@ -107,7 +122,7 @@ def sample_frames(num_frames, vlen, sample="uniform", **kwargs):
             dtype=int,
         )
 
-        assert 'sample_rate' in kwargs and kwargs["sample_rate"] != None
+        assert "sample_rate" in kwargs and kwargs["sample_rate"] != None
         vlensample = len(middle_idxs)
         idxs = [
             min(math.floor(vlensample * i), vlensample - 1)
@@ -124,6 +139,7 @@ class VideoProcessor(ImageProcessor):
     """
     Processor for video-related operations.
     """
+
     def __init__(
         self,
         video_type: Optional[str] = None,
@@ -282,13 +298,15 @@ class VideoProcessor(ImageProcessor):
         sample_factor = (
             sample_factor if sample_factor is not None else self.sample_factor
         )
-        
+
         if sample_frame_num is None and sample_rate != None:
             sample_frame_num = len(sample_rate)
 
         assert sample_frame_num != None and sample_frame_num > 0
         assert sample_strategy != None, "sample_strategy is None"
-        print(f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}")
+        print(
+            f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}"
+        )
 
         try:
             print(f"process video {video}")

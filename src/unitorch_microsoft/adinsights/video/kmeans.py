@@ -278,6 +278,7 @@ def model_factory(model_name: str, **kwargs) -> KMeansFamily:
     else:
         raise ValueError(f"Unknown model name: {model_name}")
 
+
 def wandb_login(wandb_entity):
     """
     Login to Weights & Biases (wandb) using the API key from the environment variable.
@@ -285,14 +286,14 @@ def wandb_login(wandb_entity):
     if "WANDB_API_KEY" in os.environ:
         try:
             assert wandb_entity is not None, "wandb entity is None"
-            wandb.login(key=os.getenv("WANDB_API_KEY"),relogin=True)
+            wandb.login(key=os.getenv("WANDB_API_KEY"), relogin=True)
             current_time = time.strftime("%m/%d/%Y/%H", time.localtime())
             wandb.init(
                 project="kmeans",
                 entity=wandb_entity,
                 name=f"kmeans_{current_time}",
             )
-            print( "wandb login success")
+            print("wandb login success")
         except:
             print("Failed to login to wandb. Please check your API key.")
             return False
@@ -328,7 +329,7 @@ def cluster_data(
     - labels: Cluster labels for each sample
     - centroids: Centroids of the clusters
     """
-    #setup wandb
+    # setup wandb
     use_wandb_flag = False
     if use_wandb:
         use_wandb_flag = wandb_login(wandb_entity)

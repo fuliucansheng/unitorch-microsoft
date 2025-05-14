@@ -20,7 +20,23 @@ def save_image(folder, image):
     return f"{folder}/{name}"
 
 
-def main(
+def crop_image(image, ratio, step, folder):
+    w, h = image.size
+    if w / h > ratio:
+        crop_w, crop_h = int(h * ratio), h
+    else:
+        crop_w, crop_h = w, int(w / ratio)
+    step_w, step_h = int(crop_w * step), int(crop_h * step)
+    for i in range(0, w - crop_w + 1, step_w):
+        for j in range(0, h - crop_h + 1, step_h):
+            box = (i, j, i + crop_w, j + crop_h)
+            cropped_image = image.crop(box)
+            cropped_image.save(os.path.join(folder, f"crop_{i}_{j}.jpg"))
+
+    return
+
+
+def crop(
     data_file: str,
     cache_dir: str,
     names: Union[str, List[str]],
@@ -73,4 +89,8 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    fire.Fire(
+        {
+            "crop": crop,
+        }
+    )

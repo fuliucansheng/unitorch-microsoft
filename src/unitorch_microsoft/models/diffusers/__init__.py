@@ -76,6 +76,6 @@ import unitorch_microsoft.models.diffusers.pipeline_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_stable_flux
 import unitorch_microsoft.models.diffusers.modeling_stable
 import unitorch_microsoft.models.diffusers.modeling_vae
-import unitorch_microsoft.models.diffusers.modeling_wan_base
-import unitorch_microsoft.models.diffusers.processing_wan
 import unitorch_microsoft.models.diffusers.modeling_wan
+import unitorch_microsoft.models.diffusers.modeling_peft_wan
+import unitorch_microsoft.models.diffusers.processing_wan
