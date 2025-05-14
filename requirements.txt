@@ -3,3 +3,7 @@ transformers<=4.49.0
 unitorch>=0.0.0.30,<0.0.1.0
 multiprocess<=0.70.14
 importlib_resources
+decord
+wandb
+imageio[ffmpeg]
+imageio[pyav]
