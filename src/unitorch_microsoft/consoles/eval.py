@@ -15,6 +15,7 @@ from unitorch.cli import (
     registered_script,
     init_registered_module,
 )
+import unitorch.cli.wandb as wandb
 from unitorch_microsoft import cached_path
 
 
@@ -41,10 +42,14 @@ def eval(config_path: str, **kwargs):
         for library in depends_libraries:
             import_library(library)
 
+    wandb.setup(config)
+
     assert task_name is not None and task_name in registered_task
     cli_task = init_registered_module(task_name, config, registered_task)
 
     cli_task.eval()
+
+    wandb.finish()
 
     os._exit(0)
 
