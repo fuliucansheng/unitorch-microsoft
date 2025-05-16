@@ -314,6 +314,11 @@ def cluster_data(
     cache_dir: str = "output",
     use_wandb=False,
     wandb_entity=None,
+    need_visualization=False,
+    need_evaluate=True,
+    sample_n_clusters=50,
+    sample_n_samples=5,
+    sample_movement=True,
 ):
     """
     Cluster the data using KMeans.
@@ -373,29 +378,50 @@ def cluster_data(
     print(f"Model fitting time: {time_end - time_start:.2f} seconds")
 
     # evaluate
-    time_start = time.time()
-    model.evaluate(features)
-    time_end = time.time()
-    print(f"Model evaluation time: {time_end - time_start:.2f} seconds")
+    if need_evaluate:
+        time_start = time.time()
+        model.evaluate(features)
+        time_end = time.time()
+        print(f"Model evaluation time: {time_end - time_start:.2f} seconds")
 
     # visualization
-    time_start = time.time()
-    output_file = os.path.join(cache_dir, f"vis_{model_name}.png")
-    model.visualize(features, output_file)
-    time_end = time.time()
-    print(f"Model visualization time: {time_end - time_start:.2f} seconds")
+    if need_visualization:
+        time_start = time.time()
+        output_file = os.path.join(cache_dir, f"vis_{model_name}.png")
+        model.visualize(features, output_file)
+        time_end = time.time()
+        print(f"Model visualization time: {time_end - time_start:.2f} seconds")
 
     # sample for case check
     output_file = f"{cache_dir}/sample.tsv"
+    centroids = model.get_centroids()
+    sample_clusters = np.random.choice(range(len(centroids)), size=min(sample_n_clusters, len(centroids)), replace=False)
+    print(f"sample clusters {sample_clusters}")
+    if sample_movement:
+        sample_movement_folder = os.path.join(cache_dir, 'samples_vis')
+        if not os.path.exists(sample_movement_folder):
+            os.makedirs(sample_movement_folder, exist_ok=True)
+
     with open(output_file, "w") as writer:
-        for i in range(len(model.get_centroids())):
-            samples = model.sample_within_clusters(i)
+        for i in sample_clusters:
+            samples = model.sample_within_clusters(i, k=sample_n_samples)
             for sample in samples:
-                metainfo = (
-                    "/home/lichenshih/VideoProcess/video_processing/" + metas[sample]
-                )
-                writer.write(str(i) + "\t" + metainfo + "\n")
+                src_file = metas[sample]
+                try:
+                    _,ext = src_file.split('.')
+                except:
+                    ext = 'mp4'
+                target_file = os.path.join(sample_movement_folder, f"sample_{i}_{sample}.{ext}")
+                writer.write(str(i) + "\t" + src_file + "\t"+ target_file+"\n")
                 writer.flush()
+                if sample_movement:
+                    src_file = os.path.join('/datablob/shutterstock/', src_file)
+                    if not os.path.exists(target_file):
+                        os.system(f"cp {src_file} {target_file}")
+                        print(f"copy {src_file} to {target_file}")
+                    else:
+                        print(f"file {target_file} already exists")
+    
     output_file = f"{cache_dir}/labels.tsv"
     with open(output_file, "w") as writer:
         for meta, label in zip(metas, model.labels()):
