@@ -352,6 +352,12 @@ def process_chunk(
     sample_strategy,
     sample_frame_num,
     sample_rate,
+    data_type,
+    connect_key,
+    account_name,
+    subfolder,
+    resize_image_height,
+    resize_image_width,
 ):
     def get_base64(image):
         # image = Image.open(image).convert("RGB")
@@ -361,6 +367,49 @@ def process_chunk(
         image.save(image_buffer, format="JPEG")
         image_buffer.seek(0)
         return base64.b64encode(image_buffer.getvalue()).decode()
+    
+    def azure_login(connect_key, account_name, container_name):
+        '''
+        intall required packages: pip3 install azure-storage-blob azure-identity
+        '''
+        from azure.storage.blob import BlobServiceClient
+        from azure.storage.blob import BlobClient, ContentSettings
+
+        connect_str = (
+            "DefaultEndpointsProtocol=https;AccountName="
+            + account_name
+            + ";AccountKey="
+            + connect_key
+            + ";EndpointSuffix=core.windows.net"
+        )
+        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+        container_client = blob_service_client.get_container_client(container_name)
+        return container_client
+    
+    def get_azureurl(data, container_client, savename, container_name, subfolder):
+        from azure.storage.blob import BlobServiceClient
+        from azure.storage.blob import BlobClient, ContentSettings
+
+        if np.all(np.array(data) == [255, 255, 255]):
+            return None
+        
+        img_bytes = io.BytesIO()
+        data.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+        
+
+        #print(f"type of data: {type(data)} type of img_bytes: {type(img_bytes)}")
+        try:
+            remote_name = subfolder + "/" + savename
+            #print("remote_name: ", remote_name)
+            image_blob = container_client.get_blob_client(remote_name)
+            image_blob.upload_blob(img_bytes, overwrite=True)
+            url = f"https://{account_name}.blob.core.windows.net/i2v/{container_name}/{remote_name}"
+            #print(url)
+            return url
+        except Exception as e:
+            #print("upload img2azure failed {!r}".format(e))
+            return None
 
     if process_id == num_processes - 1:
         chunk_size = total_rows - chunk_start + 1
@@ -375,14 +424,37 @@ def process_chunk(
         sample_frame_num=sample_frame_num,
         sample_rate=sample_rate,
     )
+
     res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
+    if data_type == "url":
+        container_name = "videoproc"
+        container_client = azure_login(connect_key, account_name, container_name)
+    else:
+        container_name = "videoproc"
+        container_client = None
+    #print(f"azure login success {container_client}")
+
     with open(res_file, "w") as f:
         for video in chunks:
             frames = processor._read(video)
             for index, frame in enumerate(frames):
-                base64_str = get_base64(frame)
-                if base64_str != None:
-                    f.write(video + f".{index}.png" + "\t" + base64_str + "\n")
+                if resize_image_height != None or resize_image_width != None:
+                    if resize_image_height != None and resize_image_width != None:
+                        resize_image_size = (resize_image_width, resize_image_height)
+                    elif resize_image_width != None:
+                        resize_image_size = (resize_image_width, int(frame.size[1] * resize_image_width / frame.size[0]))
+                    elif resize_image_height != None:
+                        resize_image_size = (int(frame.size[0] * resize_image_height / frame.size[1]), resize_image_height)                    
+                    frame = frame.resize(resize_image_size)
+
+                if data_type == "url":
+                    img_url = get_azureurl(frame, container_client, video + f".{index}.png", container_name, subfolder)
+                    if img_url != None:
+                        f.write(video + f".{index}.png" + "\t" + img_url + "\n")
+                else:
+                    base64_str = get_base64(frame)
+                    if base64_str != None:
+                        f.write(video + f".{index}.png" + "\t" + base64_str + "\n")
 
 
 def extract_frame(
@@ -394,6 +466,12 @@ def extract_frame(
     sample_factor=16,
     sample_rate=[0.1, 0.5, 0.9],
     cache_dir="output",
+    data_type="base64",
+    connect_key=None,
+    account_name="i2v",
+    subfolder="ExtractFrame",
+    resize_image_height = None,
+    resize_image_width = None,
 ):
     import re
     import pandas as pd
@@ -410,6 +488,7 @@ def extract_frame(
         sep="\t",
         quoting=3,
         header=None,
+        nrows=20
     )
     os.makedirs(cache_dir, exist_ok=True)
     assert video_col in data.columns, f"Column {video_col} not found in data."
@@ -420,6 +499,12 @@ def extract_frame(
     chunk_size = total_rows // num_processes
     start = time.time()
     print(f"need to process {total_rows} videos")
+
+    if data_type == "url":
+        assert connect_key != None, "connect_key is None"
+
+    
+    
 
     # for gpu: failed
     # process_chunk(videos, 0, chunk_size, len(videos), cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate)
@@ -438,6 +523,12 @@ def extract_frame(
                 sample_strategy,
                 sample_frame_num,
                 sample_rate,
+                data_type,
+                connect_key,
+                account_name,
+                subfolder,
+                resize_image_height,
+                resize_image_width,
             )
             for i in range(num_processes)
         ]
