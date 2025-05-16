@@ -401,6 +401,7 @@ def cluster_data(
         sample_movement_folder = os.path.join(cache_dir, 'samples_vis')
         if not os.path.exists(sample_movement_folder):
             os.makedirs(sample_movement_folder, exist_ok=True)
+        assert os.path.exists(sample_movement_folder), f"sample movement folder {sample_movement_folder} not found"
 
     with open(output_file, "w") as writer:
         for i in sample_clusters:
@@ -419,6 +420,8 @@ def cluster_data(
                     if not os.path.exists(target_file):
                         os.system(f"cp {src_file} {target_file}")
                         print(f"copy {src_file} to {target_file}")
+                        if not os.path.exists(target_file):
+                            print(f"copy {src_file} to {target_file} failed")
                     else:
                         print(f"file {target_file} already exists")
     
