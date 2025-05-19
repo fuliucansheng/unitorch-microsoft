@@ -488,7 +488,6 @@ def extract_frame(
         sep="\t",
         quoting=3,
         header=None,
-        nrows=20
     )
     os.makedirs(cache_dir, exist_ok=True)
     assert video_col in data.columns, f"Column {video_col} not found in data."
