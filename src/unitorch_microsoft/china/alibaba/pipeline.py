@@ -33,9 +33,9 @@ except ImportError:
     )
 
 pretrained_bletchley_infos = {
-    "0.3B": "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.3B.bin",
-    "0.8B": "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
-    "2.5B": "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
+    "0.3B": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.3B.bin",
+    "0.8B": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.8B.bin",
+    "2.5B": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.2.5B.bin",
 }
 
 

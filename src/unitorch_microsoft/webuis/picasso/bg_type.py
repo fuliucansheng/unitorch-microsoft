@@ -87,7 +87,7 @@ class BackgroundTypeWebUI(SimpleWebUI):
         self._pipe = BletchleyForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2410.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2410.bin",
             label_dict={
                 "complex": "complex detailed environment, detailed surroundings",
                 "simple": "minimal clean background",

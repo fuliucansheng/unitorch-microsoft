@@ -4,19 +4,19 @@
 # pretrained infos
 pretrained_tulr_infos = {
     "tulrv6-base": {
-        "config": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/config.json",
-        "vocab": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/sentencepiece.bpe.model",
-        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/base/pytorch_model.bin",
+        "config": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/base/config.json",
+        "vocab": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/base/sentencepiece.bpe.model",
+        "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/base/pytorch_model.bin",
     },
     "tulrv6-large": {
-        "config": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/large/config.json",
-        "vocab": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/large/sentencepiece.bpe.model",
-        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/large/pytorch_model.bin",
+        "config": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/large/config.json",
+        "vocab": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/large/sentencepiece.bpe.model",
+        "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/large/pytorch_model.bin",
     },
     "tulrv6-xlarge": {
-        "config": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/xlarge/config.json",
-        "vocab": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/xlarge/sentencepiece.bpe.model",
-        "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/tulrv6/xlarge/pytorch_model.bin",
+        "config": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/xlarge/config.json",
+        "vocab": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/xlarge/sentencepiece.bpe.model",
+        "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/tulrv6/xlarge/pytorch_model.bin",
     },
 }
 

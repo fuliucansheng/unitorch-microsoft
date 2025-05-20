@@ -443,7 +443,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         Categorys = read_file(
             cached_path(
                 # hf_endpoint_url(
-                classname  # "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt"
+                classname  # "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt"
                 # )
             ),
             lines=True,
@@ -515,7 +515,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         topk = config.getoption("topk", 3)
         classname = config.getoption(
             "classname",
-            "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt",
+            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt",
         )
         config_path = pop_value(
             config_path,
@@ -648,7 +648,7 @@ class ClipZeroClassificationProcessor:
         Categorys = read_file(
             cached_path(
                 # hf_endpoint_url(
-                classname  # "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt"
+                classname  # "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt"
                 # )
             ),
             lines=True,
@@ -703,7 +703,7 @@ class ClipZeroClassificationProcessor:
     def from_core_configure(cls, config, **kwargs):
         classname = config.getoption(
             "classname",
-            "https://unitorchazureblob.blob.core.windows.net/shares/data/ImageCategorys.txt",
+            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt",
         )
         topk = config.getoption("topk", 3)
         inst = cls(topk=topk, classname=classname)

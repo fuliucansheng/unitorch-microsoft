@@ -29,8 +29,8 @@ except ImportError:
     )
 
 pretrained_bletchley_infos = {
-    "0.8B": "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.base.bin",
-    "2.5B": "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
+    "0.8B": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.base.bin",
+    "2.5B": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
 }
 
 

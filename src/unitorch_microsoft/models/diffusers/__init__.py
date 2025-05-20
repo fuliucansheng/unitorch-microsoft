@@ -34,37 +34,37 @@ pretrained_ms_stable_extensions_infos = {
     },
     "stable-flux-lora-ms-dev-recraft": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.ms.lora.recraft.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.ms.lora.recraft.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-simple": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.simple.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.simple.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-debug-1": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.1.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.1.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-debug-2": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.2.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.2.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-debug-3": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.3.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.3.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-debug-4": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.4.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.4.bin"
         }
     },
     "stable-flux-lora-ms-dev-fill-debug-5": {
         "lora": {
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.5.bin"
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.debug.5.bin"
         }
     },
 }

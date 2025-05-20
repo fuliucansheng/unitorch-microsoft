@@ -10,7 +10,7 @@ pretrained_sam_extensions_infos.update(
     {
         "sam-lora-dis5k": {
             "text": "use box as prompt",
-            "weight": "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/pytorch_model.sam.large.lora4.2409.bin",
+            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/pytorch_model.sam.large.lora4.2409.bin",
         },
     }
 )

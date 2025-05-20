@@ -471,7 +471,7 @@ class TribertForClassification(GenericModel):
         )
         config_path = config.getoption(
             "config_path",
-            "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/relevance/tribert/config.json",
+            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/relevance/tribert/config.json",
         )
         config_path = cached_path(config_path)
         num_tasks = config.getoption("num_tasks", 1)
@@ -500,7 +500,7 @@ class TribertForClassification(GenericModel):
 
         weight_path = config.getoption(
             "pretrained_weight_path",
-            "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/relevance/tribert/pytorch_model.v2.bin",
+            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/relevance/tribert/pytorch_model.v2.bin",
         )
         if weight_path is not None:
             inst.from_pretrained(weight_path)

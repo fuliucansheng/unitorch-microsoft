@@ -128,8 +128,8 @@ class ImgInsightsWebUI(SimpleWebUI):
         self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="0.8B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.8B.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
             label_dict={
                 "complex": "complex background, objects in the background or even no background",
                 "simple": "clean background, no objects in the background",
@@ -143,7 +143,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         self._pipe2 = BletchleyV3ForImageClassificationPipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/image/pytorch_model.bletchley.v3.cate.2502.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/image/pytorch_model.bletchley.v3.cate.2502.bin",
             id2label={
                 0: "Animals",
                 1: "Plants",
@@ -169,8 +169,8 @@ class ImgInsightsWebUI(SimpleWebUI):
         self._pipe3 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.2.5B.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
             label_dict={
                 "blurry": "blurry",
             },
@@ -179,7 +179,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         self._pipe4 = BletchleyV3ForImageClassificationPipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/image/pytorch_model.bletchley.v3.cate.2.2502.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/image/pytorch_model.bletchley.v3.cate.2.2502.bin",
             id2label={
                 0: "Sports & Fitness",
                 1: "Home & Garden",
@@ -209,8 +209,8 @@ class ImgInsightsWebUI(SimpleWebUI):
         self._pipe5 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
             label_dict={
                 "watermark": "watermarked, no watermark signature, brand logo",
             },

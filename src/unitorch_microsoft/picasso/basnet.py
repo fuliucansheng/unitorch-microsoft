@@ -555,7 +555,7 @@ class BASNetForSegmentationPipeline(BASNetForSegmentation):
 
         weight_path = config.getoption(
             "pretrained_weight_path",
-            "https://unitorchazureblob.blob.core.windows.net/shares/models/picasso/pytorch_model.basnet.jewelry.2503.bin",
+            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.basnet.jewelry.2503.bin",
         )
         if weight_path is not None:
             inst.from_pretrained(

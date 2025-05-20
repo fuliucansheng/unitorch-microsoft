@@ -91,7 +91,7 @@ class GettyImageSelectionWebUI(SimpleWebUI):
         self._pipe = BletchleyGettyImageSelectionPipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/image/pytorch_model.bletchley.v1.retrieval.61.28.bin",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/image/pytorch_model.bletchley.v1.retrieval.61.28.bin",
         )
         self._status = "Running"
         return self._status

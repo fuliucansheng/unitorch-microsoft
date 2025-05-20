@@ -4,6 +4,7 @@
 import hashlib
 import socket
 import subprocess
+from unitorch_microsoft import cached_path
 
 
 def get_random_port():
@@ -22,7 +23,7 @@ def start_http_server():
         [
             "unitorch-service",
             "start",
-            "services/http_files.ini",
+            cached_path("services/http_files.ini"),
             "--daemon_mode",
             "False",
             "--html_dir",

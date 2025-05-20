@@ -18,7 +18,7 @@ pretrained_llava_infos = {
                 "/llava-hf/llava-v1.6-mistral-7b-hf/resolve/main/tokenizer.model"
             ),
             "weight": [
-                "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin"
+                "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.2.5B.bin"
             ]
             + [
                 hf_endpoint_url(
@@ -35,7 +35,7 @@ pretrained_llava_infos = {
                 "/llava-hf/llava-v1.6-mistral-7b-hf/resolve/main/tokenizer.model"
             ),
             "weight": [
-                "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin"
+                "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin"
             ]
             + [
                 hf_endpoint_url(
@@ -52,7 +52,7 @@ pretrained_llava_infos = {
                 "/llava-hf/llava-v1.6-mistral-7b-hf/resolve/main/tokenizer.model"
             ),
             "weight": [
-                "https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/MMAExtensionFinetune/pytorch_model.bin"
+                "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/MMAExtensionFinetune/pytorch_model.bin"
             ]
             + [
                 hf_endpoint_url(

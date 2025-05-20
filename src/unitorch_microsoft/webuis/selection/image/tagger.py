@@ -90,7 +90,7 @@ class ImageTaggerSelectionWebUI(SimpleWebUI):
         self._pipe = BletchleyImageTaggerSelectionPipeline.from_core_configure(
             self._config,
             config_type="0.8B",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.retrieval.0.8B.64d.lora.p3.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.retrieval.0.8B.64d.lora.p3.bin",
             output_embed_dim=64,
         )
         self._status = "Running"

@@ -133,7 +133,7 @@ class SiglipForImageClassification(GenericModel):
         if weight_path is not None:
             weight_path = [
                 weight_path,
-                "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/diffusion/pytorch_model.siglip.msra.bin",
+                "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/diffusion/pytorch_model.siglip.msra.bin",
             ]
             inst.from_pretrained(weight_path)
 
@@ -253,7 +253,7 @@ class LAIONClipForImageClassification(GenericModel):
         if weight_path is not None:
             weight_path = [
                 weight_path,
-                "https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/diffusion/pytorch_model.laion_clip.sac.logos.ava1.l14.msra.bin",
+                "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/diffusion/pytorch_model.laion_clip.sac.logos.ava1.l14.msra.bin",
             ]
             inst.from_pretrained(weight_path)
 

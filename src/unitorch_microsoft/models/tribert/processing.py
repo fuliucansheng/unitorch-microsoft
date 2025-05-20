@@ -15,7 +15,7 @@ from unitorch.cli.models import TensorsInputs
 from unitorch_microsoft import cached_path
 
 
-# https://unitorchazureblob.blob.core.windows.net/shares/models/l3g.txt
+# https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/l3g.txt
 class TriTokenizer:
     def __init__(
         self,
@@ -94,7 +94,7 @@ class TribertProcessor:
         vocab_file = config.getdefault(
             "microsoft/process/tribert",
             "vocab_file",
-            "https://unitorchazureblob.blob.core.windows.net/shares/models/l3g.txt",
+            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/l3g.txt",
         )
         vocab_file = cached_path(vocab_file)
 
