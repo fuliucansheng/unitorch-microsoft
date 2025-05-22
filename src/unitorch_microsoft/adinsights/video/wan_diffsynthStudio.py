@@ -136,6 +136,53 @@ def image2video(
     data = pd.read_csv(data_file, names=names, sep="\t", quoting=3, header=None)
     os.makedirs(cache_dir, exist_ok=True)
     output_file = f"{cache_dir}/output.jsonl"
+    if os.path.exists(output_file):
+        print(f"Before df {len(data)} ")
+        uniques = []
+        with open(output_file, "r") as f:
+            for line in f:
+                row = json.loads(line)
+                uniques.append(
+                    row["prompt"]
+                    + " - "
+                    + row["neg_prompt"]
+                    + " - "
+                    + row["start_frame"]
+                    + " - "
+                    + row["end_frame"]
+                )
+        print(f"unique size {len(uniques)}")
+        data = data[
+            ~data.apply(
+                lambda x: (
+                    x[prompt_col]
+                    if prompt_col is not None and not pd.isna(x[prompt_col])
+                    else ""
+                )
+                + " - "
+                + (
+                    x[neg_prompt_col]
+                    if neg_prompt_col is not None and not pd.isna(x[neg_prompt_col])
+                    else ""
+                )
+                + " - "
+                + (
+                    x[start_frame_col]
+                    if start_frame_col is not None and not pd.isna(x[start_frame_col])
+                    else ""
+                )
+                + " - "
+                + (
+                    x[end_frame_col]
+                    if end_frame_col is not None and not pd.isna(x[end_frame_col])
+                    else ""
+                )
+                in uniques,
+                axis=1,
+            )
+        ]
+        print(f"Need to handle {len(data)} files")
+    
     writer = open(output_file, "a+")
 
     assert prompt_col in data.columns, f"Column {prompt_col} not found in data."
