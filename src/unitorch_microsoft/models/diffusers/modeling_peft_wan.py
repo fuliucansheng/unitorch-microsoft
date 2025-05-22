@@ -990,7 +990,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         )
 
         latent_condition = self.vae.encode(video_condition).latent_dist.mode()
-        latent_condition = latent_condition.repeat(latents.shape[0], 1, 1, 1, 1).to(
+        latent_condition = latent_condition.to(
             latents.dtype
         )
         latent_condition = (latent_condition - latents_mean) * latents_std
