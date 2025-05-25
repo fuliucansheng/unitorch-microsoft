@@ -104,7 +104,7 @@ def _parse_args():
     parser.add_argument(
         "--GPU_memory_mode",
         type=str,
-        default="sequential_cpu_offload",
+        default="model_cpu_offload",
         help="GPU memory mode, e.g., 'sequential_cpu_offload'"
     )
     parser.add_argument(
