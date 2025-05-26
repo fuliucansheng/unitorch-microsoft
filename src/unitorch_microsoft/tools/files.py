@@ -39,7 +39,7 @@ def list_folder(
             for f in os.listdir(folder)
             if f.split(".")[-1] in extensions
         ]
-    output = pd.DataFrame({"file": files})
+    output = pd.DataFrame({"file": data_files})
     output.to_csv(
         output_file,
         index=False,

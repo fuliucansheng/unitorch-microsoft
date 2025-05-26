@@ -6,4 +6,3 @@ importlib_resources
 decord
 wandb
 imageio[ffmpeg]
-imageio[pyav]

@@ -26,6 +26,7 @@ from unitorch_microsoft.spaces import (
 from unitorch_microsoft.spaces.picasso.dashboard import DashboardWebUI
 from unitorch_microsoft.spaces.picasso.img_insights import ImgInsightsWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect import ROIDetectWebUI
+from unitorch_microsoft.spaces.picasso.roi_detect_v2 import ROIDetectV2WebUI
 from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
 from unitorch_microsoft.spaces.picasso.obj_generate import GenerateObjectWebUI
 
@@ -42,11 +43,13 @@ dashboards = [
 expand_bg_page = ExpandBGWebUI(spaces_settings).iface
 img_insights_page = ImgInsightsWebUI(spaces_settings).iface
 roi_detect_page = ROIDetectWebUI(spaces_settings).iface
+roi_detect_page_v2 = ROIDetectV2WebUI(spaces_settings).iface
 obj_generate_page = GenerateObjectWebUI(spaces_settings).iface
 
 examples_pages = [
     img_insights_page,
     roi_detect_page,
+    roi_detect_page_v2,
     expand_bg_page,
     obj_generate_page,
 ]

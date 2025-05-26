@@ -395,13 +395,19 @@ def cluster_data(
     # sample for case check
     output_file = f"{cache_dir}/sample.tsv"
     centroids = model.get_centroids()
-    sample_clusters = np.random.choice(range(len(centroids)), size=min(sample_n_clusters, len(centroids)), replace=False)
+    sample_clusters = np.random.choice(
+        range(len(centroids)),
+        size=min(sample_n_clusters, len(centroids)),
+        replace=False,
+    )
     print(f"sample clusters {sample_clusters}")
     if sample_movement:
-        sample_movement_folder = os.path.join(cache_dir, 'samples_vis')
+        sample_movement_folder = os.path.join(cache_dir, "samples_vis")
         if not os.path.exists(sample_movement_folder):
             os.makedirs(sample_movement_folder, exist_ok=True)
-        assert os.path.exists(sample_movement_folder), f"sample movement folder {sample_movement_folder} not found"
+        assert os.path.exists(
+            sample_movement_folder
+        ), f"sample movement folder {sample_movement_folder} not found"
 
     with open(output_file, "w") as writer:
         for i in sample_clusters:
@@ -409,14 +415,16 @@ def cluster_data(
             for sample in samples:
                 src_file = metas[sample]
                 try:
-                    _,ext = src_file.split('.')
+                    _, ext = src_file.split(".")
                 except:
-                    ext = 'mp4'
-                target_file = os.path.join(sample_movement_folder, f"sample_{i}_{sample}.{ext}")
-                writer.write(str(i) + "\t" + src_file + "\t"+ target_file+"\n")
+                    ext = "mp4"
+                target_file = os.path.join(
+                    sample_movement_folder, f"sample_{i}_{sample}.{ext}"
+                )
+                writer.write(str(i) + "\t" + src_file + "\t" + target_file + "\n")
                 writer.flush()
                 if sample_movement:
-                    src_file = os.path.join('/datablob/shutterstock/', src_file)
+                    src_file = os.path.join("/datablob/shutterstock/", src_file)
                     if not os.path.exists(target_file):
                         os.system(f"cp {src_file} {target_file}")
                         print(f"copy {src_file} to {target_file}")
@@ -424,7 +432,7 @@ def cluster_data(
                             print(f"copy {src_file} to {target_file} failed")
                     else:
                         print(f"file {target_file} already exists")
-    
+
     output_file = f"{cache_dir}/labels.tsv"
     with open(output_file, "w") as writer:
         for meta, label in zip(metas, model.labels()):
