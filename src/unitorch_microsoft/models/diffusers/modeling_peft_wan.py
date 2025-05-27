@@ -612,7 +612,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             output_type="pt",
         ).frames
 
-        return DiffusionOutputs(outputs=frames)
+        return DiffusionOutputs(outputs=frames.float())
 
 
 @register_model(
@@ -990,9 +990,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         )
 
         latent_condition = self.vae.encode(video_condition).latent_dist.mode()
-        latent_condition = latent_condition.to(
-            latents.dtype
-        )
+        latent_condition = latent_condition.to(latents.dtype)
         latent_condition = (latent_condition - latents_mean) * latents_std
 
         mask_lat_size = torch.ones(
@@ -1089,4 +1087,4 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
             output_type="pt",
         ).frames
 
-        return DiffusionOutputs(outputs=outputs.frames)
+        return DiffusionOutputs(outputs=frames.float())

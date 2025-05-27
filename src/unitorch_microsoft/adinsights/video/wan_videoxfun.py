@@ -1,5 +1,6 @@
 import torch
-#from diffsynth import ModelManager, WanVideoPipeline, save_video, VideoData
+
+# from diffsynth import ModelManager, WanVideoPipeline, save_video, VideoData
 from PIL import Image
 import fire
 import os
@@ -15,15 +16,26 @@ import argparse
 import random
 import sys
 from videox_fun.dist import set_multi_gpus_devices, shard_model
-from videox_fun.models import (AutoencoderKLWan, AutoTokenizer, CLIPModel,
-                              WanT5EncoderModel, WanTransformer3DModel)
+from videox_fun.models import (
+    AutoencoderKLWan,
+    AutoTokenizer,
+    CLIPModel,
+    WanT5EncoderModel,
+    WanTransformer3DModel,
+)
 from videox_fun.models.cache_utils import get_teacache_coefficients
 from videox_fun.pipeline import WanI2VPipeline
-from videox_fun.utils.fp8_optimization import (convert_model_weight_to_float8, replace_parameters_by_name,
-                                              convert_weight_dtype_wrapper)
+from videox_fun.utils.fp8_optimization import (
+    convert_model_weight_to_float8,
+    replace_parameters_by_name,
+    convert_weight_dtype_wrapper,
+)
 from videox_fun.utils.lora_utils import merge_lora, unmerge_lora
-from videox_fun.utils.utils import (filter_kwargs, get_image_to_video_latent,
-                                   save_videos_grid)
+from videox_fun.utils.utils import (
+    filter_kwargs,
+    get_image_to_video_latent,
+    save_videos_grid,
+)
 from videox_fun.utils.fm_solvers import FlowDPMSolverMultistepScheduler
 from videox_fun.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
 
@@ -33,6 +45,7 @@ from diffusers import FlowMatchEulerDiscreteScheduler
 from omegaconf import OmegaConf
 from PIL import Image
 from transformers import AutoTokenizer
+
 
 def readimg(imagefile, cache_dir, max_area, return_bytes=True):
     try:
@@ -58,43 +71,48 @@ def readimg(imagefile, cache_dir, max_area, return_bytes=True):
         print(e)
         return None
 
+
 def generation(pipe, generator, start_frame, prompt, negative_prompt, args):
     print(f"Process video gen for {start_frame}")
     max_area = args.sample_size[0] * args.sample_size[1]
     image = readimg(start_frame, args.cache_dir, max_area)
-    width,height = image.size
+    width, height = image.size
 
     if image == None:
         return None
     print("finish read img")
     try:
         with torch.no_grad():
-            input_video, input_video_mask, clip_image = get_image_to_video_latent([image], None, video_length=args.video_length, sample_size=[height, width])
-            sample = pipe(
-                prompt, 
-                num_frames = args.video_length,
-                negative_prompt = negative_prompt + "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards",
-                height      = height,
-                width       = width,
-                generator   = generator,
-                guidance_scale = args.guidance_scale,
-                num_inference_steps = args.num_inference_steps,
-
-                video      = input_video,
-                mask_video   = input_video_mask,
-                clip_image = clip_image,
-                shift = args.shift,
-            ).videos
-                
-            name = (
-                hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
+            input_video, input_video_mask, clip_image = get_image_to_video_latent(
+                [image],
+                None,
+                video_length=args.video_length,
+                sample_size=[height, width],
             )
+            sample = pipe(
+                prompt,
+                num_frames=args.video_length,
+                negative_prompt=negative_prompt
+                + "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards",
+                height=height,
+                width=width,
+                generator=generator,
+                guidance_scale=args.guidance_scale,
+                num_inference_steps=args.num_inference_steps,
+                video=input_video,
+                mask_video=input_video_mask,
+                clip_image=clip_image,
+                shift=args.shift,
+            ).videos
+
+            name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
             name = os.path.join(args.cache_dir, name)
             save_videos_grid(sample, name, fps=args.fps)
             return name
     except Exception as e:
         print(e)
         return None
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -105,242 +123,194 @@ def _parse_args():
         "--GPU_memory_mode",
         type=str,
         default="model_cpu_offload",
-        help="GPU memory mode, e.g., 'sequential_cpu_offload'"
+        help="GPU memory mode, e.g., 'sequential_cpu_offload'",
     )
     parser.add_argument(
-        "--ulysses_degree",
-        type=int,
-        default=1,
-        help="Ulysses parallelism degree"
+        "--ulysses_degree", type=int, default=1, help="Ulysses parallelism degree"
     )
     parser.add_argument(
-        "--ring_degree",
-        type=int,
-        default=1,
-        help="Ring attention parallelism degree"
+        "--ring_degree", type=int, default=1, help="Ring attention parallelism degree"
     )
     parser.add_argument(
         "--fsdp_dit",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for DiT."
+        help="Whether to use FSDP for DiT.",
     )
     parser.add_argument(
         "--fsdp_text_encoder",
         action="store_true",
         default=True,
-        help="Whether to use FSDP for text encoder."
+        help="Whether to use FSDP for text encoder.",
     )
     parser.add_argument(
         "--compile_dit",
         action="store_true",
         default=False,
-        help="Enable torch.compile for DiT."
+        help="Enable torch.compile for DiT.",
     )
     parser.add_argument(
-        "--enable_teacache",
-        action="store_true",
-        default=True,
-        help="Enable TeaCache."
+        "--enable_teacache", action="store_true", default=True, help="Enable TeaCache."
     )
     parser.add_argument(
-        "--teacache_threshold",
-        type=float,
-        default=0.10,
-        help="TeaCache threshold"
+        "--teacache_threshold", type=float, default=0.10, help="TeaCache threshold"
     )
     parser.add_argument(
         "--num_skip_start_steps",
         type=int,
         default=5,
-        help="Number of steps to skip TeaCache at start"
+        help="Number of steps to skip TeaCache at start",
     )
     parser.add_argument(
         "--teacache_offload",
         action="store_true",
         default=False,
-        help="Offload TeaCache tensors to CPU"
+        help="Offload TeaCache tensors to CPU",
     )
     parser.add_argument(
-        "--cfg_skip_ratio",
-        type=float,
-        default=0,
-        help="CFG skip ratio"
+        "--cfg_skip_ratio", type=float, default=0, help="CFG skip ratio"
     )
     parser.add_argument(
-        "--enable_riflex",
-        action="store_true",
-        default=False,
-        help="Enable Riflex"
+        "--enable_riflex", action="store_true", default=False, help="Enable Riflex"
     )
     parser.add_argument(
         "--riflex_k",
         type=int,
         default=6,
-        help="Index of intrinsic frequency for Riflex"
+        help="Index of intrinsic frequency for Riflex",
     )
     parser.add_argument(
         "--config_path",
         type=str,
         default="config/wan2.1/wan_civitai.yaml",
-        help="Path to config file"
+        help="Path to config file",
     )
     parser.add_argument(
         "--model_name",
         type=str,
         default="models/Diffusion_Transformer/Wan2.1-I2V-14B-480P",
-        help="Model name or path"
+        help="Model name or path",
     )
     parser.add_argument(
         "--sampler_name",
         type=str,
         default="Flow_Unipc",
         choices=["Flow", "Flow_Unipc", "Flow_DPM++"],
-        help="Sampler name"
+        help="Sampler name",
     )
     parser.add_argument(
-        "--shift",
-        type=float,
-        default=3,
-        help="Noise schedule shift parameter"
+        "--shift", type=float, default=3, help="Noise schedule shift parameter"
     )
     parser.add_argument(
         "--transformer_path",
         type=str,
         default=None,
-        help="Path to pretrained transformer checkpoint"
+        help="Path to pretrained transformer checkpoint",
     )
     parser.add_argument(
-        "--vae_path",
-        type=str,
-        default=None,
-        help="Path to pretrained VAE checkpoint"
+        "--vae_path", type=str, default=None, help="Path to pretrained VAE checkpoint"
     )
     parser.add_argument(
-        "--lora_path",
-        type=str,
-        default=None,
-        help="Path to LoRA checkpoint"
+        "--lora_path", type=str, default=None, help="Path to LoRA checkpoint"
     )
     parser.add_argument(
         "--sample_size",
         type=lambda s: [int(x) for x in s.split(",")],
         default="480,832",
-        help="Sample size as 'height,width'"
+        help="Sample size as 'height,width'",
     )
     parser.add_argument(
-        "--video_length",
-        type=int,
-        default=81,
-        help="Video length (number of frames)"
+        "--video_length", type=int, default=81, help="Video length (number of frames)"
     )
-    parser.add_argument(
-        "--fps",
-        type=int,
-        default=16,
-        help="Frames per second"
-    )
+    parser.add_argument("--fps", type=int, default=16, help="Frames per second")
     parser.add_argument(
         "--weight_dtype",
         type=str,
         default="bfloat16",
         choices=["bfloat16", "float16"],
-        help="Weight dtype"
+        help="Weight dtype",
     )
     parser.add_argument(
         "--guidance_scale",
         type=float,
         default=6.0,
-        help="Guidance scale for classifier-free guidance"
+        help="Guidance scale for classifier-free guidance",
     )
+    parser.add_argument("--seed", type=int, default=43, help="Random seed")
     parser.add_argument(
-        "--seed",
-        type=int,
-        default=43,
-        help="Random seed"
+        "--num_inference_steps", type=int, default=40, help="Number of inference steps"
     )
+    parser.add_argument("--lora_weight", type=float, default=0.55, help="LoRA weight")
     parser.add_argument(
-        "--num_inference_steps",
-        type=int,
-        default=40,
-        help="Number of inference steps"
-    )
-    parser.add_argument(
-        "--lora_weight",
-        type=float,
-        default=0.55,
-        help="LoRA weight"
-    )
-    parser.add_argument(
-        "--data_file",
-        type=str,
-        default=None,
-        help="Path to the input data file."
+        "--data_file", type=str, default=None, help="Path to the input data file."
     )
     parser.add_argument(
         "--cache_dir",
         type=str,
         default=None,
-        help="Directory to cache images/videos and outputs."
+        help="Directory to cache images/videos and outputs.",
     )
     parser.add_argument(
         "--names",
         type=str,
         default=None,
-        help="Column names for the input data file, separated by commas, or '*' for default."
+        help="Column names for the input data file, separated by commas, or '*' for default.",
     )
     parser.add_argument(
         "--prompt_col",
         type=str,
         default=None,
-        help="Name of the column containing prompts."
+        help="Name of the column containing prompts.",
     )
     parser.add_argument(
         "--start_frame_col",
         type=str,
         default=None,
-        help="Name of the column containing the start frame image."
+        help="Name of the column containing the start frame image.",
     )
     parser.add_argument(
         "--end_frame_col",
         type=str,
         default=None,
-        help="Name of the column containing the end frame image."
+        help="Name of the column containing the end frame image.",
     )
     parser.add_argument(
         "--neg_prompt_col",
         type=str,
         default=None,
-        help="Name of the column containing negative prompts."
+        help="Name of the column containing negative prompts.",
     )
     args = parser.parse_args()
 
-
     return args
+
 
 def load_z3_model(ckpt_dir):
     from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
+
     state_dict = get_fp32_state_dict_from_zero_checkpoint(
         ckpt_dir,
         exclude_frozen_parameters=True,
     )
     for key in state_dict.keys():
         print(f"Key: {key}, Shape: {state_dict[key].shape}")
-    '''
+    """
     state_dict = {
         (k[6:] if k.startswith("model.") else k): v
         for k, v in state_dict.items()
     }
-    '''
+    """
     print(f"Loaded {len(state_dict)} parameters from {ckpt_dir}")
 
     return state_dict
 
+
 def check_state_dict(old_state_dict, state_dict):
     import time
+
     load_keys = []
     non_load_keys = []
-    for key,value in state_dict.items():
+    for key, value in state_dict.items():
         if key in old_state_dict and old_state_dict[key].shape == state_dict[key].shape:
             print(f"Key {key} found in old state dict with matching shape")
             load_keys.append(key)
@@ -371,11 +341,20 @@ def prepare_pipeline(args):
         print("Prepare I2V pipeline")
         device = set_multi_gpus_devices(args.ulysses_degree, args.ring_degree)
         config = OmegaConf.load(args.config_path)
-        weight_dtype = torch.bfloat16 if args.weight_dtype == "bfloat16" else torch.float16
+        weight_dtype = (
+            torch.bfloat16 if args.weight_dtype == "bfloat16" else torch.float16
+        )
 
         transformer = WanTransformer3DModel.from_pretrained(
-            os.path.join(args.model_name, config['transformer_additional_kwargs'].get('transformer_subpath', 'transformer')),
-            transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
+            os.path.join(
+                args.model_name,
+                config["transformer_additional_kwargs"].get(
+                    "transformer_subpath", "transformer"
+                ),
+            ),
+            transformer_additional_kwargs=OmegaConf.to_container(
+                config["transformer_additional_kwargs"]
+            ),
             low_cpu_mem_usage=True if not args.fsdp_dit else False,
             torch_dtype=weight_dtype,
         )
@@ -391,49 +370,69 @@ def prepare_pipeline(args):
             else:
                 if args.transformer_path.endswith("safetensors"):
                     from safetensors.torch import load_file, safe_open
+
                     state_dict = load_file(args.transformer_path)
                 else:
                     state_dict = torch.load(args.transformer_path, map_location="cpu")
-            state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            state_dict = (
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            )
 
-            #check_state_dict(transformer.state_dict(), state_dict)
+            # check_state_dict(transformer.state_dict(), state_dict)
             m, u = transformer.load_state_dict(state_dict, strict=False)
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
-        
+
         vae = AutoencoderKLWan.from_pretrained(
-            os.path.join(args.model_name, config['vae_kwargs'].get('vae_subpath', 'vae')),
-            additional_kwargs=OmegaConf.to_container(config['vae_kwargs']),
+            os.path.join(
+                args.model_name, config["vae_kwargs"].get("vae_subpath", "vae")
+            ),
+            additional_kwargs=OmegaConf.to_container(config["vae_kwargs"]),
         ).to(weight_dtype)
 
         if args.vae_path is not None:
             print(f"From checkpoint: {args.vae_path}")
             if args.vae_path.endswith("safetensors"):
                 from safetensors.torch import load_file, safe_open
+
                 state_dict = load_file(args.vae_path)
             else:
                 state_dict = torch.load(args.vae_path, map_location="cpu")
-            state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            state_dict = (
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            )
 
             m, u = vae.load_state_dict(state_dict, strict=False)
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
 
         tokenizer = AutoTokenizer.from_pretrained(
-            os.path.join(args.model_name, config['text_encoder_kwargs'].get('tokenizer_subpath', 'tokenizer')),
+            os.path.join(
+                args.model_name,
+                config["text_encoder_kwargs"].get("tokenizer_subpath", "tokenizer"),
+            ),
         )
 
         text_encoder = WanT5EncoderModel.from_pretrained(
-            os.path.join(args.model_name, config['text_encoder_kwargs'].get('text_encoder_subpath', 'text_encoder')),
-            additional_kwargs=OmegaConf.to_container(config['text_encoder_kwargs']),
+            os.path.join(
+                args.model_name,
+                config["text_encoder_kwargs"].get(
+                    "text_encoder_subpath", "text_encoder"
+                ),
+            ),
+            additional_kwargs=OmegaConf.to_container(config["text_encoder_kwargs"]),
             low_cpu_mem_usage=True,
             torch_dtype=weight_dtype,
         )
         text_encoder = text_encoder.eval()
 
         clip_image_encoder = CLIPModel.from_pretrained(
-            os.path.join(args.model_name, config['image_encoder_kwargs'].get('image_encoder_subpath', 'image_encoder')),
+            os.path.join(
+                args.model_name,
+                config["image_encoder_kwargs"].get(
+                    "image_encoder_subpath", "image_encoder"
+                ),
+            ),
         ).to(weight_dtype)
         clip_image_encoder = clip_image_encoder.eval()
-
 
         Choosen_Scheduler = scheduler_dict = {
             "Flow": FlowMatchEulerDiscreteScheduler,
@@ -441,11 +440,12 @@ def prepare_pipeline(args):
             "Flow_DPM++": FlowDPMSolverMultistepScheduler,
         }[args.sampler_name]
         if args.sampler_name == "Flow_Unipc" or args.sampler_name == "Flow_DPM++":
-            config['scheduler_kwargs']['shift'] = 1
+            config["scheduler_kwargs"]["shift"] = 1
         scheduler = Choosen_Scheduler(
-            **filter_kwargs(Choosen_Scheduler, OmegaConf.to_container(config['scheduler_kwargs']))
+            **filter_kwargs(
+                Choosen_Scheduler, OmegaConf.to_container(config["scheduler_kwargs"])
+            )
         )
-
 
         pipeline = WanI2VPipeline(
             transformer=transformer,
@@ -453,64 +453,102 @@ def prepare_pipeline(args):
             tokenizer=tokenizer,
             text_encoder=text_encoder,
             scheduler=scheduler,
-            clip_image_encoder=clip_image_encoder
+            clip_image_encoder=clip_image_encoder,
         )
 
         if args.ulysses_degree > 1 or args.ring_degree > 1:
             from functools import partial
+
             transformer.enable_multi_gpus_inference()
             if args.fsdp_dit:
-                shard_fn = partial(shard_model, device_id=device, param_dtype=weight_dtype)
+                shard_fn = partial(
+                    shard_model, device_id=device, param_dtype=weight_dtype
+                )
                 pipeline.transformer = shard_fn(pipeline.transformer)
                 print("Add FSDP DIT")
             if args.fsdp_text_encoder:
-                shard_fn = partial(shard_model, device_id=device, param_dtype=weight_dtype)
+                shard_fn = partial(
+                    shard_model, device_id=device, param_dtype=weight_dtype
+                )
                 pipeline.text_encoder = shard_fn(pipeline.text_encoder)
                 print("Add FSDP TEXT ENCODER")
 
         if args.compile_dit:
             for i in range(len(pipeline.transformer.blocks)):
-                pipeline.transformer.blocks[i] = torch.compile(pipeline.transformer.blocks[i])
+                pipeline.transformer.blocks[i] = torch.compile(
+                    pipeline.transformer.blocks[i]
+                )
             print("Add Compile")
 
         if args.GPU_memory_mode == "sequential_cpu_offload":
-            replace_parameters_by_name(transformer, ["modulation",], device=device)
+            replace_parameters_by_name(
+                transformer,
+                [
+                    "modulation",
+                ],
+                device=device,
+            )
             transformer.freqs = transformer.freqs.to(device=device)
             pipeline.enable_sequential_cpu_offload(device=device)
         elif args.GPU_memory_mode == "model_cpu_offload_and_qfloat8":
-            convert_model_weight_to_float8(transformer, exclude_module_name=["modulation",], device=device)
+            convert_model_weight_to_float8(
+                transformer,
+                exclude_module_name=[
+                    "modulation",
+                ],
+                device=device,
+            )
             convert_weight_dtype_wrapper(transformer, weight_dtype)
             pipeline.enable_model_cpu_offload(device=device)
         elif args.GPU_memory_mode == "model_cpu_offload":
             pipeline.enable_model_cpu_offload(device=device)
         elif args.GPU_memory_mode == "model_full_load_and_qfloat8":
-            convert_model_weight_to_float8(transformer, exclude_module_name=["modulation",], device=device)
+            convert_model_weight_to_float8(
+                transformer,
+                exclude_module_name=[
+                    "modulation",
+                ],
+                device=device,
+            )
             convert_weight_dtype_wrapper(transformer, weight_dtype)
             pipeline.to(device=device)
         else:
             pipeline.to(device=device)
 
-        coefficients = get_teacache_coefficients(args.model_name) if args.enable_teacache else None
+        coefficients = (
+            get_teacache_coefficients(args.model_name) if args.enable_teacache else None
+        )
         if coefficients is not None:
-            print(f"Enable TeaCache with threshold {args.teacache_threshold} and skip the first {args.num_skip_start_steps} steps.")
+            print(
+                f"Enable TeaCache with threshold {args.teacache_threshold} and skip the first {args.num_skip_start_steps} steps."
+            )
             pipeline.transformer.enable_teacache(
-                coefficients, args.num_inference_steps, args.teacache_threshold, num_skip_start_steps=args.num_skip_start_steps, offload=args.teacache_offload
+                coefficients,
+                args.num_inference_steps,
+                args.teacache_threshold,
+                num_skip_start_steps=args.num_skip_start_steps,
+                offload=args.teacache_offload,
             )
 
         if args.cfg_skip_ratio is not None:
             print(f"Enable cfg_skip_ratio {args.cfg_skip_ratio}.")
-            pipeline.transformer.enable_cfg_skip(args.cfg_skip_ratio, args.num_inference_steps)
+            pipeline.transformer.enable_cfg_skip(
+                args.cfg_skip_ratio, args.num_inference_steps
+            )
 
         if args.lora_path is not None:
             print(f"Load LoRA from {args.lora_path}")
-            pipeline = merge_lora(pipeline, args.lora_path, args.lora_weight, device=device)
+            pipeline = merge_lora(
+                pipeline, args.lora_path, args.lora_weight, device=device
+            )
 
         generator = torch.Generator(device=device).manual_seed(args.seed)
         print("Finish prepare I2V pipeline")
         return pipeline, generator
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
-        return None, None 
+        return None, None
+
 
 def image2video(args):
     if isinstance(args.names, str) and args.names.strip() == "*":
@@ -549,19 +587,22 @@ def image2video(args):
                 + " - "
                 + (
                     x[args.neg_prompt_col]
-                    if args.neg_prompt_col is not None and not pd.isna(x[args.neg_prompt_col])
+                    if args.neg_prompt_col is not None
+                    and not pd.isna(x[args.neg_prompt_col])
                     else ""
                 )
                 + " - "
                 + (
                     x[args.start_frame_col]
-                    if args.start_frame_col is not None and not pd.isna(x[args.start_frame_col])
+                    if args.start_frame_col is not None
+                    and not pd.isna(x[args.start_frame_col])
                     else ""
                 )
                 + " - "
                 + (
                     x[args.end_frame_col]
-                    if args.end_frame_col is not None and not pd.isna(x[args.end_frame_col])
+                    if args.end_frame_col is not None
+                    and not pd.isna(x[args.end_frame_col])
                     else ""
                 )
                 in uniques,
@@ -572,7 +613,9 @@ def image2video(args):
 
     writer = open(output_file, "a+")
 
-    assert args.prompt_col in data.columns, f"Column {args.prompt_col} not found in data."
+    assert (
+        args.prompt_col in data.columns
+    ), f"Column {args.prompt_col} not found in data."
     assert (
         args.start_frame_col in data.columns or args.end_frame_col in data.columns
     ), f"At least one image needed."
@@ -581,19 +624,23 @@ def image2video(args):
     if pipe == None:
         print("Prepare pipeline error")
         return None
-    
+
     cnt = 0
     for _, row in data.iterrows():
         _prompt = row[args.prompt_col] if not pd.isna(row[args.prompt_col]) else ""
         _neg_prompt = ""
         if args.neg_prompt_col != None:
             _neg_prompt = (
-                row[args.neg_prompt_col] if not pd.isna(row[args.neg_prompt_col]) else ""
+                row[args.neg_prompt_col]
+                if not pd.isna(row[args.neg_prompt_col])
+                else ""
             )
         _start_frame = ""
         if args.start_frame_col != None:
             _start_frame = (
-                row[args.start_frame_col] if not pd.isna(row[args.start_frame_col]) else ""
+                row[args.start_frame_col]
+                if not pd.isna(row[args.start_frame_col])
+                else ""
             )
         video = generation(pipe, generator, _start_frame, _prompt, _neg_prompt, args)
         if video != None:

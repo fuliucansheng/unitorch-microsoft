@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 import os
 import hashlib
 from unitorch.utils import read_file

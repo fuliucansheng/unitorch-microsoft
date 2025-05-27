@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 from unitorch.cli.models.sam import (
     pretrained_sam_infos,
     pretrained_sam_extensions_infos,

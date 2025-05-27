@@ -43,11 +43,12 @@ def readimg(imagefile, cache_dir, max_area, return_bytes=True):
         print(e)
         return None
 
+
 def generation(pipe, generator, start_frame, prompt, negative_prompt, args):
     print(f"Process video gen for {start_frame}")
     max_area = args.sample_size[0] * args.sample_size[1]
     image = readimg(start_frame, args.cache_dir, max_area)
-    width,height = image.size
+    width, height = image.size
 
     if image == None:
         return None
@@ -58,21 +59,21 @@ def generation(pipe, generator, start_frame, prompt, negative_prompt, args):
                 image=image,
                 prompt=prompt,
                 negative_prompt=negative_prompt,
-                height=height, width=width,
+                height=height,
+                width=width,
                 num_frames=81,
                 generator=generator,
-                guidance_scale=5.0
+                guidance_scale=5.0,
             ).frames[0]
-                
-            name = (
-                hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
-            )
+
+            name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
             name = os.path.join(args.cache_dir, name)
             export_to_video(output, name, fps=args.fps)
             return name
     except Exception as e:
         print(e)
         return None
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -83,144 +84,112 @@ def _parse_args():
         "--GPU_memory_mode",
         type=str,
         default="model_cpu_offload",
-        help="GPU memory mode, e.g., 'sequential_cpu_offload'"
+        help="GPU memory mode, e.g., 'sequential_cpu_offload'",
     )
 
     parser.add_argument(
         "--model_name",
         type=str,
         default="models/Diffusion_Transformer/Wan2.1-I2V-14B-480P",
-        help="Model name or path"
+        help="Model name or path",
     )
     parser.add_argument(
         "--sampler_name",
         type=str,
         default="Flow_Unipc",
         choices=["Flow", "Flow_Unipc", "Flow_DPM++"],
-        help="Sampler name"
+        help="Sampler name",
     )
     parser.add_argument(
-        "--shift",
-        type=float,
-        default=3,
-        help="Noise schedule shift parameter"
+        "--shift", type=float, default=3, help="Noise schedule shift parameter"
     )
     parser.add_argument(
         "--transformer_path",
         type=str,
         default=None,
-        help="Path to pretrained transformer checkpoint"
+        help="Path to pretrained transformer checkpoint",
     )
     parser.add_argument(
-        "--vae_path",
-        type=str,
-        default=None,
-        help="Path to pretrained VAE checkpoint"
+        "--vae_path", type=str, default=None, help="Path to pretrained VAE checkpoint"
     )
     parser.add_argument(
-        "--lora_path",
-        type=str,
-        default=None,
-        help="Path to LoRA checkpoint"
+        "--lora_path", type=str, default=None, help="Path to LoRA checkpoint"
     )
     parser.add_argument(
         "--sample_size",
         type=lambda s: [int(x) for x in s.split(",")],
         default="480,832",
-        help="Sample size as 'height,width'"
+        help="Sample size as 'height,width'",
     )
     parser.add_argument(
-        "--video_length",
-        type=int,
-        default=81,
-        help="Video length (number of frames)"
+        "--video_length", type=int, default=81, help="Video length (number of frames)"
     )
-    parser.add_argument(
-        "--fps",
-        type=int,
-        default=16,
-        help="Frames per second"
-    )
+    parser.add_argument("--fps", type=int, default=16, help="Frames per second")
     parser.add_argument(
         "--weight_dtype",
         type=str,
         default="bfloat16",
         choices=["bfloat16", "float16"],
-        help="Weight dtype"
+        help="Weight dtype",
     )
     parser.add_argument(
         "--guidance_scale",
         type=float,
         default=6.0,
-        help="Guidance scale for classifier-free guidance"
+        help="Guidance scale for classifier-free guidance",
     )
+    parser.add_argument("--seed", type=int, default=43, help="Random seed")
     parser.add_argument(
-        "--seed",
-        type=int,
-        default=43,
-        help="Random seed"
+        "--num_inference_steps", type=int, default=40, help="Number of inference steps"
     )
+    parser.add_argument("--lora_weight", type=float, default=0.55, help="LoRA weight")
     parser.add_argument(
-        "--num_inference_steps",
-        type=int,
-        default=40,
-        help="Number of inference steps"
-    )
-    parser.add_argument(
-        "--lora_weight",
-        type=float,
-        default=0.55,
-        help="LoRA weight"
-    )
-    parser.add_argument(
-        "--data_file",
-        type=str,
-        default=None,
-        help="Path to the input data file."
+        "--data_file", type=str, default=None, help="Path to the input data file."
     )
     parser.add_argument(
         "--cache_dir",
         type=str,
         default=None,
-        help="Directory to cache images/videos and outputs."
+        help="Directory to cache images/videos and outputs.",
     )
     parser.add_argument(
         "--names",
         type=str,
         default=None,
-        help="Column names for the input data file, separated by commas, or '*' for default."
+        help="Column names for the input data file, separated by commas, or '*' for default.",
     )
     parser.add_argument(
         "--prompt_col",
         type=str,
         default=None,
-        help="Name of the column containing prompts."
+        help="Name of the column containing prompts.",
     )
     parser.add_argument(
         "--start_frame_col",
         type=str,
         default=None,
-        help="Name of the column containing the start frame image."
+        help="Name of the column containing the start frame image.",
     )
     parser.add_argument(
         "--end_frame_col",
         type=str,
         default=None,
-        help="Name of the column containing the end frame image."
+        help="Name of the column containing the end frame image.",
     )
     parser.add_argument(
         "--neg_prompt_col",
         type=str,
         default=None,
-        help="Name of the column containing negative prompts."
+        help="Name of the column containing negative prompts.",
     )
     args = parser.parse_args()
 
-
     return args
+
 
 def load_z3_model(ckpt_dir):
     from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
+
     state_dict = get_fp32_state_dict_from_zero_checkpoint(
         ckpt_dir,
         exclude_frozen_parameters=True,
@@ -231,11 +200,13 @@ def load_z3_model(ckpt_dir):
 
     return state_dict
 
+
 def check_state_dict(old_state_dict, state_dict):
     import time
+
     load_keys = []
     non_load_keys = []
-    for key,value in state_dict.items():
+    for key, value in state_dict.items():
         if key in old_state_dict and old_state_dict[key].shape == state_dict[key].shape:
             print(f"Key {key} found in old state dict with matching shape")
             load_keys.append(key)
@@ -264,10 +235,19 @@ def check_state_dict(old_state_dict, state_dict):
 def prepare_pipeline(args):
     try:
         print("Prepare I2V pipeline")
-        #model_id = "Wan-AI/Wan2.1-I2V-14B-720P-Diffusers"
-        image_encoder = CLIPVisionModel.from_pretrained(args.model_name, subfolder="image_encoder", torch_dtype=torch.float32)
-        vae = AutoencoderKLWan.from_pretrained(args.model_name, subfolder="vae", torch_dtype=torch.float32)
-        pipe = WanImageToVideoPipeline.from_pretrained(args.model_name, vae=vae, image_encoder=image_encoder, torch_dtype=torch.bfloat16)
+        # model_id = "Wan-AI/Wan2.1-I2V-14B-720P-Diffusers"
+        image_encoder = CLIPVisionModel.from_pretrained(
+            args.model_name, subfolder="image_encoder", torch_dtype=torch.float32
+        )
+        vae = AutoencoderKLWan.from_pretrained(
+            args.model_name, subfolder="vae", torch_dtype=torch.float32
+        )
+        pipe = WanImageToVideoPipeline.from_pretrained(
+            args.model_name,
+            vae=vae,
+            image_encoder=image_encoder,
+            torch_dtype=torch.bfloat16,
+        )
         device = torch.cuda.current_device()
 
         print(f"Transformer model loaded from {args.model_name}")
@@ -281,12 +261,15 @@ def prepare_pipeline(args):
             else:
                 if args.transformer_path.endswith("safetensors"):
                     from safetensors.torch import load_file, safe_open
+
                     state_dict = load_file(args.transformer_path)
                 else:
                     state_dict = torch.load(args.transformer_path, map_location="cpu")
-            state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            state_dict = (
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            )
 
-            #check_state_dict(transformer.state_dict(), state_dict)
+            # check_state_dict(transformer.state_dict(), state_dict)
             m, u = pipe.transformer.load_state_dict(state_dict, strict=False)
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
 
@@ -294,10 +277,13 @@ def prepare_pipeline(args):
             print(f"From checkpoint: {args.vae_path}")
             if args.vae_path.endswith("safetensors"):
                 from safetensors.torch import load_file, safe_open
+
                 state_dict = load_file(args.vae_path)
             else:
                 state_dict = torch.load(args.vae_path, map_location="cpu")
-            state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            state_dict = (
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            )
 
             m, u = pipe.vae.load_state_dict(state_dict, strict=False)
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
@@ -311,14 +297,15 @@ def prepare_pipeline(args):
 
         if args.lora_path is not None:
             print(f"Load LoRA from {args.lora_path}")
-            #pipeline = merge_lora(pipeline, args.lora_path, args.lora_weight, device=device)
+            # pipeline = merge_lora(pipeline, args.lora_path, args.lora_weight, device=device)
 
         generator = torch.Generator(device=device).manual_seed(args.seed)
         print("Finish prepare I2V pipeline")
         return pipe, generator
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
-        return None, None 
+        return None, None
+
 
 def image2video(args):
     if isinstance(args.names, str) and args.names.strip() == "*":
@@ -357,19 +344,22 @@ def image2video(args):
                 + " - "
                 + (
                     x[args.neg_prompt_col]
-                    if args.neg_prompt_col is not None and not pd.isna(x[args.neg_prompt_col])
+                    if args.neg_prompt_col is not None
+                    and not pd.isna(x[args.neg_prompt_col])
                     else ""
                 )
                 + " - "
                 + (
                     x[args.start_frame_col]
-                    if args.start_frame_col is not None and not pd.isna(x[args.start_frame_col])
+                    if args.start_frame_col is not None
+                    and not pd.isna(x[args.start_frame_col])
                     else ""
                 )
                 + " - "
                 + (
                     x[args.end_frame_col]
-                    if args.end_frame_col is not None and not pd.isna(x[args.end_frame_col])
+                    if args.end_frame_col is not None
+                    and not pd.isna(x[args.end_frame_col])
                     else ""
                 )
                 in uniques,
@@ -380,7 +370,9 @@ def image2video(args):
 
     writer = open(output_file, "a+")
 
-    assert args.prompt_col in data.columns, f"Column {args.prompt_col} not found in data."
+    assert (
+        args.prompt_col in data.columns
+    ), f"Column {args.prompt_col} not found in data."
     assert (
         args.start_frame_col in data.columns or args.end_frame_col in data.columns
     ), f"At least one image needed."
@@ -389,19 +381,23 @@ def image2video(args):
     if pipe == None:
         print("Prepare pipeline error")
         return None
-    
+
     cnt = 0
     for _, row in data.iterrows():
         _prompt = row[args.prompt_col] if not pd.isna(row[args.prompt_col]) else ""
         _neg_prompt = ""
         if args.neg_prompt_col != None:
             _neg_prompt = (
-                row[args.neg_prompt_col] if not pd.isna(row[args.neg_prompt_col]) else ""
+                row[args.neg_prompt_col]
+                if not pd.isna(row[args.neg_prompt_col])
+                else ""
             )
         _start_frame = ""
         if args.start_frame_col != None:
             _start_frame = (
-                row[args.start_frame_col] if not pd.isna(row[args.start_frame_col]) else ""
+                row[args.start_frame_col]
+                if not pd.isna(row[args.start_frame_col])
+                else ""
             )
         video = generation(pipe, generator, _start_frame, _prompt, _neg_prompt, args)
         if video != None:

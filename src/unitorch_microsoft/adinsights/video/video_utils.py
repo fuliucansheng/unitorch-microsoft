@@ -1,6 +1,5 @@
 # Copyright (c) FULIUCANSHENG.
 # Licensed under the MIT License.
-
 import os
 import io
 import requests

@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 from unitorch.cli.models.bloom import pretrained_bloom_extensions_infos
 
 pretrained_bloom_extensions_infos.update(

@@ -1,6 +1,5 @@
-# Copyright (c) LIGHTINSIGHTER.
+# Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 import os
 import fire
 import logging

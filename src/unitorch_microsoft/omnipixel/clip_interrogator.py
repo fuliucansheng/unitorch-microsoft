@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 import io
 import re
 import fire

@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 import os
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs

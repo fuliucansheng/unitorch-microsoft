@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 import gradio as gr
 from unitorch.utils import is_diffusers_available
 from unitorch.cli import CoreConfigureParser

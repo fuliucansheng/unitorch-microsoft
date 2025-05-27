@@ -182,7 +182,7 @@ def image2video(
             )
         ]
         print(f"Need to handle {len(data)} files")
-    
+
     writer = open(output_file, "a+")
 
     assert prompt_col in data.columns, f"Column {prompt_col} not found in data."

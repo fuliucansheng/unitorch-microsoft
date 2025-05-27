@@ -17,6 +17,7 @@ import argparse
 import random
 import sys
 
+
 def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
     try:
         if imagefile.startswith(("http://", "https://")):
@@ -24,9 +25,9 @@ def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
             image = Image.open(BytesIO(response.content)).convert("RGB")
         else:
             image = Image.open(imagefile).convert("RGB")
-        
-        h,w = max_area_str.split("*")
-        max_area =  int(h)* int(w)
+
+        h, w = max_area_str.split("*")
+        max_area = int(h) * int(w)
 
         aspect_ratio = image.height / image.width
         mod_value = 16
@@ -43,6 +44,7 @@ def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
     except Exception as e:
         print(e)
         return None
+
 
 def _validate_args(args):
     # Basic check
@@ -68,14 +70,17 @@ def _validate_args(args):
 
     # T2I frame_num check
     if "t2i" in args.task:
-        assert args.frame_num == 1, f"Unsupport frame_num {args.frame_num} for task {args.task}"
+        assert (
+            args.frame_num == 1
+        ), f"Unsupport frame_num {args.frame_num} for task {args.task}"
 
-    args.base_seed = args.base_seed if args.base_seed >= 0 else random.randint(
-        0, sys.maxsize)
+    args.base_seed = (
+        args.base_seed if args.base_seed >= 0 else random.randint(0, sys.maxsize)
+    )
     # Size check
-    assert args.size in SUPPORTED_SIZES[
-        args.
-        task], f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
+    assert (
+        args.size in SUPPORTED_SIZES[args.task]
+    ), f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
 
 
 def _parse_args():
@@ -87,185 +92,203 @@ def _parse_args():
         type=str,
         default="t2v-14B",
         choices=list(WAN_CONFIGS.keys()),
-        help="The task to run.")
+        help="The task to run.",
+    )
     parser.add_argument(
         "--size",
         type=str,
         default="1280*720",
         choices=list(SIZE_CONFIGS.keys()),
-        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image."
+        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image.",
     )
     parser.add_argument(
         "--frame_num",
         type=int,
         default=None,
-        help="How many frames to sample from a image or video. The number should be 4n+1"
+        help="How many frames to sample from a image or video. The number should be 4n+1",
     )
     parser.add_argument(
         "--ckpt_dir",
         type=str,
         default=None,
-        help="The path to the checkpoint directory.")
+        help="The path to the checkpoint directory.",
+    )
     parser.add_argument(
         "--offload_model",
         type=str2bool,
         default=None,
-        help="Whether to offload the model to CPU after each model forward, reducing GPU memory usage."
+        help="Whether to offload the model to CPU after each model forward, reducing GPU memory usage.",
     )
     parser.add_argument(
         "--ulysses_size",
         type=int,
         default=1,
-        help="The size of the ulysses parallelism in DiT.")
+        help="The size of the ulysses parallelism in DiT.",
+    )
     parser.add_argument(
         "--ring_size",
         type=int,
         default=1,
-        help="The size of the ring attention parallelism in DiT.")
+        help="The size of the ring attention parallelism in DiT.",
+    )
     parser.add_argument(
         "--t5_fsdp",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for T5.")
+        help="Whether to use FSDP for T5.",
+    )
     parser.add_argument(
         "--t5_cpu",
         action="store_true",
         default=False,
-        help="Whether to place T5 model on CPU.")
+        help="Whether to place T5 model on CPU.",
+    )
     parser.add_argument(
         "--dit_fsdp",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for DiT.")
+        help="Whether to use FSDP for DiT.",
+    )
     parser.add_argument(
         "--save_file",
         type=str,
         default=None,
-        help="The file to save the generated image or video to.")
+        help="The file to save the generated image or video to.",
+    )
     parser.add_argument(
         "--src_video",
         type=str,
         default=None,
-        help="The file of the source video. Default None.")
+        help="The file of the source video. Default None.",
+    )
     parser.add_argument(
         "--src_mask",
         type=str,
         default=None,
-        help="The file of the source mask. Default None.")
+        help="The file of the source mask. Default None.",
+    )
     parser.add_argument(
         "--src_ref_images",
         type=str,
         default=None,
-        help="The file list of the source reference images. Separated by ','. Default None."
+        help="The file list of the source reference images. Separated by ','. Default None.",
     )
     parser.add_argument(
         "--prompt",
         type=str,
         default=None,
-        help="The prompt to generate the image or video from.")
+        help="The prompt to generate the image or video from.",
+    )
     parser.add_argument(
         "--use_prompt_extend",
         action="store_true",
         default=False,
-        help="Whether to use prompt extend.")
+        help="Whether to use prompt extend.",
+    )
     parser.add_argument(
         "--prompt_extend_method",
         type=str,
         default="local_qwen",
         choices=["dashscope", "local_qwen"],
-        help="The prompt extend method to use.")
+        help="The prompt extend method to use.",
+    )
     parser.add_argument(
         "--prompt_extend_model",
         type=str,
         default=None,
-        help="The prompt extend model to use.")
+        help="The prompt extend model to use.",
+    )
     parser.add_argument(
         "--prompt_extend_target_lang",
         type=str,
         default="zh",
         choices=["zh", "en"],
-        help="The target language of prompt extend.")
+        help="The target language of prompt extend.",
+    )
     parser.add_argument(
         "--base_seed",
         type=int,
         default=43,
-        help="The seed to use for generating the image or video.")
+        help="The seed to use for generating the image or video.",
+    )
     parser.add_argument(
         "--image",
         type=str,
         default=None,
-        help="[image to video] The image to generate the video from.")
+        help="[image to video] The image to generate the video from.",
+    )
     parser.add_argument(
         "--first_frame",
         type=str,
         default=None,
-        help="[first-last frame to video] The image (first frame) to generate the video from."
+        help="[first-last frame to video] The image (first frame) to generate the video from.",
     )
     parser.add_argument(
         "--last_frame",
         type=str,
         default=None,
-        help="[first-last frame to video] The image (last frame) to generate the video from."
+        help="[first-last frame to video] The image (last frame) to generate the video from.",
     )
     parser.add_argument(
         "--sample_solver",
         type=str,
-        default='unipc',
-        choices=['unipc', 'dpm++'],
-        help="The solver used to sample.")
+        default="unipc",
+        choices=["unipc", "dpm++"],
+        help="The solver used to sample.",
+    )
     parser.add_argument(
-        "--sample_steps", type=int, default=None, help="The sampling steps.")
+        "--sample_steps", type=int, default=None, help="The sampling steps."
+    )
     parser.add_argument(
         "--sample_shift",
         type=float,
         default=None,
-        help="Sampling shift factor for flow matching schedulers.")
+        help="Sampling shift factor for flow matching schedulers.",
+    )
     parser.add_argument(
         "--sample_guide_scale",
         type=float,
         default=5.0,
-        help="Classifier free guidance scale.")
+        help="Classifier free guidance scale.",
+    )
     parser.add_argument(
-        "--data_file",
-        type=str,
-        default=None,
-        help="Path to the input data file."
+        "--data_file", type=str, default=None, help="Path to the input data file."
     )
     parser.add_argument(
         "--cache_dir",
         type=str,
         default=None,
-        help="Directory to cache images/videos and outputs."
+        help="Directory to cache images/videos and outputs.",
     )
     parser.add_argument(
         "--names",
         type=str,
         default=None,
-        help="Column names for the input data file, separated by commas, or '*' for default."
+        help="Column names for the input data file, separated by commas, or '*' for default.",
     )
     parser.add_argument(
         "--prompt_col",
         type=str,
         default=None,
-        help="Name of the column containing prompts."
+        help="Name of the column containing prompts.",
     )
     parser.add_argument(
         "--start_frame_col",
         type=str,
         default=None,
-        help="Name of the column containing the start frame image."
+        help="Name of the column containing the start frame image.",
     )
     parser.add_argument(
         "--end_frame_col",
         type=str,
         default=None,
-        help="Name of the column containing the end frame image."
+        help="Name of the column containing the end frame image.",
     )
     parser.add_argument(
         "--neg_prompt_col",
         type=str,
         default=None,
-        help="Name of the column containing negative prompts."
+        help="Name of the column containing negative prompts.",
     )
 
     args = parser.parse_args()
@@ -273,6 +296,7 @@ def _parse_args():
     _validate_args(args)
 
     return args
+
 
 def generation(pipe, start_frame, prompt, args):
     print(f"Process video gen for {start_frame}")
@@ -291,11 +315,10 @@ def generation(pipe, start_frame, prompt, args):
             sampling_steps=args.sample_steps,
             guide_scale=args.sample_guide_scale,
             seed=args.base_seed,
-            offload_model=args.offload_model)
-                
-        name = (
-            hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
+            offload_model=args.offload_model,
         )
+
+        name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
         name = os.path.join(args.cache_dir, name)
         cache_video(
             tensor=video[None],
@@ -303,11 +326,13 @@ def generation(pipe, start_frame, prompt, args):
             fps=16,
             nrow=1,
             normalize=True,
-            value_range=(-1, 1))
+            value_range=(-1, 1),
+        )
         return name
     except Exception as e:
         print(e)
         return None
+
 
 def prepare_pipeline(args):
     try:
@@ -331,7 +356,8 @@ def prepare_pipeline(args):
         return wan_i2v
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
-        return None 
+        return None
+
 
 def image2video(args):
     if isinstance(args.names, str) and args.names.strip() == "*":
@@ -370,19 +396,22 @@ def image2video(args):
                 + " - "
                 + (
                     x[args.neg_prompt_col]
-                    if args.neg_prompt_col is not None and not pd.isna(x[args.neg_prompt_col])
+                    if args.neg_prompt_col is not None
+                    and not pd.isna(x[args.neg_prompt_col])
                     else ""
                 )
                 + " - "
                 + (
                     x[args.start_frame_col]
-                    if args.start_frame_col is not None and not pd.isna(x[args.start_frame_col])
+                    if args.start_frame_col is not None
+                    and not pd.isna(x[args.start_frame_col])
                     else ""
                 )
                 + " - "
                 + (
                     x[args.end_frame_col]
-                    if args.end_frame_col is not None and not pd.isna(x[args.end_frame_col])
+                    if args.end_frame_col is not None
+                    and not pd.isna(x[args.end_frame_col])
                     else ""
                 )
                 in uniques,
@@ -393,7 +422,9 @@ def image2video(args):
 
     writer = open(output_file, "a+")
 
-    assert args.prompt_col in data.columns, f"Column {args.prompt_col} not found in data."
+    assert (
+        args.prompt_col in data.columns
+    ), f"Column {args.prompt_col} not found in data."
     assert (
         args.start_frame_col in data.columns or args.end_frame_col in data.columns
     ), f"At least one image needed."
@@ -402,19 +433,23 @@ def image2video(args):
     if pipe == None:
         print("Prepare pipeline error")
         return None
-    
+
     cnt = 0
     for _, row in data.iterrows():
         _prompt = row[args.prompt_col] if not pd.isna(row[args.prompt_col]) else ""
         _neg_prompt = ""
         if args.neg_prompt_col != None:
             _neg_prompt = (
-                row[args.neg_prompt_col] if not pd.isna(row[args.neg_prompt_col]) else ""
+                row[args.neg_prompt_col]
+                if not pd.isna(row[args.neg_prompt_col])
+                else ""
             )
         _start_frame = ""
         if args.start_frame_col != None:
             _start_frame = (
-                row[args.start_frame_col] if not pd.isna(row[args.start_frame_col]) else ""
+                row[args.start_frame_col]
+                if not pd.isna(row[args.start_frame_col])
+                else ""
             )
         video = generation(pipe, _start_frame, _prompt, args)
         if video != None:

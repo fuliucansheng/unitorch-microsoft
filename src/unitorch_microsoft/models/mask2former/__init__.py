@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 from unitorch.cli.models.mask2former import pretrained_mask2former_infos
 
 pretrained_mask2former_infos.update(

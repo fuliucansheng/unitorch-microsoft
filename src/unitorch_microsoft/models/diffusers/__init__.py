@@ -1,6 +1,5 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
-
 from unitorch.cli.models.diffusers import (
     __hf_hub_stable_v1_5_dict__,
     __hf_hub_vae_dict,
