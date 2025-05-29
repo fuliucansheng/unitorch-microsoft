@@ -75,7 +75,7 @@ class DetrForDetection(_DetrForDetection):
         )
         return LossOutputs(loss=outputs)
 
-    @add_default_section_for_function("core/model/detection/detr")
+    @add_default_section_for_function("microsoft/picasso/model/detection/detr")
     def detect(
         self,
         images,
