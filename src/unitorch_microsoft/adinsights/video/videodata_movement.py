@@ -27,7 +27,7 @@ def process_chunk(
         try:
             src_file = os.path.join('/datablob/shutterstock', video)
             if os.path.exists(src_file):
-                dst_file = video.replace('//','_')
+                dst_file = video.replace('/','_')
                 dst_file = os.path.join(cache_dir, dst_file)
                 cmd = f"cp {src_file} {dst_file}"
                 os.system(cmd)
