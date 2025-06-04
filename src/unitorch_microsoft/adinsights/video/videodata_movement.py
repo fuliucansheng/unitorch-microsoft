@@ -77,6 +77,8 @@ def movement(
         header=None,
         nrows=max_cnt,
     )
+    if not os.path.exists(dst_dir):
+        os.makedirs(dst_dir, exist_ok=True)
     output_file = f"{dst_dir}/output.tsv"
     if os.path.exists(output_file):
         uniques = []
