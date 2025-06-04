@@ -45,10 +45,10 @@ def process_chunk(
     
     if movement_str != "":
         with lock:
-            file_writer.write(movement_str)
-            file_writer.flush()
-
-
+            writer = open(file_writer, "a+")
+            writer.write(movement_str)
+            writer.flush()
+            writer.close()
 
 
 def movement(
@@ -93,7 +93,6 @@ def movement(
             )
         ]
     print(f"Data loaded, total rows to move: {len(data)}")
-    writer = open(output_file, "a+")
     videos = data[move_col].tolist()
     num_processes = mp.cpu_count()
     total_rows = len(videos)
@@ -106,24 +105,28 @@ def movement(
     
     lock = mp.Lock()
 
+    processes = []
     print(f"need to process {total_rows} videos")
-    with mp.Pool(num_processes) as pool:
-        tasks = [
-            (
+    for i in range(num_processes):
+        p = mp.Process(
+            target=process_chunk,
+            args=(
                 videos,
-                i * chunk_size + 1,
+                i * chunk_size,
                 chunk_size,
                 i,
                 dst_dir,
                 num_processes,
                 total_rows,
-                writer,
+                output_file,
                 lock,
             )
-            for i in range(num_processes)
-        ]
-        pool.starmap(process_chunk, tasks)
+        )
+        processes.append(p)
+        p.start()
 
+    for p in processes:
+        p.join()
     return
 
 
