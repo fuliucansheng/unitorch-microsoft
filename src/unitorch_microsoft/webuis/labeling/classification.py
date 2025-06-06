@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import io
 import re
@@ -8,6 +9,7 @@ import socket
 import requests
 import tempfile
 import hashlib
+import logging
 import subprocess
 import pandas as pd
 import gradio as gr
@@ -29,6 +31,7 @@ from unitorch.cli.webuis import (
     create_blocks,
 )
 from unitorch.cli.webuis import SimpleWebUI
+from unitorch_microsoft.fastapis.collector import reported_item
 
 
 def get_random_port():
@@ -84,6 +87,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         temp_folder = config.getoption("temp_folder", get_temp_home())
         os.makedirs(temp_folder, exist_ok=True)
         self.temp_folder = temp_folder
+        self.tags = config.getoption("tags", "#Labeling")
 
         self.dataset = pd.read_csv(
             data_file,
@@ -812,6 +816,30 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         stats = stats.to_markdown(index=False)
         return stats
 
+    def report(self, index):
+        sample = self.dataset[self.dataset.Index == index].iloc[0]
+        sample = self.process_sample(sample)
+        texts = sample[self.text_cols].to_dict()
+        images = sample[self.image_cols].to_dict()
+        videos = sample[self.video_cols].to_dict()
+        metas = {
+            "tags": self.tags,
+        }
+        labels = {
+            "User": sample["User"],
+            "Label": sample["Label"],
+            "Comment": sample["Comment"],
+        }
+        try:
+            reported_item(
+                record={**texts, **labels, **metas},
+                images=images if len(self.image_cols) > 0 else None,
+                videos=videos if len(self.video_cols) > 0 else None,
+            )
+            logging.info(f"Item {index} reported successfully.")
+        except Exception as e:
+            logging.error(f"Error reporting item {index}: {e}")
+
     def label(
         self,
         index,
@@ -834,6 +862,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment
         self.dataset.to_csv(self.result_file, sep="\t", index=False)
+
+        self.report(index)
+
         if user is not None and user != "":
             new_logs = (
                 f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: User {user} Label {index} to {choice} Success. \n"

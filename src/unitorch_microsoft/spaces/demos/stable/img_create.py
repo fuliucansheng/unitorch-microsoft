@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -34,6 +35,9 @@ from unitorch_microsoft.spaces import (
 
 
 class CreateImgWebUI(SimpleWebUI):
+    _title = "Create Image"
+    _description = "This is a demo for creating images using Stable Diffusion. You can input a prompt, and the model will generate an image based on the prompt."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -41,12 +45,12 @@ class CreateImgWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🖼️ Text to Image Generation</div>",
+            label=f"# <div style='margin-top:10px'>🖼️ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -76,8 +80,8 @@ class CreateImgWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Text to Image"
-        iface._description = "This is a demo for text to image."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -107,7 +111,7 @@ class CreateImgWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Text to Image Generation", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = StableForText2ImageFastAPIPipeline.from_core_configure(

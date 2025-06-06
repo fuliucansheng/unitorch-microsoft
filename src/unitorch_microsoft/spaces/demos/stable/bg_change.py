@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -41,6 +42,9 @@ from unitorch_microsoft.spaces import (
 
 
 class ChangeBGWebUI(SimpleWebUI):
+    _title = "Change Background"
+    _description = "This is a demo for changing background of images using ControlNet and Stable Diffusion. You can input an image and a prompt, and the model will generate a new image with the specified background."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -48,12 +52,12 @@ class ChangeBGWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Change Background</div>",
+            label=f"# <div style='margin-top:10px'>✨ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -80,8 +84,8 @@ class ChangeBGWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Change Background"
-        iface._description = "This is a demo for changing background."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -111,7 +115,7 @@ class ChangeBGWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Change Background", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe1 = BRIAForSegmentationPipeline.from_core_configure(

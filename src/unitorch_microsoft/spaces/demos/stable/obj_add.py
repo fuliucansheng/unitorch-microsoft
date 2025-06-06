@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -40,6 +41,9 @@ from unitorch_microsoft.spaces import (
 
 
 class AddObjWebUI(SimpleWebUI):
+    _title = "Add Object to Image"
+    _description = "This is a demo for adding objects to images using ControlNet and Stable Diffusion. You can input an image and a prompt, and the model will generate a new image with the specified object added."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -47,12 +51,12 @@ class AddObjWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Add Object</div>",
+            label=f"# <div style='margin-top:10px'>✨ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -80,8 +84,8 @@ class AddObjWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Add Object"
-        iface._description = "This is a demo for adding object."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -113,7 +117,7 @@ class AddObjWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Add Object", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(

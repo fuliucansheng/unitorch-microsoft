@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -32,6 +33,9 @@ import unitorch_microsoft.models.detr
 
 
 class ROIDetectV2WebUI(SimpleWebUI):
+    _title = "ROI Detection V2"
+    _description = "This is a demo for detecting regions of interest (ROI) in images using the DETR model. You can input an image and a score threshold, and the model will generate an output image with detected ROIs highlighted."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -39,12 +43,12 @@ class ROIDetectV2WebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎢 ROI Detection V2</div>",
+            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -77,8 +81,8 @@ class ROIDetectV2WebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "ROI Detection V2"
-        iface._description = "This is a demo for roi detection v2."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -108,7 +112,7 @@ class ROIDetectV2WebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="ROI Detection V2", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = DetrForDetectionPipeline.from_core_configure(

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -31,6 +32,9 @@ from unitorch_microsoft.spaces import (
 
 
 class ROIDetectWebUI(SimpleWebUI):
+    _title = "ROI Detection"
+    _description = "This is a demo for detecting regions of interest (ROI) in images using the BASNet model. You can input an image and a mask threshold, and the model will generate an output image with detected ROIs highlighted."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -38,12 +42,12 @@ class ROIDetectWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎢 ROI Detection</div>",
+            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -76,8 +80,8 @@ class ROIDetectWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "ROI Detection"
-        iface._description = "This is a demo for roi detection."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -107,7 +111,7 @@ class ROIDetectWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Remove Background", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = BASNetForSegmentationPipeline.from_core_configure(

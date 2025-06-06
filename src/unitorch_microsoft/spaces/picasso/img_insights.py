@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -21,6 +22,8 @@ from unitorch_microsoft.spaces import (
     create_element,
     create_row,
     create_column,
+    create_tab,
+    create_tabs,
     create_flex_layout,
     create_blocks,
     create_toper_menus,
@@ -42,6 +45,9 @@ from unitorch_microsoft.models.bletchley.pipeline_v3 import (
 
 
 class ImgInsightsWebUI(SimpleWebUI):
+    _title = "Image Insights"
+    _description = "This is a demo for image insights using Bletchley. You can input an image and the model will generate insights about the image, such as background type, image type, general category, blurry status, ICE category, and watermark status."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -49,12 +55,12 @@ class ImgInsightsWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎢 Image Insights</div>",
+            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -72,9 +78,24 @@ class ImgInsightsWebUI(SimpleWebUI):
 
         left = create_column(input_image, generate, scale=1)
         right = create_column(
-            create_row(result1, result2, result4, result6),
-            create_row(result3, result5),
-            scale=1,
+            create_tabs(
+                create_tab(
+                    create_row(
+                        result1,
+                        result2,
+                    ),
+                    create_row(
+                        result4,
+                        result6,
+                    ),
+                    name="Insights",
+                ),
+                create_tab(result3, name="General Category"),
+                create_tab(
+                    result5,
+                    name="ICE Category",
+                ),
+            )
         )
 
         iface = create_blocks(
@@ -88,8 +109,8 @@ class ImgInsightsWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Image Insights"
-        iface._description = "This is a demo for image insights."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -119,7 +140,7 @@ class ImgInsightsWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Image Insights", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         if self._status == "Running":

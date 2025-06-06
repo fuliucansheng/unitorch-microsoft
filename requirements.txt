@@ -1,8 +1,6 @@
 sqlparse
-transformers<=4.49.0
-unitorch>=0.0.0.31,<0.0.1.0
+wandb
 multiprocess<=0.70.14
 importlib_resources
-decord
-wandb
-imageio[ffmpeg]
+transformers>=4.52.4
+unitorch>=0.0.1.0,<0.0.2.0

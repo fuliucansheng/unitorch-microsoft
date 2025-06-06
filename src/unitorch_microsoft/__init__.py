@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import logging
 import importlib
@@ -16,7 +17,7 @@ from unitorch.utils import replace
 from transformers.utils import is_remote_url
 from unitorch.cli import cached_path as _cached_path
 
-VERSION = "0.0.0.1"
+VERSION = "0.0.0.2"
 
 logger = logging.getLogger()
 
@@ -109,13 +110,10 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.interrogators
     import unitorch_microsoft.models.bletchley
     import unitorch_microsoft.models.bloom
-    import unitorch_microsoft.models.culr
     import unitorch_microsoft.models.llama
     import unitorch_microsoft.models.mmdnn
     import unitorch_microsoft.models.sam
-    import unitorch_microsoft.models.tnlr
     import unitorch_microsoft.models.tribert
-    import unitorch_microsoft.models.tulg
     import unitorch_microsoft.models.tulr
     import unitorch_microsoft.modules
     import unitorch_microsoft.msan

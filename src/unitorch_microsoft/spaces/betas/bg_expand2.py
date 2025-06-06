@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import math
@@ -18,7 +19,6 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.azure import get_gpt4o_respone
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -36,6 +36,9 @@ from unitorch_microsoft.spaces import (
 
 
 class ExpandBG2WebUI(SimpleWebUI):
+    _title = "Expand Background 2"
+    _description = "This is a demo for expanding the background of images using FLUX. You can input an image and a prompt, and the model will generate a new image with the specified background expanded."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
 
@@ -47,12 +50,12 @@ class ExpandBG2WebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Expand Background 2</div>",
+            label=f"# <div style='margin-top:10px'>✨ {self._title} </div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -98,8 +101,8 @@ class ExpandBG2WebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Expand Background 2"
-        iface._description = "This is a demo for betas expand background 2."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -135,7 +138,7 @@ class ExpandBG2WebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Expand Background 2", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         if self._status == "Running":

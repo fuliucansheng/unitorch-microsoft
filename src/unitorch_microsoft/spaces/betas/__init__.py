@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import hashlib
 from unitorch.utils import read_file
@@ -27,14 +28,10 @@ from unitorch_microsoft.spaces.betas.bg_expand2 import ExpandBG2WebUI
 from unitorch_microsoft.spaces.betas.bg_expand3 import ExpandBG3WebUI
 
 # beta examples
-expand_bg_page = ExpandBGWebUI(spaces_settings).iface
-expand_bg_page2 = ExpandBG2WebUI(spaces_settings).iface
-expand_bg_page3 = ExpandBG3WebUI(spaces_settings).iface
-
 image_pages = [
-    expand_bg_page,
-    expand_bg_page2,
-    expand_bg_page3,
+    ExpandBGWebUI(spaces_settings).iface,
+    ExpandBG2WebUI(spaces_settings).iface,
+    ExpandBG3WebUI(spaces_settings).iface,
 ]
 
 all_pages = image_pages

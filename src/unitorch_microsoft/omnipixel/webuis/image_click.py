@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import io
 import re
@@ -30,7 +31,7 @@ from unitorch.cli.webuis import (
     create_blocks,
 )
 from unitorch.cli.webuis import SimpleWebUI
-from unitorch_microsoft.omnipixel.modeling_click import (
+from unitorch_microsoft.omnipixel.bletchley import (
     BletchleyForImageClickModelPipeline,
 )
 

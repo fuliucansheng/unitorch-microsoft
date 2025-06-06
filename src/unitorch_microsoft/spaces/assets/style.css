@@ -70,38 +70,65 @@
 
 .ut-ms-min-40-height {
   min-height: 40vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-45-height {
   min-height: 45vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-50-height {
   min-height: 50vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-60-height {
   min-height: 60vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-70-height {
   min-height: 70vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-75-height {
   min-height: 75vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-80-height {
   min-height: 80vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-85-height {
   min-height: 85vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-min-90-height {
   min-height: 80vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .ut-ms-dashboard-card-item {

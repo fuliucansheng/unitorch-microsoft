@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
@@ -20,100 +21,17 @@ from unitorch_microsoft.spaces import (
     create_cards_group,
     hashed_link,
 )
-from unitorch_microsoft.spaces.demos.stable.bg_change import (
-    ChangeBGWebUI as StableChangeBGWebUI,
-)
-from unitorch_microsoft.spaces.demos.stable.bg_expand import (
-    ExpandBGWebUI as StableExpandBGWebUI,
-)
+from unitorch_microsoft.spaces.demos.stable import stable_pages
+from unitorch_microsoft.spaces.demos.flux import flux_pages
+from unitorch_microsoft.spaces.demos.recraft import recraft_pages
+from unitorch_microsoft.spaces.demos.video import video_pages
+from unitorch_microsoft.spaces.demos.tools import tools_pages
 
-from unitorch_microsoft.spaces.demos.stable.obj_add import (
-    AddObjWebUI as StableAddObjWebUI,
-)
-from unitorch_microsoft.spaces.demos.stable.obj_remove import (
-    RemoveObjWebUI as StableRemoveObjWebUI,
-)
-from unitorch_microsoft.spaces.demos.stable.img_create import (
-    CreateImgWebUI as StableCreateImgWebUI,
-)
-from unitorch_microsoft.spaces.demos.flux.bg_change import (
-    ChangeBGWebUI as FluxChangeBGWebUI,
-)
-from unitorch_microsoft.spaces.demos.flux.bg_expand import (
-    ExpandBGWebUI as FluxExpandBGWebUI,
-)
-from unitorch_microsoft.spaces.demos.flux.obj_add import AddObjWebUI as FluxAddObjWebUI
-from unitorch_microsoft.spaces.demos.flux.obj_remove import (
-    RemoveObjWebUI as FluxRemoveObjWebUI,
-)
-from unitorch_microsoft.spaces.demos.flux.img_create import (
-    CreateImgWebUI as FluxCreateImgWebUI,
-)
-from unitorch_microsoft.spaces.demos.recraft.img_create import (
-    CreateImgWebUI as RecraftCreateImgWebUI,
-)
-from unitorch_microsoft.spaces.demos.video.opencv import ZoomInWebUI
-from unitorch_microsoft.spaces.demos.tools.gpt_caption import GPT4OWebUI
-from unitorch_microsoft.spaces.demos.tools.bg_remove import RemoveBGWebUI
-from unitorch_microsoft.spaces.demos.tools.img_caption import CaptionImgWebUI
-from unitorch_microsoft.spaces.demos.tools.joycaption2 import JoyCaption2WebUI
-
-# image
-stable_create_img_page = StableCreateImgWebUI(spaces_settings).iface
-stable_change_bg_page = StableChangeBGWebUI(spaces_settings).iface
-stable_expand_bg_page = StableExpandBGWebUI(spaces_settings).iface
-stable_add_obj_page = StableAddObjWebUI(spaces_settings).iface
-stable_remove_obj_page = StableRemoveObjWebUI(spaces_settings).iface
-
-# flux
-flux_create_img_page = FluxCreateImgWebUI(spaces_settings).iface
-flux_change_bg_page = FluxChangeBGWebUI(spaces_settings).iface
-flux_expand_bg_page = FluxExpandBGWebUI(spaces_settings).iface
-flux_add_obj_page = FluxAddObjWebUI(spaces_settings).iface
-flux_remove_obj_page = FluxRemoveObjWebUI(spaces_settings).iface
-
-# recraft
-recraft_create_img_page = RecraftCreateImgWebUI(spaces_settings).iface
-
-# video
-zoom_in_page = ZoomInWebUI(spaces_settings).iface
-
-# tools
-gpt4o_page = GPT4OWebUI(spaces_settings).iface
-remove_bg_page = RemoveBGWebUI(spaces_settings).iface
-caption_img_page = CaptionImgWebUI(spaces_settings).iface
-joycaption2_page = JoyCaption2WebUI(spaces_settings).iface
-
-stable_pages = [
-    stable_create_img_page,
-    stable_change_bg_page,
-    stable_expand_bg_page,
-    stable_add_obj_page,
-    stable_remove_obj_page,
-]
-
-flux_pages = [
-    flux_create_img_page,
-    flux_change_bg_page,
-    flux_expand_bg_page,
-    flux_add_obj_page,
-    flux_remove_obj_page,
-]
-
-recraft_pages = [
-    recraft_create_img_page,
-]
-
-video_pages = [
-    zoom_in_page,
-]
-
-tools_pages = [
-    gpt4o_page,
-    remove_bg_page,
-    caption_img_page,
-    joycaption2_page,
-]
+stable_pages = [_webui(spaces_settings).iface for _webui in stable_pages]
+flux_pages = [_webui(spaces_settings).iface for _webui in flux_pages]
+recraft_pages = [_webui(spaces_settings).iface for _webui in recraft_pages]
+video_pages = [_webui(spaces_settings).iface for _webui in video_pages]
+tools_pages = [_webui(spaces_settings).iface for _webui in tools_pages]
 
 all_pages = stable_pages + flux_pages + recraft_pages + video_pages + tools_pages
 for page in all_pages:

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import io
 import cv2
@@ -16,7 +17,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.azure import get_gpt4o_respone
+from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -34,26 +35,23 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class GPT4OWebUI(SimpleWebUI):
+class GPT4WebUI(SimpleWebUI):
+    _title = "GPT-4"
+    _description = "This is a demo for GPT-4. You can input images and a prompt (images are optional), and GPT-4 will generate a result."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
-
-        config.set_default_section("microsoft/spaces/demos/tools/gpt4o")
-        self._gpt_endpoint = config.getoption("gpt_endpoint", None)
-        self._gpt_name = config.getoption("gpt_name", None)
-        self._gpt_key = config.getoption("gpt_key", None)
-
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🛠️ GPT4O</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -85,8 +83,8 @@ class GPT4OWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "GPT4O"
-        iface._description = "This is a demo for gpt4o."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -116,7 +114,7 @@ class GPT4OWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="GPT4O", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._status = "Running"
@@ -127,12 +125,9 @@ class GPT4OWebUI(SimpleWebUI):
         return self._status
 
     def serve(self, prompt, *images):
-        result = get_gpt4o_respone(
+        result = get_gpt4_response(
             prompt,
             images=images,
-            api_endpoint=self._gpt_endpoint,
-            api_deploy_name=self._gpt_name,
-            api_key=self._gpt_key,
         )
         result = result.replace("\t", " ").replace("\r", " ").replace("\n", " ")
         return result

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -33,6 +34,9 @@ from unitorch_microsoft.spaces import (
 
 
 class JoyCaption2WebUI(SimpleWebUI):
+    _title = "JoyCaption 2"
+    _description = "This is a demo for JoyCaption 2, a model for generating captions for images. You can input an image and a prompt, and the model will generate a caption based on the prompt and the image."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -40,12 +44,12 @@ class JoyCaption2WebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🛠️ JoyCaption 2</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -104,8 +108,8 @@ class JoyCaption2WebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "JoyCaption 2"
-        iface._description = "This is a demo for JoyCaption 2."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -137,7 +141,7 @@ class JoyCaption2WebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="JoyCaption 2", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = LlavaLlamaSiglipForGenerationPipeline.from_core_configure(

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import sys
 import fire
@@ -19,6 +20,7 @@ from unitorch.cli import (
 )
 import unitorch.cli.fastapis
 from unitorch_microsoft import cached_path
+import unitorch_microsoft.fastapis
 
 
 @fire.decorators.SetParseFn(str)

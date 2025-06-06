@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -33,6 +34,9 @@ from unitorch_microsoft.spaces import (
 
 
 class CaptionImgWebUI(SimpleWebUI):
+    _title = "LLAVA Image Captioning"
+    _description = "This is a demo for llava image captioning. You can input images and a prompt, and the model will generate a caption for the images based on the prompt."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -40,12 +44,12 @@ class CaptionImgWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🛠️ Image Caption</div>",
+            label=f"# <div style='margin-top:10px'>🛠️ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -71,8 +75,8 @@ class CaptionImgWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Llava Image Caption"
-        iface._description = "This is a demo for image caption."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -102,7 +106,7 @@ class CaptionImgWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Image Caption", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = LlavaMistralClipForGenerationPipeline.from_core_configure(

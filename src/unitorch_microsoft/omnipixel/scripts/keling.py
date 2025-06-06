@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 # https://docs.lumalabs.ai/docs/python-image-generation
 
 import os

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import json
 import re
@@ -21,7 +22,7 @@ except ImportError:
     )
 
 
-def get_respone(
+def get_response(
     histories,
     message: str,
     system_prompt: Optional[
@@ -95,7 +96,7 @@ class ChatGPTWebUI(SimpleWebUI):
         super().__init__(config, "ChatGPT", iface)
 
     def response(self, message, histories):
-        answer = get_respone(
+        answer = get_response(
             histories,
             message=message,
             api_endpoint=self.api_endpoint,

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -68,22 +69,25 @@ supported_image_styles = [
 
 
 class CreateImgWebUI(SimpleWebUI):
+    _title = "Recraft Image Generation"
+    _description = "This is a demo for text to image generation using Recraft. You can input a prompt, and the model will generate an image based on the prompt."
+
     def __init__(self, config: CoreConfigureParser):
         self.token = config.getdefault("microsoft/spaces/recraft", "token", None)
         if self.token is None:
-            raise ValueError("Please provide a valid OpenAI Recraft API key.")
+            raise ValueError("Please provide a valid Recraft API key.")
         self._status = getattr(self, "_status", "Stopped")
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🖼️ Text to Image Generation</div>",
+            label=f"# <div style='margin-top:10px'>🖼️ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -113,8 +117,8 @@ class CreateImgWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Text to Image"
-        iface._description = "This is a demo for text to image with Recraft."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -144,7 +148,7 @@ class CreateImgWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Text to Image Generation", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self.client = OpenAI(

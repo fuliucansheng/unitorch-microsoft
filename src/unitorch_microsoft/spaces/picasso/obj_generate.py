@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -18,7 +19,7 @@ from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch.cli.pipelines.tools.controlnet.canny import canny
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.azure import get_gpt4o_respone
+from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -36,6 +37,9 @@ from unitorch_microsoft.spaces import (
 
 
 class GenerateObjectWebUI(SimpleWebUI):
+    _title = "Generate Object"
+    _description = "This is a demo for generating objects using FLUX. You can input an image and a new object description, and the model will generate new images with the specified object."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
 
@@ -44,21 +48,18 @@ class GenerateObjectWebUI(SimpleWebUI):
         self._joycaption2_endpoint = config.getoption("joycaption2_endpoint", None)
         self._flux_t2i_endpoint = config.getoption("flux_t2i_endpoint", None)
         self._flux_ctrl_endpoint = config.getoption("flux_ctrl_endpoint", None)
-        self._gpt_endpoint = config.getoption("gpt_endpoint", None)
-        self._gpt_name = config.getoption("gpt_name", None)
-        self._gpt_key = config.getoption("gpt_key", None)
 
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎢 Generate Object</div>",
+            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -86,8 +87,8 @@ class GenerateObjectWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Generate Object"
-        iface._description = "This is a demo for picasso generate object."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -117,7 +118,7 @@ class GenerateObjectWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Generate Object", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         checked_endpoints = [
@@ -176,12 +177,9 @@ class GenerateObjectWebUI(SimpleWebUI):
             resp_type="image",
         )
 
-        new_caption = get_gpt4o_respone(
+        new_caption = get_gpt4_response(
             f"Optimize the prompt by refining its structure and updating the described object to the new object. \n Original Prompt: {caption} \n New Object: {prompt}. Output the optimized prompt in <Ans> </Ans> format.",
             images=[],
-            api_endpoint=self._gpt_endpoint,
-            api_deploy_name=self._gpt_name,
-            api_key=self._gpt_key,
         )
 
         match = re.search(r"<Ans>(.*?)</Ans>", new_caption, re.DOTALL)

@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import pandas as pd
 import gradio as gr
 from unitorch.utils import read_file
@@ -23,6 +24,9 @@ from unitorch_microsoft.spaces import (
 
 
 class DashboardWebUI(SimpleWebUI):
+    _title = "Picasso Dashboard"
+    _description = "This is a demo for Picasso Dashboard, which provides a comprehensive view of the Picasso image generative models performance and progress. It serves as a centralized hub for tracking key metrics related to the models powering Picasso, ensuring stakeholders and developers can monitor model health, accuracy, and efficiency."
+
     def __init__(
         self,
         config: CoreConfigureParser,
@@ -36,7 +40,7 @@ class DashboardWebUI(SimpleWebUI):
         toper_menus = create_toper_menus()
         dashboard_header = create_element(
             "markdown",
-            "# <div style='margin:30px; min-height: 3em; text-align:center; font-weight: 600; font-size: 1.2em; color: darkslategray; display: flex; justify-content: center'>🌐 Picasso Dashboard</div>",
+            "# <div style='margin:30px; min-height: 3em; text-align:center; font-weight: 600; font-size: 1.2em; color: darkslategray; display: flex; justify-content: center'>🌐 {self._title} </div>",
         )
 
         start_date = (pd.Timestamp.now() - pd.DateOffset(months=1)).strftime("%Y-%m-%d")
@@ -91,8 +95,8 @@ class DashboardWebUI(SimpleWebUI):
             footer,
         )
 
-        iface._title = "Ads Spaces | Picasso Dashboard"
-        iface._description = "This is a demo for picasso dashboard."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -116,7 +120,7 @@ class DashboardWebUI(SimpleWebUI):
         )
         iface.__exit__()
 
-        super().__init__(config, iname="Dashboard", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def get_latest_data(self):
         seg_data = pd.DataFrame(

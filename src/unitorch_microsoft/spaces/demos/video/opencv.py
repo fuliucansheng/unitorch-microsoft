@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import numpy as np
@@ -28,18 +29,21 @@ from unitorch_microsoft.picasso.video.opencv import zoom_in_effect
 
 
 class ZoomInWebUI(SimpleWebUI):
+    _title = "Zoom In Video"
+    _description = "This is a demo for zooming in video. You can select a region in the video to zoom in, and the output will be a video with the selected region zoomed in."
+
     def __init__(self, config: CoreConfigureParser):
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎬 Zoom In Video</div>",
+            label=f"# <div style='margin-top:10px'>🎬 {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="Click on the image to select the region to zoom in. 30 frames per second.",
+            label=self._description,
             interactive=False,
         )
         input_image = create_element("image", "Image")
@@ -61,8 +65,8 @@ class ZoomInWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Zoom In"
-        iface._description = "This is a demo for zooming in video."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -96,7 +100,7 @@ class ZoomInWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Zoom In", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def add_click_points(self, image, click_points, evt: gr.SelectData):
         x, y = evt.index[0], evt.index[1]

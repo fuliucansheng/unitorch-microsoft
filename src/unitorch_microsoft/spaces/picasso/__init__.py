@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import hashlib
 from unitorch.utils import read_file
@@ -39,19 +40,16 @@ dashboards = [
 ]
 
 # Picasso examples
-expand_bg_page = ExpandBGWebUI(spaces_settings).iface
-img_insights_page = ImgInsightsWebUI(spaces_settings).iface
-roi_detect_page = ROIDetectWebUI(spaces_settings).iface
-roi_detect_page_v2 = ROIDetectV2WebUI(spaces_settings).iface
-obj_generate_page = GenerateObjectWebUI(spaces_settings).iface
-
-examples_pages = [
-    img_insights_page,
-    roi_detect_page,
-    roi_detect_page_v2,
-    expand_bg_page,
-    obj_generate_page,
+examples = [
+    ExpandBGWebUI,
+    ImgInsightsWebUI,
+    ROIDetectWebUI,
+    ROIDetectV2WebUI,
+    GenerateObjectWebUI,
 ]
+
+examples_pages = [_webui(spaces_settings).iface for _webui in examples]
+
 for page in examples_pages:
     page._link = f"/picasso/{hashed_link(page._title + page._description, 6)}"
     page.title = f"Ads Spaces | Picasso - {page._title}"

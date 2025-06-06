@@ -15,9 +15,8 @@ def process_chunk(
     num_processes,
     total_rows,
     file_writer,
-    lock
+    lock,
 ):
-
     if process_id == num_processes - 1:
         chunk_size = total_rows - chunk_start + 1
     chunks = videos[chunk_start : chunk_start + chunk_size]
@@ -28,9 +27,9 @@ def process_chunk(
     movement_str = ""
     for video in chunks:
         try:
-            src_file = os.path.join('/datablob/shutterstock', video)
+            src_file = os.path.join("/datablob/shutterstock", video)
             if os.path.exists(src_file):
-                dst_file = video.replace('/','_')
+                dst_file = video.replace("/", "_")
                 dst_file = os.path.join(cache_dir, dst_file)
                 cmd = f"cp {src_file} {dst_file}"
                 os.system(cmd)
@@ -42,7 +41,7 @@ def process_chunk(
         except Exception as e:
             print(f"Worker {process_id} error processing {video}: {e}")
             continue
-    
+
     if movement_str != "":
         with lock:
             writer = open(file_writer, "a+")
@@ -62,7 +61,6 @@ def movement(
     """
     Movement of video data, used for video data movement.
     """
-
 
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -102,7 +100,7 @@ def movement(
 
     if not os.path.exists(dst_dir):
         os.makedirs(dst_dir, exist_ok=True)
-    
+
     lock = mp.Lock()
 
     processes = []
@@ -120,7 +118,7 @@ def movement(
                 total_rows,
                 output_file,
                 lock,
-            )
+            ),
         )
         processes.append(p)
         p.start()

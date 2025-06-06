@@ -1,5 +1,6 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
+
 import os
 import cv2
 import gc
@@ -42,6 +43,9 @@ from unitorch_microsoft.spaces import (
 
 
 class ExpandBGWebUI(SimpleWebUI):
+    _title = "Expand Background"
+    _description = "This is a demo for expanding the background of images using ControlNet and Stable Diffusion. You can input an image and a prompt, and the model will generate a new image with the specified background."
+
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
         # create elements
@@ -49,12 +53,12 @@ class ExpandBGWebUI(SimpleWebUI):
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ Expand Background</div>",
+            label=f"# <div style='margin-top:10px'>✨ {self._title}</div>",
             interactive=False,
         )
         description = create_element(
             "markdown",
-            label="description",
+            label=self._description,
             interactive=False,
         )
 
@@ -87,8 +91,8 @@ class ExpandBGWebUI(SimpleWebUI):
             ),
             footer,
         )
-        iface._title = "Expand Background"
-        iface._description = "This is a demo for expanding background."
+        iface._title = self._title
+        iface._description = self._description
 
         # create events
         iface.__enter__()
@@ -124,7 +128,7 @@ class ExpandBGWebUI(SimpleWebUI):
 
         iface.__exit__()
 
-        super().__init__(config, iname="Expand Background", iface=iface)
+        super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
