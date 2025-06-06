@@ -25,7 +25,7 @@ def process_chunk(
     )
 
     movement_str = ""
-    for video in chunks:
+    for idx, video in enumerate(chunks):
         try:
             src_file = os.path.join("/datablob/shutterstock", video)
             if os.path.exists(src_file):
@@ -35,20 +35,26 @@ def process_chunk(
                 os.system(cmd)
                 print(f"Worker {process_id} copy {src_file} to {dst_file}")
                 movement_str += f"{video}\t{dst_file}\n"
+                if idx % 100 == 0:
+                    with lock:
+                        writer = open(file_writer, "a+")
+                        writer.write(movement_str)
+                        writer.flush()
+                        writer.close()
+                    movement_str = ""
             else:
                 print(f"Worker {process_id} file {src_file} not found")
                 continue
         except Exception as e:
             print(f"Worker {process_id} error processing {video}: {e}")
             continue
-
+    
     if movement_str != "":
         with lock:
             writer = open(file_writer, "a+")
             writer.write(movement_str)
             writer.flush()
             writer.close()
-
 
 def movement(
     data_file: str,
