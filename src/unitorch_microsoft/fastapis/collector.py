@@ -145,7 +145,6 @@ class CollectorFastAPI(GenericFastAPI):
                 db_folder=self._db_folder,
                 media_folder=self._media_folder,
             )
-            logging.info("Data collected successfully")
             return {"status": "success", "message": "Data collected successfully"}
         except Exception as e:
             logging.error(f"Error collecting data: {e}")
@@ -216,7 +215,6 @@ def reported_item(
             },
             files=files,
         )
-        logging.info("Record reported successfully")
         return {"status": "success", "message": "Record reported successfully"}
     except Exception as e:
         logging.error(f"Failed to report record: {e}")

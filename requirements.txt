@@ -3,4 +3,4 @@ wandb
 multiprocess<=0.70.14
 importlib_resources
 transformers>=4.52.4
-unitorch>=0.0.1.0,<0.0.2.0
+unitorch>=0.0.1.1,<0.0.2.0
