@@ -26,9 +26,9 @@ python3.10 -m unitorch_microsoft.scripts.tools.hfhub delete_folder --repo fuliuc
 ### Report Items
 
 ```bash
-UNITORCH_MS_FASTAPI_ENDPOINT=http://decu-pc2:5000 python3.10 -m unitorch_microsoft.scripts.tools.report_items report_jsonl_file --data_file ./recraft/output.jsonl --image_cols result --tags "#Recraft#T2I"
+UNITORCH_MS_FASTAPI_ENDPOINT=http://decu-pc2:5432 python3.10 -m unitorch_microsoft.scripts.tools.report_items report_jsonl_file --data_file ./recraft/output.jsonl --image_cols result --tags "#Recraft#T2I"
 ```
 
 ```bash
-UNITORCH_MS_FASTAPI_ENDPOINT=http://decu-pc2:5000 python3.10 -m unitorch_microsoft.scripts.tools.report_items report_file --data_file ./output.tsv --names "prompt;image" --image_cols image --tags "#FluxDev#T2I"
+UNITORCH_MS_FASTAPI_ENDPOINT=http://decu-pc2:5432 python3.10 -m unitorch_microsoft.scripts.tools.report_items report_file --data_file ./output.tsv --names "prompt;image" --image_cols image --tags "#FluxDev#T2I"
 ```

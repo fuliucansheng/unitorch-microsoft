@@ -176,11 +176,16 @@ def reported_item(
     if not endpoint:
         return
 
+    def pil_to_bytes(image: Image.Image, format="JPEG") -> bytes:
+        buf = io.BytesIO()
+        image.save(buf, format=format)
+        return buf.getvalue()
+
     try:
         if images is not None:
             images = {
                 name: (
-                    value.tobytes()
+                    pil_to_bytes(value)
                     if isinstance(value, Image.Image)
                     else cache_url_file_to_bytes(value)
                 )

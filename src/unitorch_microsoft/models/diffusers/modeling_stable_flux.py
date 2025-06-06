@@ -329,7 +329,7 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
 
         outputs = self.transformer(
             hidden_states=latent_model_input,
-            timestep=sigmas,
+            timestep=timesteps / 1000,
             guidance=guidance,
             encoder_hidden_states=outputs.prompt_embeds,
             pooled_projections=outputs.pooled_prompt_embeds,
@@ -426,12 +426,9 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
             "to_q",
             "to_k",
             "to_v",
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "SelfAttention.q",
-            "SelfAttention.k",
-            "SelfAttention.v",
+            "add_q_proj",
+            "add_k_proj",
+            "add_v_proj",
         ],
         enable_text_adapter: Optional[bool] = True,
         enable_transformer_adapter: Optional[bool] = True,
@@ -544,12 +541,9 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
                 "to_q",
                 "to_k",
                 "to_v",
-                "q_proj",
-                "k_proj",
-                "v_proj",
-                "SelfAttention.q",
-                "SelfAttention.k",
-                "SelfAttention.v",
+                "add_q_proj",
+                "add_k_proj",
+                "add_v_proj",
             ],
         )
         replace_keys = config.getoption(
@@ -558,12 +552,9 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
                 "to_q.": "to_q.base_layer.",
                 "to_k.": "to_k.base_layer.",
                 "to_v.": "to_v.base_layer.",
-                "q_proj.": "q_proj.base_layer.",
-                "k_proj.": "k_proj.base_layer.",
-                "v_proj.": "v_proj.base_layer.",
-                "SelfAttention.q.": "SelfAttention.q.base_layer.",
-                "SelfAttention.k.": "SelfAttention.k.base_layer.",
-                "SelfAttention.v.": "SelfAttention.v.base_layer.",
+                "add_q_proj.": "add_q_proj.base_layer.",
+                "add_k_proj.": "add_k_proj.base_layer.",
+                "add_v_proj.": "add_v_proj.base_layer.",
             },
         )
         enable_text_adapter = config.getoption("enable_text_adapter", True)
@@ -732,7 +723,7 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
 
         outputs = self.transformer(
             hidden_states=latent_model_input,
-            timestep=sigmas,
+            timestep=timesteps / 1000,
             guidance=guidance,
             encoder_hidden_states=outputs.prompt_embeds,
             pooled_projections=outputs.pooled_prompt_embeds,
@@ -1096,7 +1087,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
 
         outputs = self.transformer(
             hidden_states=latent_model_input,
-            timestep=sigmas,
+            timestep=timesteps / 1000,
             guidance=guidance,
             encoder_hidden_states=outputs.prompt_embeds,
             pooled_projections=outputs.pooled_prompt_embeds,
@@ -1174,6 +1165,8 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
     diffusion_model_decorator,
 )
 class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
+    modules_to_save_checkpoints = ["lora", "x_embedder"]
+
     def __init__(
         self,
         config_path: str,
@@ -1197,15 +1190,13 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
             "to_q",
             "to_k",
             "to_v",
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "SelfAttention.q",
-            "SelfAttention.k",
-            "SelfAttention.v",
+            "add_q_proj",
+            "add_k_proj",
+            "add_v_proj",
         ],
         enable_text_adapter: Optional[bool] = True,
         enable_transformer_adapter: Optional[bool] = True,
+        freeze_transformer_input_channels: Optional[bool] = True,
         seed: Optional[int] = 1123,
         gradient_checkpointing: Optional[bool] = True,
         guidance_scale: Optional[float] = 3.5,
@@ -1249,6 +1240,10 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         self.guidance_scale = guidance_scale
         self.pipeline.set_progress_bar_config(disable=True)
         self.num_channels_transformer = self.transformer.config.in_channels
+
+        if not freeze_transformer_input_channels:
+            for param in self.transformer.x_embedder.parameters():
+                param.requires_grad = True
 
     @classmethod
     @add_default_section_for_init(
@@ -1316,12 +1311,9 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
                 "to_q",
                 "to_k",
                 "to_v",
-                "q_proj",
-                "k_proj",
-                "v_proj",
-                "SelfAttention.q",
-                "SelfAttention.k",
-                "SelfAttention.v",
+                "add_q_proj",
+                "add_k_proj",
+                "add_v_proj",
             ],
         )
         replace_keys = config.getoption(
@@ -1330,17 +1322,17 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
                 "to_q.": "to_q.base_layer.",
                 "to_k.": "to_k.base_layer.",
                 "to_v.": "to_v.base_layer.",
-                "q_proj.": "q_proj.base_layer.",
-                "k_proj.": "k_proj.base_layer.",
-                "v_proj.": "v_proj.base_layer.",
-                "SelfAttention.q.": "SelfAttention.q.base_layer.",
-                "SelfAttention.k.": "SelfAttention.k.base_layer.",
-                "SelfAttention.v.": "SelfAttention.v.base_layer.",
+                "add_q_proj.": "add_q_proj.base_layer.",
+                "add_k_proj.": "add_k_proj.base_layer.",
+                "add_v_proj.": "add_v_proj.base_layer.",
             },
         )
         enable_text_adapter = config.getoption("enable_text_adapter", True)
         enable_transformer_adapter = config.getoption(
             "enable_transformer_adapter", True
+        )
+        freeze_transformer_input_channels = config.getoption(
+            "freeze_transformer_input_channels", True
         )
         seed = config.getoption("seed", 1123)
         gradient_checkpointing = config.getoption("gradient_checkpointing", True)
@@ -1366,6 +1358,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
             target_modules=target_modules,
             enable_text_adapter=enable_text_adapter,
             enable_transformer_adapter=enable_transformer_adapter,
+            freeze_transformer_input_channels=freeze_transformer_input_channels,
             seed=seed,
             gradient_checkpointing=gradient_checkpointing,
             guidance_scale=guidance_scale,
@@ -1534,7 +1527,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
 
         outputs = self.transformer(
             hidden_states=latent_model_input,
-            timestep=sigmas,
+            timestep=timesteps / 1000,
             guidance=guidance,
             encoder_hidden_states=outputs.prompt_embeds,
             pooled_projections=outputs.pooled_prompt_embeds,

@@ -60,6 +60,71 @@ def report_jsonl_file(
             logging.info(f"Processed {i + 1} items")
 
 
+def report_folder(
+    data_folder,
+    prompt_extension: Optional[str] = ".txt",
+    image_extension: Optional[str] = ".jpg",
+    video_extension: Optional[str] = ".mp4",
+    audio_extension: Optional[str] = ".wav",
+    log_freq: Optional[int] = 1000,
+    tags: Optional[str] = None,
+):
+    if isinstance(prompt_extension, str):
+        prompt_extension = [prompt_extension]
+    if isinstance(image_extension, str):
+        image_extension = [image_extension]
+    if isinstance(video_extension, str):
+        video_extension = [video_extension]
+    if isinstance(audio_extension, str):
+        audio_extension = [audio_extension]
+
+    data_files = os.listdir(data_folder)
+    for i, file_name in enumerate(data_files):
+        file_path = os.path.join(data_folder, file_name)
+        if not os.path.isfile(file_path):
+            continue
+
+        item = {}
+        if any(file_name.endswith(ext) for ext in prompt_extension):
+            with open(file_path, "r") as f:
+                item["prompt"] = f.read().strip()
+        else:
+            continue
+
+        file_name = file_name.rsplit(".", 1)[0]
+        image, video, audio = None, None, None
+        for ext in image_extension:
+            image_file_path = f"{file_name}{ext}"
+            if os.path.isfile(image_file_path):
+                image = image_file_path
+                break
+
+        for ext in video_extension:
+            video_file_path = f"{file_name}{ext}"
+            if os.path.isfile(video_file_path):
+                video = video_file_path
+                break
+
+        for ext in audio_extension:
+            audio_file_path = f"{file_name}{ext}"
+            if os.path.isfile(audio_file_path):
+                audio = audio_file_path
+                break
+
+        if tags is not None:
+            item["tags"] = tags
+
+        reported_item(
+            record=item,
+            images={"image": image} if image else None,
+            videos={"video": video} if video else None,
+            audios={"audio": audio} if audio else None,
+        )
+
+        if (i + 1) % log_freq == 0:
+            logging.info(f"Processed {i + 1} items")
+
+
 def report_file(
     data_file,
     names: Optional[str] = None,
@@ -155,6 +220,7 @@ if __name__ == "__main__":
     fire.Fire(
         {
             "report_file": report_file,
+            "report_folder": report_folder,
             "report_jsonl_file": report_jsonl_file,
         }
     )

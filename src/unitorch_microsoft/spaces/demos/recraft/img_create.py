@@ -33,6 +33,7 @@ from unitorch_microsoft.spaces import (
     create_dashboard_cards_group,
     create_cards_group,
 )
+from unitorch_microsoft.scripts.tools.report_items import reported_item
 
 try:
     from openai import OpenAI
@@ -179,4 +180,16 @@ class CreateImgWebUI(SimpleWebUI):
         url = response.data[0].url
         doc = requests.get(url)
         result = Image.open(io.BytesIO(doc.content))
+
+        reported_item(
+            record={
+                "prompt": prompt,
+                "style": "realistic_image",
+                "width": width,
+                "height": height,
+                "tags": "#Recraft#T2I",
+            },
+            images={"result": result},
+        )
+
         return result

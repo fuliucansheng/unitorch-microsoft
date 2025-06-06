@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import json
+import glob
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -53,7 +54,7 @@ from unitorch_microsoft.models.diffusers.modeling_flux_utils import (
 )
 
 
-@register_model("microsoft/adsplus/diffusers/text2image/stable_flux")
+@register_model("microsoft/omnipixel/diffusers/text2image/stable_flux")
 class StableFluxForText2ImageGeneration(GenericStableFluxModel):
     def __init__(
         self,
@@ -182,8 +183,31 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
 
         weight_path = config.getoption("pretrained_weight_path", None)
 
+        pretrained_weight_folder = config.getoption("pretrained_weight_folder", None)
+
         state_dict = None
-        if weight_path is None and pretrained_infos is not None:
+        if weight_path is None and pretrained_weight_folder is not None:
+            state_dict = [
+                load_weight(
+                    glob.glob(f"{pretrained_weight_folder}/transformer/*.safetensors"),
+                    prefix_keys={"": "transformer."},
+                ),
+                load_weight(
+                    glob.glob(f"{pretrained_weight_folder}/text_encoder/*.safetensors"),
+                    prefix_keys={"": "text."},
+                ),
+                load_weight(
+                    glob.glob(
+                        f"{pretrained_weight_folder}/text_encoder_2/*.safetensors"
+                    ),
+                    prefix_keys={"": "text2."},
+                ),
+                load_weight(
+                    glob.glob(f"{pretrained_weight_folder}/vae/*.safetensors"),
+                    prefix_keys={"": "vae."},
+                ),
+            ]
+        elif weight_path is None and pretrained_infos is not None:
             state_dict = [
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),

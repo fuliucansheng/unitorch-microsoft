@@ -9,6 +9,7 @@ import requests
 from PIL import Image
 from typing import Optional
 from azure.identity import AzureCliCredential
+from unitorch_microsoft.scripts.tools.report_items import reported_item
 
 """
 pip3 install azure-identity
@@ -73,6 +74,7 @@ def get_gpt_image_response(
     images = [im for im in images if isinstance(im, Image.Image)]
 
     try:
+        reported_images = {}
         if images is None or len(images) == 0:
             headers["Content-Type"] = "application/json"
             data = {
@@ -96,14 +98,24 @@ def get_gpt_image_response(
                 ("image[]", (f"image_{i}.png", get_image(image), "image/png"))
                 for i, image in enumerate(images)
             ]
+            reported_images = {f"image_{i}": image for i, image in enumerate(images)}
             if mask is not None:
                 files.append(("mask", ("mask.png", get_image(mask), "image/png")))
+                reported_images["mask"] = mask
             response = requests.post(
                 papyrus_endpoint2, headers=headers, data=data, files=files
             )
         response = response.json()
         result = response["data"][0]["b64_json"]
-        return Image.open(io.BytesIO(base64.b64decode(result)))
+        result = Image.open(io.BytesIO(base64.b64decode(result)))
+        reported_images["result"] = result
+
+        reported_item(
+            record={"prompt": prompt, "size": size, "tags": "#GPT-Image-1"},
+            images=reported_images,
+        )
+
+        return result
     except Exception as e:
         print(f"Error during request: {e}")
         return None
@@ -120,21 +132,25 @@ def get_gpt4_response(
 ):
     content = [{"type": "text", "text": prompt}]
     images = images if images is not None else []
-    for image in images:
-        if image is not None:
-            if isinstance(image, str):
-                image = Image.open(image)
-            buf = io.BytesIO()
-            image = image.convert("RGB")  # Ensure the image is in RGB format
-            image.save(buf, format="JPEG")
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
-                    },
-                }
-            )
+    if isinstance(images, Image.Image):
+        images = [images]
+    images = [im for im in images if isinstance(im, Image.Image)]
+    reported_images = {}
+    for i, image in enumerate(images):
+        if isinstance(image, str):
+            image = Image.open(image)
+        buf = io.BytesIO()
+        image = image.convert("RGB")  # Ensure the image is in RGB format
+        image.save(buf, format="JPEG")
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+                },
+            }
+        )
+        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -165,4 +181,13 @@ def get_gpt4_response(
     except Exception as e:
         print(e)
         return ""
+    reported_item(
+        record={
+            "prompt": prompt,
+            "system_prompt": system_prompt,
+            "tags": "#GPT-4",
+            "result": result,
+        },
+        images=reported_images if len(reported_images) > 0 else None,
+    )
     return result
