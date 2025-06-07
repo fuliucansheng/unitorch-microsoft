@@ -1196,7 +1196,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         ],
         enable_text_adapter: Optional[bool] = True,
         enable_transformer_adapter: Optional[bool] = True,
-        freeze_transformer_input_channels: Optional[bool] = True,
+        freeze_transformer_input_embedder: Optional[bool] = True,
         seed: Optional[int] = 1123,
         gradient_checkpointing: Optional[bool] = True,
         guidance_scale: Optional[float] = 3.5,
@@ -1241,7 +1241,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         self.pipeline.set_progress_bar_config(disable=True)
         self.num_channels_transformer = self.transformer.config.in_channels
 
-        if not freeze_transformer_input_channels:
+        if not freeze_transformer_input_embedder:
             for param in self.transformer.x_embedder.parameters():
                 param.requires_grad = True
 
@@ -1331,8 +1331,8 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         enable_transformer_adapter = config.getoption(
             "enable_transformer_adapter", True
         )
-        freeze_transformer_input_channels = config.getoption(
-            "freeze_transformer_input_channels", True
+        freeze_transformer_input_embedder = config.getoption(
+            "freeze_transformer_input_embedder", True
         )
         seed = config.getoption("seed", 1123)
         gradient_checkpointing = config.getoption("gradient_checkpointing", True)
@@ -1358,7 +1358,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
             target_modules=target_modules,
             enable_text_adapter=enable_text_adapter,
             enable_transformer_adapter=enable_transformer_adapter,
-            freeze_transformer_input_channels=freeze_transformer_input_channels,
+            freeze_transformer_input_embedder=freeze_transformer_input_embedder,
             seed=seed,
             gradient_checkpointing=gradient_checkpointing,
             guidance_scale=guidance_scale,

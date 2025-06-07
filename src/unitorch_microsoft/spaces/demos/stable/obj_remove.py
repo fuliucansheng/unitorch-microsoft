@@ -250,6 +250,8 @@ class RemoveObjWebUI(SimpleWebUI):
         return mask
 
     def composite_images(self, images):
+        if images is None:
+            return None
         layers = images["layers"]
         if len(layers) == 0:
             return None

@@ -101,6 +101,8 @@ class OmniPixelImageClickWebUI(SimpleWebUI):
         return self._status
 
     def composite_images(self, images):
+        if images is None:
+            return None
         return images["composite"]
 
     def serve(self, image):

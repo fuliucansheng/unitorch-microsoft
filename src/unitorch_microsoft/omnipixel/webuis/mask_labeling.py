@@ -202,6 +202,8 @@ class PicassoInpaintingMaskWebUI(SimpleWebUI):
         super().__init__(config, iname="Human Mask Labeling Tools", iface=iface)
 
     def composite_images(self, images):
+        if images is None:
+            return None
         layers = images["layers"]
         if len(layers) == 0:
             return None
