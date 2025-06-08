@@ -168,6 +168,12 @@ def _parse_args():
         help="Offload TeaCache tensors to CPU",
     )
     parser.add_argument(
+        "--z3_flag_disable",
+        action="store_true",
+        default=False,
+        help="Disable Z3 flag",
+    )
+    parser.add_argument(
         "--cfg_skip_ratio", type=float, default=0, help="CFG skip ratio"
     )
     parser.add_argument(
@@ -335,6 +341,25 @@ def check_state_dict(old_state_dict, state_dict):
     print(f"new val: {new_val}")
     time.sleep(20)
 
+def get_model_list(ckpt_folder):
+    """
+    Get a list of model files in the specified folder.
+    """
+    model_files = []
+    for root, dirs, files in os.walk(ckpt_folder):
+        for file in files:
+            if file.endswith(".bin") or file.endswith(".safetensors"):
+                model_files.append(os.path.join(root, file))
+    return model_files
+
+def load_model(file_path):
+    if file_path.endswith("safetensors"):
+        from safetensors.torch import load_file, safe_open
+        state_dict = load_file(file_path)
+    else:
+        state_dict = torch.load(file_path, map_location="cpu")
+
+    return state_dict
 
 def prepare_pipeline(args):
     try:
@@ -361,24 +386,27 @@ def prepare_pipeline(args):
 
         print(f"Transformer model loaded from {args.model_name}")
         print(f"device: {device}")
-        z3_flag = True
 
         if args.transformer_path is not None:
             print(f"From checkpoint: {args.transformer_path}")
-            if z3_flag:
+            state_dict = {}
+            if not args.z3_flag_disable:
                 state_dict = load_z3_model(args.transformer_path)
             else:
-                if args.transformer_path.endswith("safetensors"):
-                    from safetensors.torch import load_file, safe_open
-
-                    state_dict = load_file(args.transformer_path)
+                if os.path.isdir(args.transformer_path):
+                    model_files = get_model_list(args.transformer_path)
+                    for model_file in model_files:
+                        state_dict.update(load_model(model_file))
+                    print(f"Loaded {len(state_dict)} parameters from {model_files}")
                 else:
-                    state_dict = torch.load(args.transformer_path, map_location="cpu")
+                    if os.path.exists(args.transformer_path):
+                        state_dict = load_model(args.transformer_path)
+                        print(f"Loaded {len(state_dict)} parameters from {args.transformer_path}")
             state_dict = (
                 state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )
 
-            # check_state_dict(transformer.state_dict(), state_dict)
+            check_state_dict(transformer.state_dict(), state_dict)
             m, u = transformer.load_state_dict(state_dict, strict=False)
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
 
