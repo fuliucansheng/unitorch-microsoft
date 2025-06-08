@@ -437,6 +437,9 @@ def process_chunk(
         for video in chunks:
             frames = processor._read(video)
             for index, frame in enumerate(frames):
+                if np.all(np.array(frame) == [255, 255, 255]):
+                    print(f"skip placeholder image for {video} at index {index}")
+                    continue
                 if resize_image_height != None or resize_image_width != None:
                     if resize_image_height != None and resize_image_width != None:
                         resize_image_size = (resize_image_width, resize_image_height)

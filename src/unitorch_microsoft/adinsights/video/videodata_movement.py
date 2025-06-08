@@ -48,14 +48,13 @@ def process_chunk(
         except Exception as e:
             print(f"Worker {process_id} error processing {video}: {e}")
             continue
-
+    
     if movement_str != "":
         with lock:
             writer = open(file_writer, "a+")
             writer.write(movement_str)
             writer.flush()
             writer.close()
-
 
 def movement(
     data_file: str,
