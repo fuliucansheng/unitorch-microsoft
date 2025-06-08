@@ -341,6 +341,7 @@ def check_state_dict(old_state_dict, state_dict):
     print(f"new val: {new_val}")
     time.sleep(20)
 
+
 def get_model_list(ckpt_folder):
     """
     Get a list of model files in the specified folder.
@@ -352,14 +353,17 @@ def get_model_list(ckpt_folder):
                 model_files.append(os.path.join(root, file))
     return model_files
 
+
 def load_model(file_path):
     if file_path.endswith("safetensors"):
         from safetensors.torch import load_file, safe_open
+
         state_dict = load_file(file_path)
     else:
         state_dict = torch.load(file_path, map_location="cpu")
 
     return state_dict
+
 
 def prepare_pipeline(args):
     try:
@@ -401,7 +405,9 @@ def prepare_pipeline(args):
                 else:
                     if os.path.exists(args.transformer_path):
                         state_dict = load_model(args.transformer_path)
-                        print(f"Loaded {len(state_dict)} parameters from {args.transformer_path}")
+                        print(
+                            f"Loaded {len(state_dict)} parameters from {args.transformer_path}"
+                        )
             state_dict = (
                 state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )

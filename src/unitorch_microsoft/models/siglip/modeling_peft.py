@@ -117,8 +117,8 @@ class SiglipForMatching(GenericModel):
         return (text_embeds, image_embeds)
 
 
-@register_model("microsoft/model/classification/peft/lora/siglip")
-class SiglipLoraForClassification(GenericPeftModel, PeftWeightLoaderMixin):
+@register_model("microsoft/model/matching/peft/lora/siglip")
+class SiglipLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
     prefix_keys_in_state_dict = {
         "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
     }
@@ -171,9 +171,9 @@ class SiglipLoraForClassification(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/peft/lora/siglip")
+    @add_default_section_for_init("microsoft/model/matching/peft/lora/siglip")
     def from_core_configure(cls, config, **kwargs):
-        config.set_default_section("microsoft/model/classification/peft/lora/siglip")
+        config.set_default_section("microsoft/model/matching/peft/lora/siglip")
         pretrained_name = config.getoption("pretrained_name", "siglip-base-patch16-224")
         config_path = config.getoption("config_path", None)
         config_path = pop_value(

@@ -71,6 +71,8 @@ def get_gpt_image_response(
         buf.seek(0)
         return buf
 
+    if isinstance(images, Image.Image):
+        images = [images]
     images = [im for im in images if isinstance(im, Image.Image)]
 
     try:
@@ -106,16 +108,21 @@ def get_gpt_image_response(
                 papyrus_endpoint2, headers=headers, data=data, files=files
             )
         response = response.json()
-        result = response["data"][0]["b64_json"]
-        result = Image.open(io.BytesIO(base64.b64decode(result)))
-        reported_images["result"] = result
 
-        reported_item(
-            record={"prompt": prompt, "size": size, "tags": "#GPT-Image-1"},
-            images=reported_images,
-        )
+        if "data" in response and len(response["data"]) > 0:
+            result = response["data"][0]["b64_json"]
+            result = Image.open(io.BytesIO(base64.b64decode(result)))
+            reported_images["result"] = result
 
-        return result
+            reported_item(
+                record={"prompt": prompt, "size": size, "tags": "#GPT-Image-1"},
+                images=reported_images,
+            )
+
+            return result
+        else:
+            print(f"Error in response: {response}")
+            return None
     except Exception as e:
         print(f"Error during request: {e}")
         return None

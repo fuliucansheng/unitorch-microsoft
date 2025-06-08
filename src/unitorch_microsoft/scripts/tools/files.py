@@ -102,5 +102,42 @@ def filter_file(
             logging.info(f"partition {i} processed finish.")
 
 
+def sample_file(
+    input_file: str,
+    output_file: str,
+    sample_size: int = 1000,
+    names: Optional[Union[str, List[str]]] = None,
+    input_escapechar: Optional[str] = None,
+    output_escapechar: Optional[str] = None,
+):
+    if isinstance(names, str):
+        names = re.split(r"[;,]", names)
+        names = [n.strip() for n in names]
+
+    data = pd.read_csv(
+        input_file,
+        names=names,
+        sep="\t",
+        quoting=3,
+        header="infer" if names is None else None,
+        escapechar=input_escapechar,
+    )
+
+    if not os.path.exists(os.path.dirname(output_file)):
+        os.makedirs(os.path.dirname(output_file))
+
+    if sample_size > len(data):
+        sample_size = len(data)
+    sampled_data = data.sample(n=sample_size, random_state=42)
+    sampled_data.to_csv(
+        output_file,
+        sep="\t",
+        index=False,
+        quoting=3,
+        header=True if names is None else False,
+        escapechar=output_escapechar,
+    )
+
+
 if __name__ == "__main__":
     fire.Fire()

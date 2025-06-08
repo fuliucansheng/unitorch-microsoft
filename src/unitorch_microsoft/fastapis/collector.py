@@ -172,9 +172,9 @@ def reported_item(
     videos: Dict[str, Union[str, bytes]] = None,
     audios: Dict[str, Union[str, bytes]] = None,
 ):
-    endpoint = UNITORCH_MS_FASTAPI_ENDPOINT + "/microsoft/fastapi/collector/report"
-    if not endpoint:
+    if UNITORCH_MS_FASTAPI_ENDPOINT is None:
         return
+    endpoint = UNITORCH_MS_FASTAPI_ENDPOINT + "/microsoft/fastapi/collector/report"
 
     def pil_to_bytes(image: Image.Image, format="JPEG") -> bytes:
         buf = io.BytesIO()

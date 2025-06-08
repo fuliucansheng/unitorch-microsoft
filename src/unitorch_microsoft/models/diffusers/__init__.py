@@ -6,6 +6,7 @@ from unitorch.cli.models.diffusers import (
     __hf_hub_vae_dict,
     __hf_hub_stable_v1_5_safetensors_dict__,
     __hf_hub_vae_safetensors_dict__,
+    __hf_hub_stable_flux_safetensors_dict__,
     hf_endpoint_url,
     pretrained_stable_infos,
     pretrained_stable_extensions_infos,
@@ -23,7 +24,22 @@ pretrained_ms_stable_infos = {
                 "weight": "",
             }
         },
-    }
+    },
+    "stable-flux-schnell-ms-fill": {
+        **__hf_hub_stable_flux_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
+        **__hf_hub_vae_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
+        **{
+            "transformer": {
+                "config": "omnipixel/experiments/stable-flux-schnell-fill-config.json",
+                "weight": [
+                    hf_endpoint_url(
+                        f"/lzyvegetable/FLUX.1-schnell/resolve/main/transformer/diffusion_pytorch_model-{str(i).rjust(5, '0')}-of-{str(3).rjust(5, '0')}.safetensors"
+                    )
+                    for i in range(1, 3 + 1)
+                ],
+            }
+        },
+    },
 }
 
 pretrained_ms_stable_extensions_infos = {
