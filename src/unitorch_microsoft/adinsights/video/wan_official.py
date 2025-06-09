@@ -291,6 +291,13 @@ def _parse_args():
         help="Name of the column containing negative prompts.",
     )
 
+    parser.add_argument(
+        "--transformer_folder",
+        type=str,
+        default=None,
+        help="point to the FTed ckpt folder",
+    )
+
     args = parser.parse_args()
 
     _validate_args(args)
@@ -333,6 +340,49 @@ def generation(pipe, start_frame, prompt, args):
         print(e)
         return None
 
+def load_z3_model(ckpt_dir):
+    from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
+
+    state_dict = get_fp32_state_dict_from_zero_checkpoint(
+        ckpt_dir,
+        exclude_frozen_parameters=True,
+    )
+    for key in state_dict.keys():
+        print(f"Key: {key}, Shape: {state_dict[key].shape}")
+
+    print(f"Loaded {len(state_dict)} parameters from {ckpt_dir}")
+
+    return state_dict
+
+def check_state_dict(old_state_dict, state_dict):
+    import time
+
+    load_keys = []
+    non_load_keys = []
+    for key, value in state_dict.items():
+        if key in old_state_dict and old_state_dict[key].shape == state_dict[key].shape:
+            print(f"Key {key} found in old state dict with matching shape")
+            load_keys.append(key)
+        else:
+            print(f"Key {key} not found in old state dict or shape mismatch")
+            non_load_keys.append(key)
+    print(f"Total keys in state dict: {len(state_dict)}")
+    print(f"Total keys in old state dict: {len(old_state_dict)}")
+    load_percent = (
+        len(load_keys) / len(old_state_dict) * 100
+    )  # Calculate the percentage of loaded keys
+    print(f"load percent: {load_percent}%")
+    print(f"Non load keys in new weights: {list(non_load_keys)}")
+    print(f"missing keys in old weights: {list(old_state_dict.keys() - load_keys)}")
+    time.sleep(20)
+    print(f"Check state dict complete {load_keys[20]}")
+    old_val = old_state_dict[load_keys[20]]
+    new_val = state_dict[load_keys[20]]
+    print(f"shape diff: {old_val.shape} vs {new_val.shape}")
+    print(f"old val: {old_val}")
+    time.sleep(20)
+    print(f"new val: {new_val}")
+    time.sleep(20)
 
 def prepare_pipeline(args):
     try:
@@ -353,6 +403,17 @@ def prepare_pipeline(args):
             t5_cpu=args.t5_cpu,
         )
         print("Finish prepare I2V pipeline")
+        if args.transformer_folder is not None:
+            state_dict = load_z3_model(args.transformer_folder)
+
+            state_dict = (
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            )
+
+            check_state_dict(wan_i2v.model.state_dict(), state_dict)
+            m, u = wan_i2v.model.load_state_dict(state_dict, strict=False)
+            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
+
         return wan_i2v
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
