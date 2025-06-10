@@ -339,6 +339,57 @@ class VideoProcessor(ImageProcessor):
             logging.error(f"core/process/video/read use fake image for {video}")
             return [Image.new("RGB", (256, 256), (255, 255, 255))]
 
+def get_base64(image):
+    # image = Image.open(image).convert("RGB")
+    if np.all(np.array(image) == [255, 255, 255]):
+        return None
+    image_buffer = io.BytesIO()
+    image.save(image_buffer, format="JPEG")
+    image_buffer.seek(0)
+    return base64.b64encode(image_buffer.getvalue()).decode()
+
+def azure_login(connect_key, account_name, container_name):
+    """
+    intall required packages: pip3 install azure-storage-blob azure-identity
+    """
+    from azure.storage.blob import BlobServiceClient
+    from azure.storage.blob import BlobClient, ContentSettings
+
+    connect_str = (
+        "DefaultEndpointsProtocol=https;AccountName="
+        + account_name
+        + ";AccountKey="
+        + connect_key
+        + ";EndpointSuffix=core.windows.net"
+    )
+    blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+    container_client = blob_service_client.get_container_client(container_name)
+    return container_client
+
+def get_azureurl(data, container_client, savename, container_name, subfolder):
+    from azure.storage.blob import BlobServiceClient
+    from azure.storage.blob import BlobClient, ContentSettings
+
+    if np.all(np.array(data) == [255, 255, 255]):
+        return None
+
+    img_bytes = io.BytesIO()
+    data.save(img_bytes, format="PNG")
+    img_bytes.seek(0)
+
+    # print(f"type of data: {type(data)} type of img_bytes: {type(img_bytes)}")
+    try:
+        remote_name = subfolder + "/" + savename
+        # print("remote_name: ", remote_name)
+        image_blob = container_client.get_blob_client(remote_name)
+        image_blob.upload_blob(img_bytes, overwrite=True)
+        url = f"https://{account_name}.blob.core.windows.net/i2v/{container_name}/{remote_name}"
+        # print(url)
+        return url
+    except Exception as e:
+        # print("upload img2azure failed {!r}".format(e))
+        return None
+
 
 def process_chunk(
     videos,
@@ -358,57 +409,9 @@ def process_chunk(
     subfolder,
     resize_image_height,
     resize_image_width,
+    res_file,
+    lock,
 ):
-    def get_base64(image):
-        # image = Image.open(image).convert("RGB")
-        if np.all(np.array(image) == [255, 255, 255]):
-            return None
-        image_buffer = io.BytesIO()
-        image.save(image_buffer, format="JPEG")
-        image_buffer.seek(0)
-        return base64.b64encode(image_buffer.getvalue()).decode()
-
-    def azure_login(connect_key, account_name, container_name):
-        """
-        intall required packages: pip3 install azure-storage-blob azure-identity
-        """
-        from azure.storage.blob import BlobServiceClient
-        from azure.storage.blob import BlobClient, ContentSettings
-
-        connect_str = (
-            "DefaultEndpointsProtocol=https;AccountName="
-            + account_name
-            + ";AccountKey="
-            + connect_key
-            + ";EndpointSuffix=core.windows.net"
-        )
-        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-        container_client = blob_service_client.get_container_client(container_name)
-        return container_client
-
-    def get_azureurl(data, container_client, savename, container_name, subfolder):
-        from azure.storage.blob import BlobServiceClient
-        from azure.storage.blob import BlobClient, ContentSettings
-
-        if np.all(np.array(data) == [255, 255, 255]):
-            return None
-
-        img_bytes = io.BytesIO()
-        data.save(img_bytes, format="PNG")
-        img_bytes.seek(0)
-
-        # print(f"type of data: {type(data)} type of img_bytes: {type(img_bytes)}")
-        try:
-            remote_name = subfolder + "/" + savename
-            # print("remote_name: ", remote_name)
-            image_blob = container_client.get_blob_client(remote_name)
-            image_blob.upload_blob(img_bytes, overwrite=True)
-            url = f"https://{account_name}.blob.core.windows.net/i2v/{container_name}/{remote_name}"
-            # print(url)
-            return url
-        except Exception as e:
-            # print("upload img2azure failed {!r}".format(e))
-            return None
 
     if process_id == num_processes - 1:
         chunk_size = total_rows - chunk_start + 1
@@ -424,51 +427,67 @@ def process_chunk(
         sample_rate=sample_rate,
     )
 
-    res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
+    #res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
     if data_type == "url":
         container_name = "videoproc"
         container_client = azure_login(connect_key, account_name, container_name)
     else:
         container_name = "videoproc"
         container_client = None
-    # print(f"azure login success {container_client}")
 
-    with open(res_file, "w") as f:
-        for video in chunks:
-            frames = processor._read(video)
-            for index, frame in enumerate(frames):
-                if np.all(np.array(frame) == [255, 255, 255]):
-                    print(f"skip placeholder image for {video} at index {index}")
-                    continue
-                if resize_image_height != None or resize_image_width != None:
-                    if resize_image_height != None and resize_image_width != None:
-                        resize_image_size = (resize_image_width, resize_image_height)
-                    elif resize_image_width != None:
-                        resize_image_size = (
-                            resize_image_width,
-                            int(frame.size[1] * resize_image_width / frame.size[0]),
-                        )
-                    elif resize_image_height != None:
-                        resize_image_size = (
-                            int(frame.size[0] * resize_image_height / frame.size[1]),
-                            resize_image_height,
-                        )
-                    frame = frame.resize(resize_image_size)
-
-                if data_type == "url":
-                    img_url = get_azureurl(
-                        frame,
-                        container_client,
-                        video + f".{index}.png",
-                        container_name,
-                        subfolder,
+    write_str = ""
+    for idx, video in enumerate(chunks):
+        if idx % 30 == 0 and write_str != "":
+            with lock:
+                writer = open(res_file, "a+")
+                writer.write(write_str)
+                writer.flush()
+                writer.close()
+            write_str = ""
+        frames = processor._read(video)
+        for index, frame in enumerate(frames):
+            if np.all(np.array(frame) == [255, 255, 255]):
+                print(f"skip placeholder image for {video} at index {index}")
+                continue
+            if resize_image_height != None or resize_image_width != None:
+                if resize_image_height != None and resize_image_width != None:
+                    resize_image_size = (resize_image_width, resize_image_height)
+                elif resize_image_width != None:
+                    resize_image_size = (
+                        resize_image_width,
+                        int(frame.size[1] * resize_image_width / frame.size[0]),
                     )
-                    if img_url != None:
-                        f.write(video + f".{index}.png" + "\t" + img_url + "\n")
-                else:
-                    base64_str = get_base64(frame)
-                    if base64_str != None:
-                        f.write(video + f".{index}.png" + "\t" + base64_str + "\n")
+                elif resize_image_height != None:
+                    resize_image_size = (
+                        int(frame.size[0] * resize_image_height / frame.size[1]),
+                        resize_image_height,
+                    )
+                frame = frame.resize(resize_image_size)
+
+            if data_type == "url":
+                img_url = get_azureurl(
+                    frame,
+                    container_client,
+                    video + f".{index}.png",
+                    container_name,
+                    subfolder,
+                )
+                if img_url != None:
+                    write_str += (
+                        video + f".{index}.png" + "\t" + img_url + "\n"
+                    )
+            else:
+                base64_str = get_base64(frame)
+                if base64_str != None:
+                    write_str += (
+                        video + f".{index}.png" + "\t" + base64_str + "\n"
+                    )
+    if write_str != "":
+        with lock:
+            writer = open(res_file, "a+")
+            writer.write(write_str)
+            writer.flush()
+            writer.close()
 
 
 def extract_frame(
@@ -504,6 +523,20 @@ def extract_frame(
         header=None,
     )
     os.makedirs(cache_dir, exist_ok=True)
+    output_file = f"{cache_dir}/output.tsv"
+    if os.path.exists(output_file):
+        uniques = []
+        with open(output_file, "r") as f:
+            for line in f.readlines():
+                videoid, emb = line.strip().split("\t")
+                uniques.append(videoid)
+        data = data[
+            ~data.apply(
+                lambda x: x[video_col] in uniques,
+                axis=1,
+            )
+        ]
+    print(f"Data loaded, total rows to move: {len(data)}")
     assert video_col in data.columns, f"Column {video_col} not found in data."
     videos = data[video_col].to_list()
 
@@ -516,14 +549,16 @@ def extract_frame(
     if data_type == "url":
         assert connect_key != None, "connect_key is None"
 
-    # for gpu: failed
-    # process_chunk(videos, 0, chunk_size, len(videos), cache_dir, num_processes, total_rows, sample_factor, sample_strategy, sample_frame_num, sample_rate)
+    lock = mp.Lock()
 
-    with mp.Pool(num_processes) as pool:
-        tasks = [
-            (
+    processes = []
+    print(f"need to process {total_rows} videos")
+    for i in range(num_processes):
+        p = mp.Process(
+            target=process_chunk,
+            args=(
                 videos,
-                i * chunk_size + 1,
+                i * chunk_size,
                 chunk_size,
                 i,
                 cache_dir,
@@ -539,10 +574,15 @@ def extract_frame(
                 subfolder,
                 resize_image_height,
                 resize_image_width,
-            )
-            for i in range(num_processes)
-        ]
-        pool.starmap(process_chunk, tasks)
+                output_file,
+                lock,
+            ),
+        )
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join()
 
     end = time.time()
     print(f"latency: {end-start} samples: {total_rows}")
