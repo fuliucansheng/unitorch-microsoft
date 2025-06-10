@@ -297,6 +297,12 @@ def _parse_args():
         default=None,
         help="point to the FTed ckpt folder",
     )
+    parser.add_argument(
+        "--z3_flag_disable",
+        action="store_true",
+        default=False,
+        help="Disable Z3 flag",
+    )
 
     args = parser.parse_args()
 
@@ -354,6 +360,28 @@ def load_z3_model(ckpt_dir):
 
     return state_dict
 
+def get_model_list(ckpt_folder):
+    """
+    Get a list of model files in the specified folder.
+    """
+    model_files = []
+    for root, dirs, files in os.walk(ckpt_folder):
+        for file in files:
+            if file.endswith(".bin") or file.endswith(".safetensors"):
+                model_files.append(os.path.join(root, file))
+    return model_files
+
+
+def load_model(file_path):
+    if file_path.endswith("safetensors"):
+        from safetensors.torch import load_file, safe_open
+
+        state_dict = load_file(file_path)
+    else:
+        state_dict = torch.load(file_path, map_location="cpu")
+
+    return state_dict
+
 def check_state_dict(old_state_dict, state_dict):
     import time
 
@@ -404,8 +432,21 @@ def prepare_pipeline(args):
         )
         print("Finish prepare I2V pipeline")
         if args.transformer_folder is not None:
-            state_dict = load_z3_model(args.transformer_folder)
-
+            state_dict = {}
+            if not args.z3_flag_disable:
+                state_dict = load_z3_model(args.transformer_folder)
+            else:
+                if os.path.isdir(args.transformer_folder):
+                    model_files = get_model_list(args.transformer_folder)
+                    for model_file in model_files:
+                        state_dict.update(load_model(model_file))
+                    print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                else:
+                    if os.path.exists(args.transformer_folder):
+                        state_dict = load_model(args.transformer_folder)
+                        print(
+                            f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
+                        )
             state_dict = (
                 state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )
