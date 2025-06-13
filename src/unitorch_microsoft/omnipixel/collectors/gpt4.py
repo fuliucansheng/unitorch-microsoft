@@ -97,6 +97,7 @@ def image_generate(
     image_cols: Optional[Union[str, List[str]]] = None,
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
+    size: Optional[str] = "1024x1024",
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -148,6 +149,7 @@ def image_generate(
                 images=[Image.open(image) for image in images]
                 if images is not None
                 else None,
+                size=size,
             )
             if isinstance(result, Image.Image):
                 writer.write(
@@ -155,6 +157,7 @@ def image_generate(
                         {
                             "prompt": prompt,
                             "images": ",".join(images) if images is not None else "",
+                            "size": size,
                             "result": save_image(cache_dir, result),
                         }
                     )
