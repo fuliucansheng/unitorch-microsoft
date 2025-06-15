@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 from io import BytesIO
-import requests,re
+import requests, re
 from ultralytics import YOLO
 from typing import List, Tuple, Union
 import fire
@@ -24,7 +24,9 @@ def load_image(image: str, http_url: str) -> Union[np.ndarray, None]:
         return None
 
 
-def process_batch(model, batch_images: List[np.ndarray]) -> List[Tuple[int, float, str]]:
+def process_batch(
+    model, batch_images: List[np.ndarray]
+) -> List[Tuple[int, float, str]]:
     results = model.predict(batch_images, classes=0, verbose=False)
     outputs = []
 
@@ -32,7 +34,11 @@ def process_batch(model, batch_images: List[np.ndarray]) -> List[Tuple[int, floa
         img_np = batch_images[i]
         h, w = img_np.shape[:2]
 
-        if hasattr(result, 'boxes') and result.boxes.xyxy is not None and len(result.boxes.xyxy) > 0:
+        if (
+            hasattr(result, "boxes")
+            and result.boxes.xyxy is not None
+            and len(result.boxes.xyxy) > 0
+        ):
             boxes = result.boxes.xyxy.cpu().numpy()
             human_count = len(boxes)
 
@@ -122,6 +128,7 @@ def infer_yolov12_batch(
 
     df.to_csv(output_file, sep="\t", index=False, quoting=3, header=False)
     print(f"[Done] Saved results to: {output_file}")
+
 
 if __name__ == "__main__":
     fire.Fire(infer_yolov12_batch)

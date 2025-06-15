@@ -339,6 +339,7 @@ class VideoProcessor(ImageProcessor):
             logging.error(f"core/process/video/read use fake image for {video}")
             return [Image.new("RGB", (256, 256), (255, 255, 255))]
 
+
 def get_base64(image):
     # image = Image.open(image).convert("RGB")
     if np.all(np.array(image) == [255, 255, 255]):
@@ -347,6 +348,7 @@ def get_base64(image):
     image.save(image_buffer, format="JPEG")
     image_buffer.seek(0)
     return base64.b64encode(image_buffer.getvalue()).decode()
+
 
 def azure_login(connect_key, account_name, container_name):
     """
@@ -365,6 +367,7 @@ def azure_login(connect_key, account_name, container_name):
     blob_service_client = BlobServiceClient.from_connection_string(connect_str)
     container_client = blob_service_client.get_container_client(container_name)
     return container_client
+
 
 def get_azureurl(data, container_client, savename, container_name, subfolder):
     from azure.storage.blob import BlobServiceClient
@@ -412,7 +415,6 @@ def process_chunk(
     res_file,
     lock,
 ):
-
     if process_id == num_processes - 1:
         chunk_size = total_rows - chunk_start + 1
     chunks = videos[chunk_start : chunk_start + chunk_size]
@@ -427,7 +429,7 @@ def process_chunk(
         sample_rate=sample_rate,
     )
 
-    #res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
+    # res_file = os.path.join(cache_dir, f"proc_{process_id}.tsv")
     if data_type == "url":
         container_name = "videoproc"
         container_client = azure_login(connect_key, account_name, container_name)
@@ -473,15 +475,11 @@ def process_chunk(
                     subfolder,
                 )
                 if img_url != None:
-                    write_str += (
-                        video + f".{index}.png" + "\t" + img_url + "\n"
-                    )
+                    write_str += video + f".{index}.png" + "\t" + img_url + "\n"
             else:
                 base64_str = get_base64(frame)
                 if base64_str != None:
-                    write_str += (
-                        video + f".{index}.png" + "\t" + base64_str + "\n"
-                    )
+                    write_str += video + f".{index}.png" + "\t" + base64_str + "\n"
     if write_str != "":
         with lock:
             writer = open(res_file, "a+")

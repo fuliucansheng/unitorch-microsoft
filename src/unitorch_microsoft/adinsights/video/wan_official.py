@@ -346,6 +346,7 @@ def generation(pipe, start_frame, prompt, args):
         print(e)
         return None
 
+
 def load_z3_model(ckpt_dir):
     from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
 
@@ -359,6 +360,7 @@ def load_z3_model(ckpt_dir):
     print(f"Loaded {len(state_dict)} parameters from {ckpt_dir}")
 
     return state_dict
+
 
 def get_model_list(ckpt_folder):
     """
@@ -381,6 +383,7 @@ def load_model(file_path):
         state_dict = torch.load(file_path, map_location="cpu")
 
     return state_dict
+
 
 def check_state_dict(old_state_dict, state_dict):
     import time
@@ -411,6 +414,7 @@ def check_state_dict(old_state_dict, state_dict):
     time.sleep(20)
     print(f"new val: {new_val}")
     time.sleep(20)
+
 
 def prepare_pipeline(args):
     try:
