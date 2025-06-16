@@ -140,7 +140,7 @@ def process_check(
     chunk_start,
     chunk_size,
     process_id,
-    cache_dir,
+    data_dir,
     num_processes,
     total_rows,
     file_writer,
@@ -157,7 +157,7 @@ def process_check(
     exist_cnt = 0
     for idx, video in enumerate(chunks):
         try:
-            if os.path.exists(video):
+            if os.path.exists(os.path.join(data_dir, video)):
                 res_str += f"{video}\n"
                 exist_cnt += 1
                 if idx % 100 == 0:
@@ -182,6 +182,7 @@ def process_check(
 
 def checkexists(
     data_file: str,
+    data_dir: str,
     dst_dir: str,
     names: Union[str, List[str]] = "video",
     move_col: str = "video",
@@ -238,7 +239,7 @@ def checkexists(
                 i * chunk_size,
                 chunk_size,
                 i,
-                dst_dir,
+                data_dir,
                 num_processes,
                 total_rows,
                 output_file,
