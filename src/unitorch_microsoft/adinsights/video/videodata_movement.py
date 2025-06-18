@@ -93,7 +93,7 @@ def get_azureurl(data, container_client, savename, container_name, subfolder, ac
                 data_file, overwrite=True, content_settings=ContentSettings(content_type=content_type)
             )
 
-        url = f"https://{account_name}.blob.core.windows.net/i2v/{container_name}/{remote_name}"
+        url = f"https://{account_name}.blob.core.windows.net/{container_name}/{remote_name}"
 
         return url
     except Exception as e:
