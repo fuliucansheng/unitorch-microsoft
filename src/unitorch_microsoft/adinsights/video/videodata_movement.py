@@ -4,6 +4,8 @@ import re
 import pandas as pd
 import multiprocessing as mp
 import os
+import numpy as np
+import io
 
 
 def process_chunk(
@@ -56,6 +58,104 @@ def process_chunk(
             writer.flush()
             writer.close()
 
+def azure_login(connect_key, account_name, container_name):
+    """
+    intall required packages: pip3 install azure-storage-blob azure-identity
+    """
+    from azure.storage.blob import BlobServiceClient
+    from azure.storage.blob import BlobClient, ContentSettings
+
+    connect_str = (
+        "DefaultEndpointsProtocol=https;AccountName="
+        + account_name
+        + ";AccountKey="
+        + connect_key
+        + ";EndpointSuffix=core.windows.net"
+    )
+    blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+    container_client = blob_service_client.get_container_client(container_name)
+    return container_client
+
+def get_azureurl(data, container_client, savename, container_name, subfolder, account_name):
+    from azure.storage.blob import BlobServiceClient
+    from azure.storage.blob import BlobClient, ContentSettings
+    import mimetypes
+
+    try:
+        remote_name = subfolder + "/" + savename
+        content_type, _ = mimetypes.guess_type(remote_name)
+        if content_type is None:
+            content_type = "application/octet-stream"
+
+        data_blob = container_client.get_blob_client(remote_name)
+        with open(data, "rb") as data_file:
+            data_blob.upload_blob(
+                data_file, overwrite=True, content_settings=ContentSettings(content_type=content_type)
+            )
+
+        url = f"https://{account_name}.blob.core.windows.net/i2v/{container_name}/{remote_name}"
+
+        return url
+    except Exception as e:
+        # print("upload img2azure failed {!r}".format(e))
+        return None
+
+
+
+    
+def process_chunk_azure(
+    videos,
+    chunk_start,
+    chunk_size,
+    process_id,
+    subfolder,
+    num_processes,
+    total_rows,
+    file_writer,
+    lock,
+    account_name,
+    container_name,
+    container_client,
+):
+    if process_id == num_processes - 1:
+        chunk_size = total_rows - chunk_start + 1
+    chunks = videos[chunk_start : chunk_start + chunk_size]
+    print(
+        f"Worker {process_id} Processing rows: {chunk_start} to {chunk_start + chunk_size - 1} \n"
+    )
+
+    movement_str = ""
+    for idx, video in enumerate(chunks):
+        try:
+            src_file = os.path.join("/datablob/shutterstock", video)
+            if os.path.exists(src_file):
+                dst_file = video.replace("/", "_")
+                video_url = get_azureurl(src_file, container_client, dst_file, container_name, subfolder, account_name)
+                if video_url is None:
+                    print(f"Worker {process_id} upload {src_file} to Azure failed")
+                    continue
+                movement_str += f"{video}\t{video_url}\n"
+                if idx % 100 == 0:
+                    with lock:
+                        writer = open(file_writer, "a+")
+                        writer.write(movement_str)
+                        writer.flush()
+                        writer.close()
+                    movement_str = ""
+            else:
+                print(f"Worker {process_id} file {src_file} not found")
+                continue
+        except Exception as e:
+            print(f"Worker {process_id} error processing {video}: {e}")
+            continue
+
+    if movement_str != "":
+        with lock:
+            writer = open(file_writer, "a+")
+            writer.write(movement_str)
+            writer.flush()
+            writer.close()
+
 
 def movement(
     data_file: str,
@@ -64,6 +164,10 @@ def movement(
     move_col: str = "video",
     max_cnt: int = 100000000,
     sub_folder: str = "video",
+    upload_to_azure: bool = False,
+    connect_key: Optional[str] = None,
+    account_name: Optional[str] = None,
+    container_name: Optional[str] = None,
 ):
     """
     Movement of video data, used for video data movement.
@@ -113,20 +217,45 @@ def movement(
     processes = []
     print(f"need to process {total_rows} videos")
     for i in range(num_processes):
-        p = mp.Process(
-            target=process_chunk,
-            args=(
-                videos,
-                i * chunk_size,
-                chunk_size,
-                i,
-                dst_dir,
-                num_processes,
-                total_rows,
-                output_file,
-                lock,
-            ),
-        )
+        if upload_to_azure:
+            if connect_key is None or account_name is None or container_name is None:
+                raise ValueError(
+                    "connect_key, account_name, and container_name must be provided for Azure upload."
+                )
+
+            container_client = azure_login(connect_key, account_name, container_name)
+            p = mp.Process(
+                target=process_chunk_azure,
+                args=(
+                    videos,
+                    i * chunk_size,
+                    chunk_size,
+                    i,
+                    sub_folder,
+                    num_processes,
+                    total_rows,
+                    output_file,
+                    lock,
+                    account_name,
+                    container_name,
+                    container_client
+                ),
+            )
+        else:
+            p = mp.Process(
+                target=process_chunk,
+                args=(
+                    videos,
+                    i * chunk_size,
+                    chunk_size,
+                    i,
+                    dst_dir,
+                    num_processes,
+                    total_rows,
+                    output_file,
+                    lock,
+                ),
+            )
         processes.append(p)
         p.start()
 
