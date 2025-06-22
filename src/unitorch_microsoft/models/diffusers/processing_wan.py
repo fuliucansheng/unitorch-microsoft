@@ -164,12 +164,15 @@ class WanProcessor(HfTextClassificationProcessor):
         max_seq_length: Optional[int] = None,
     ):
         frames = self.get_video_frames(video)
+        print(f"debug video frames: {len(frames)}")
 
         pixel_values = []
         for frame in frames:
             if self.frame_processor is not None:
                 width, height = frame.size
+                print(f"debug frame size: {width}x{height}")
                 scale = max(self.video_size[0] / width, self.video_size[1] / height)
+                print(f"debug frame scale: {scale}")
                 frame = frame.resize(
                     (round(width * scale), round(height * scale)),
                     resample=Image.LANCZOS,
@@ -181,7 +184,9 @@ class WanProcessor(HfTextClassificationProcessor):
                     "frame_processor is None, please set video_size to process video"
                 )
         pixel_values = torch.stack(pixel_values, dim=0)
+        print(f"debug pixel_values shape: {pixel_values.shape}")
         pixel_values = pixel_values.permute(1, 0, 2, 3)
+        print(f"debug pixel_values permuted shape: {pixel_values.shape}")
 
         prompt_outputs = self.classification(prompt, max_seq_length=max_seq_length)
 
