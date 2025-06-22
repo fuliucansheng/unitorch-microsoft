@@ -145,8 +145,8 @@ class VideoProcessor:
                     frames.append(img)
             return frames
 
-        except:
-            logging.debug(f"core/process/video/read use fake video for {video}")
+        except Exception as e:
+            logging.debug(f"core/process/video/read use fake video for {video} {e}")
             return []
 
     @register_process("microsoft/process/video/sample")
@@ -178,14 +178,17 @@ class VideoProcessor:
             fps = video.get_avg_fps()  # note that the fps here is float.
             if target_fps is not None:
                 freq = round(fps / target_fps)
+            print(f"video fps: {fps}, freq: {freq}, target_fps: {target_fps}")
 
         vlen = len(video)
+        print(f"video length: {vlen}")
         indices = list(range(vlen))
         if freq > 1:
             indices = indices[:: (freq)]
         if num is None:
             num = len(indices)
         num = min(num, len(indices))
+        print(f"indices: {indices}, num: {num}, mode: {mode}")
 
         if mode == "random":
             start = int(random() * (len(indices) - num))
@@ -199,6 +202,7 @@ class VideoProcessor:
             start = max((0, (len(indices) - num) // 2))
             end = start + num
             frames = indices[start:end]
+            print(f"middle frames: {frames}")
         else:
             raise ValueError(f"Unknown sampling mode: {mode}")
         
@@ -206,13 +210,15 @@ class VideoProcessor:
         if isinstance(video, decord.VideoReader):
             frames = video.get_batch(frames)
             frames = frames.permute(0, 3, 1, 2)
+            print(f"frames shape: {frames.shape}")
             for frame in frames:
                 frame = torchvision.transforms.functional.to_pil_image(frame).convert("RGB")
+                print(f"frame size: {frame.size}")
                 samples.append(frame)
         else:
             for i in frames:
                 frame = video[i].convert("RGB")
                 samples.append(frame)
-    
+        print(f"sampled frames count: {len(samples)}")
         return samples
     
