@@ -156,7 +156,7 @@ class VideoProcessor:
         freq: Optional[int] = 1,
         num: Optional[int] = None,
         mode: Optional[str] = "middle",
-        target_fps: Optional[float] = None,
+        target_fps: Optional[int] = None,
     ):
         """
         Samples frames from a video.
@@ -185,7 +185,17 @@ class VideoProcessor:
             indices = indices[:: (freq)]
         if num is None:
             num = len(indices)
-        num = min(num, len(indices))
+
+        if num > len(indices):
+            print(
+                f"num {num} is larger than the number of frames {len(indices)}, using default dummy video instead."
+            )
+            dummy_len = 16
+            if target_fps is not None:
+                dummy_len = target_fps + 1
+            samples = [Image.new("RGB", self.image_size, (255, 255, 255)) for _ in range(dummy_len)]
+            return samples
+
 
         if mode == "random":
             start = int(random() * (len(indices) - num))
