@@ -413,7 +413,22 @@ def image2video(args):
             writer.write(json.dumps(record) + "\n")
             cnt += 1
     print(f"Finish video gen for {cnt} videos")
-
+    writer.close()
+    output_file = f"{args.cache_dir}/output.jsonl"
+    tsv_file = f"{args.cache_dir}/output.tsv"
+    try:
+        with open(output_file, "r") as fin, open(tsv_file, "w", encoding="utf-8") as fout:
+            # Read all json lines
+            rows = [json.loads(line) for line in fin]
+            if rows:
+                # Write header
+                header = list(rows[0].keys())
+                # Write rows
+                for row in rows:
+                    fout.write("\t".join(str(row.get(col, "")) for col in header) + "\n")
+        print(f"Converted {output_file} to {tsv_file}")
+    except Exception as e:
+        print(f"Error converting jsonl to tsv: {e}")
 
 if __name__ == "__main__":
     args = _parse_args()
