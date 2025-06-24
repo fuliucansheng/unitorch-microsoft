@@ -193,7 +193,7 @@ class VideoProcessor:
             dummy_len = 16
             if target_fps is not None:
                 dummy_len = target_fps + 1
-            samples = [Image.new("RGB", self.image_size, (255, 255, 255)) for _ in range(dummy_len)]
+            samples = [Image.new("RGB", self.video_size, (255, 255, 255)) for _ in range(dummy_len)]
             return samples
 
 
