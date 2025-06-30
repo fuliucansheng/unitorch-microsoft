@@ -51,3 +51,39 @@ class ImageProcessor:
             An instance of the ImageProcessor.
         """
         pass
+
+    @register_process("microsoft/process/image/center_crop")
+    def _center_crop(
+        self,
+        image: Image.Image,
+        size: Optional[Tuple[int, int]] = (224, 224),
+        do_resize: bool = True,
+    ):
+        """
+        Crops the image to the center.
+
+        Args:
+            image (Image.Image): The image to crop.
+            size (Optional[Tuple[int, int]]): The size of the cropped image. Defaults to (224, 224).
+
+        Returns:
+            The cropped image as a PIL Image object.
+        """
+        ratio = size[0] / size[1]
+        if do_resize:
+            if image.width / image.height > ratio:
+                new_height = size[1]
+                new_width = int(new_height * (image.width / image.height))
+            else:
+                new_width = size[0]
+                new_height = int(new_width * (image.height / image.width))
+            image = image.resize((new_width, new_height), Image.LANCZOS)
+
+        width, height = image.size
+        left = (width - size[0]) // 2
+        top = (height - size[1]) // 2
+        left, top = max(0, left), max(0, top)
+        right = left + size[0]
+        bottom = top + size[1]
+        right, bottom = min(width, right), min(height, bottom)
+        return image.crop((left, top, right, bottom))

@@ -3,6 +3,7 @@
 
 import re
 import torch
+import logging
 import pandas as pd
 import numpy as np
 from PIL import Image
@@ -406,5 +407,5 @@ class ClipInterrogatorScript(GenericScript):
 
         results = pipe(images=images, labels=labels)
 
-        print("Best Prompt:", results.best_prompt)
-        print("Negative Prompt:", results.negative_prompt)
+        logging.info(f"Best Prompt: {results.best_prompt}")
+        logging.info(f"Negative Prompt: {results.negative_prompt}")

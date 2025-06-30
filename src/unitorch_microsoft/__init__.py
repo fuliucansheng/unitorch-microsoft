@@ -21,20 +21,6 @@ VERSION = "0.0.0.2"
 
 logger = logging.getLogger()
 
-
-UNITORCH_MS_ENDPOINT = os.environ.get(
-    "UNITORCH_MS_ENDPOINT", "https://unitorchazureblob.blob.core.windows.net"
-)
-
-
-def ms_endpoint_url(url):
-    if is_remote_url(url):
-        return url
-    if url.startswith("/"):
-        url = url[1:]
-    return f"{UNITORCH_MS_ENDPOINT}/{url}"
-
-
 # faiss
 _faiss_available = importlib.util.find_spec("faiss") is not None
 if _faiss_available:
