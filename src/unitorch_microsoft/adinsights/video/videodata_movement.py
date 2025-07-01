@@ -58,6 +58,7 @@ def process_chunk(
             writer.flush()
             writer.close()
 
+
 def azure_login(connect_key, account_name, container_name):
     """
     intall required packages: pip3 install azure-storage-blob azure-identity
@@ -76,7 +77,10 @@ def azure_login(connect_key, account_name, container_name):
     container_client = blob_service_client.get_container_client(container_name)
     return container_client
 
-def get_azureurl(data, container_client, savename, container_name, subfolder, account_name):
+
+def get_azureurl(
+    data, container_client, savename, container_name, subfolder, account_name
+):
     from azure.storage.blob import BlobServiceClient
     from azure.storage.blob import BlobClient, ContentSettings
     import mimetypes
@@ -90,7 +94,9 @@ def get_azureurl(data, container_client, savename, container_name, subfolder, ac
         data_blob = container_client.get_blob_client(remote_name)
         with open(data, "rb") as data_file:
             data_blob.upload_blob(
-                data_file, overwrite=True, content_settings=ContentSettings(content_type=content_type)
+                data_file,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type),
             )
 
         url = f"https://{account_name}.blob.core.windows.net/{container_name}/{remote_name}"
@@ -101,8 +107,6 @@ def get_azureurl(data, container_client, savename, container_name, subfolder, ac
         return None
 
 
-
-    
 def process_chunk_azure(
     videos,
     chunk_start,
@@ -130,7 +134,14 @@ def process_chunk_azure(
             src_file = os.path.join("/datablob/shutterstock", video)
             if os.path.exists(src_file):
                 dst_file = video.replace("/", "_")
-                video_url = get_azureurl(src_file, container_client, dst_file, container_name, subfolder, account_name)
+                video_url = get_azureurl(
+                    src_file,
+                    container_client,
+                    dst_file,
+                    container_name,
+                    subfolder,
+                    account_name,
+                )
                 if video_url is None:
                     print(f"Worker {process_id} upload {src_file} to Azure failed")
                     continue
@@ -238,7 +249,7 @@ def movement(
                     lock,
                     account_name,
                     container_name,
-                    container_client
+                    container_client,
                 ),
             )
         else:
@@ -307,7 +318,10 @@ def process_check(
             writer.write(res_str)
             writer.flush()
             writer.close()
-    print(f"Worker {process_id} processed {len(chunks)} videos, found {exist_cnt} existing videos.")
+    print(
+        f"Worker {process_id} processed {len(chunks)} videos, found {exist_cnt} existing videos."
+    )
+
 
 def checkexists(
     data_file: str,
@@ -354,7 +368,6 @@ def checkexists(
     num_processes = mp.cpu_count()
     total_rows = len(videos)
     chunk_size = total_rows // num_processes
-
 
     lock = mp.Lock()
 

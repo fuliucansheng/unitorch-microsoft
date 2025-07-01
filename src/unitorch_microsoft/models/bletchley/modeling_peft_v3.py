@@ -32,6 +32,7 @@ from unitorch_microsoft.models.bletchley.modeling_v3 import (
     BletchleyTextEncoder,
     BletchleyImageEncoder,
 )
+from unitorch_microsoft.models.bletchley.processing_v3 import BletchleyProcessor
 
 
 class BletchleyForMatching(GenericModel):
@@ -493,6 +494,147 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
 
         outputs = self.classifier(scores)
         return ClassificationOutputs(outputs=outputs)
+
+
+@register_model("microsoft/model/matching/peft/lora/bletchley/v3/v2")
+class BletchleyLoraForMatchingV2(GenericPeftModel, PeftWeightLoaderMixin):
+    prefix_keys_in_state_dict = {
+        "^(?!peft_model\.base_model\.model\.).*": "peft_model.base_model.model."
+    }
+    replace_keys_in_state_dict = {
+        "attn.proj.weight": "attn.proj.base_layer.weight",
+        "attn.proj.bias": "attn.proj.base_layer.bias",
+        "text_encoder.projection": "text_projection",
+        "image_encoder.projection": "image_projection",
+    }
+    modules_to_save_checkpoints = ["lora", "output_projection", "classifier"]
+    replace_keys_in_peft_state_dict = {
+        ".weight": ".base_layer.weight",
+        ".bias": ".base_layer.bias",
+    }
+
+    def __init__(
+        self,
+        config_type: str,
+        labels: List[str],
+        projection_dim: Optional[int] = 1024,
+        lora_r: Optional[int] = 16,
+        lora_alpha: Optional[int] = 32,
+        lora_dropout: Optional[float] = 0.05,
+        fan_in_fan_out: Optional[bool] = True,
+        target_modules: Optional[Union[List[str], str]] = ["attn.proj"],
+        output_embed_dim: Optional[int] = None,
+        max_seq_length: Optional[int] = 128,
+    ):
+        super().__init__()
+        self.peft_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+        )
+        self.peft_model = PeftModelForSequenceClassification(
+            BletchleyForMatching(config_type, projection_dim=projection_dim),
+            self.peft_config,
+        )
+        self.output_embed_dim = output_embed_dim
+        if output_embed_dim is not None:
+            self.output_projection = nn.Linear(
+                projection_dim,
+                output_embed_dim,
+            )
+        else:
+            self.output_projection = None
+        self.classifier = nn.Linear(1, 1)
+
+        self.processor = BletchleyProcessor(
+            max_seq_length=max_seq_length,
+        )
+
+        assert labels is not None
+        self.labels_inputs = self.get_label_inputs(labels)
+
+        self.init_weights()
+        self.classifier.weight.data.fill_(5.0)
+
+    @classmethod
+    @add_default_section_for_init("microsoft/model/matching/peft/lora/bletchley/v3/v2")
+    def from_core_configure(cls, config, **kwargs):
+        config.set_default_section("microsoft/model/matching/peft/lora/bletchley/v3/v2")
+        config_type = config.getoption("config_type", "0.8B")
+
+        projection_dim = config.getoption("projection_dim", 1024)
+        lora_r = config.getoption("lora_r", 16)
+        lora_alpha = config.getoption("lora_alpha", 32)
+        lora_dropout = config.getoption("lora_dropout", 0.05)
+        fan_in_fan_out = config.getoption("fan_in_fan_out", True)
+        target_modules = config.getoption("target_modules", ["attn.proj"])
+        output_embed_dim = config.getoption("output_embed_dim", None)
+        labels = config.getoption("labels", None)
+        max_seq_length = config.getoption("max_seq_length", 128)
+
+        inst = cls(
+            config_type=config_type,
+            labels=labels,
+            projection_dim=projection_dim,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            fan_in_fan_out=fan_in_fan_out,
+            target_modules=target_modules,
+            output_embed_dim=output_embed_dim,
+            max_seq_length=max_seq_length,
+        )
+        pretrained_weight_path = config.getoption("pretrained_weight_path", None)
+        if pretrained_weight_path is not None:
+            inst.from_pretrained(pretrained_weight_path)
+
+        pretrained_lora_weight_path = config.getoption(
+            "pretrained_lora_weight_path", None
+        )
+        pretrained_lora_weight = config.getoption("pretrained_lora_weight", 1.0)
+        pretrained_lora_alpha = config.getoption("pretrained_lora_alpha", 32.0)
+        if pretrained_lora_weight_path is not None:
+            inst.load_lora_weights(
+                pretrained_lora_weight_path,
+                lora_weights=pretrained_lora_weight,
+                lora_alphas=pretrained_lora_alpha,
+                save_base_state=False,
+            )
+
+        return inst
+
+    def get_label_inputs(self, texts):
+        input_ids, attention_mask = [], []
+        for text in texts:
+            inputs = self.processor._text_classification(text).dict()
+            input_ids.append(inputs["input_ids"])
+            attention_mask.append(inputs["attention_mask"])
+        input_ids = torch.stack(input_ids, dim=0)
+        attention_mask = torch.stack(attention_mask, dim=0)
+        return {"input_ids": input_ids, "attention_mask": attention_mask}
+
+    @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
+    def forward(
+        self,
+        images: torch.Tensor = None,
+    ):
+        text_embeds, image_embeds = self.peft_model(
+            input_ids=self.labels_inputs["input_ids"].to(self.device),
+            attention_mask=self.labels_inputs["attention_mask"].to(self.device),
+            images=images,
+            return_dict=False,
+        )
+        if self.output_projection is not None:
+            text_embeds = self.output_projection(text_embeds)
+            image_embeds = self.output_projection(image_embeds)
+
+        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+        image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+        scores = torch.einsum("ij,kj->ik", image_embeds, text_embeds)
+        scores = self.classifier(scores.view(-1, 1)).view(-1, text_embeds.size(0))
+        return ClassificationOutputs(outputs=scores)
 
 
 @register_model("microsoft/model/pretrain/peft/lora/bletchley/v3/text")

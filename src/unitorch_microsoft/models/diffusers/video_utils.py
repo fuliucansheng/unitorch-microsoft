@@ -23,6 +23,7 @@ from unitorch.cli import (
     register_process,
 )
 from decord import cpu, gpu
+
 decord.bridge.set_bridge("torch")
 import torchvision
 
@@ -127,9 +128,7 @@ class VideoProcessor:
                 return frames
 
             if self.http_url is None:
-                video = decord.VideoReader(
-                    video, num_threads=0, ctx=cpu(0)
-                )
+                video = decord.VideoReader(video, num_threads=0, ctx=cpu(0))
                 return video
 
             url = self.http_url.format(video)
@@ -170,9 +169,7 @@ class VideoProcessor:
             A list of sampled frames.
         """
         if isinstance(video, str):
-            video = decord.VideoReader(
-                video, num_threads=0, ctx=cpu(0)
-            )
+            video = decord.VideoReader(video, num_threads=0, ctx=cpu(0))
 
         if isinstance(video, decord.VideoReader):
             fps = video.get_avg_fps()  # note that the fps here is float.
@@ -182,7 +179,7 @@ class VideoProcessor:
         vlen = len(video)
         indices = list(range(vlen))
         if freq > 1:
-            indices = indices[:: (freq)]
+            indices = indices[::(freq)]
         if num is None:
             num = len(indices)
 
@@ -193,9 +190,11 @@ class VideoProcessor:
             dummy_len = 16
             if target_fps is not None:
                 dummy_len = target_fps + 1
-            samples = [Image.new("RGB", self.video_size, (255, 255, 255)) for _ in range(dummy_len)]
+            samples = [
+                Image.new("RGB", self.video_size, (255, 255, 255))
+                for _ in range(dummy_len)
+            ]
             return samples
-
 
         if mode == "random":
             start = int(random() * (len(indices) - num))
@@ -211,17 +210,18 @@ class VideoProcessor:
             frames = indices[start:end]
         else:
             raise ValueError(f"Unknown sampling mode: {mode}")
-        
+
         samples = []
         if isinstance(video, decord.VideoReader):
             frames = video.get_batch(frames)
             frames = frames.permute(0, 3, 1, 2)
             for frame in frames:
-                frame = torchvision.transforms.functional.to_pil_image(frame).convert("RGB")
+                frame = torchvision.transforms.functional.to_pil_image(frame).convert(
+                    "RGB"
+                )
                 samples.append(frame)
         else:
             for i in frames:
                 frame = video[i].convert("RGB")
                 samples.append(frame)
         return samples
-    
