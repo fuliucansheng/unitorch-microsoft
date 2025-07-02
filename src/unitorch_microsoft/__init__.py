@@ -19,8 +19,9 @@ from transformers.utils import is_remote_url
 from unitorch.cli import cached_path as _cached_path
 
 if is_deepspeed_available():
-    import deepspeed
-    import deepspeed.runtime.zero.partition_parameters
+    import deepspeed.runtime.zero as zero
+    import deepspeed.runtime.zero.partition_parameters as partition_parameters
+    zero.partition_parameters = partition_parameters
 
 VERSION = "0.0.0.2"
 
