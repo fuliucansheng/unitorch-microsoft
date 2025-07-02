@@ -14,8 +14,13 @@ import unitorch
 import unitorch.cli
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.utils import replace
+from unitorch import is_deepspeed_available
 from transformers.utils import is_remote_url
 from unitorch.cli import cached_path as _cached_path
+
+if is_deepspeed_available():
+    import deepspeed
+    import deepspeed.runtime.zero.partition_parameters
 
 VERSION = "0.0.0.2"
 
@@ -42,7 +47,6 @@ except importlib_metadata.PackageNotFoundError:
 
 def is_openai_available():
     return _openai_available
-
 
 @replace(unitorch.cli.cached_path)
 def cached_path(
