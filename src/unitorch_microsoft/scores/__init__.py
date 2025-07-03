@@ -25,6 +25,7 @@ from unitorch.cli.models import (
 )
 from unitorch.cli.scores import Score
 
+
 @register_score("microsoft/score/acc")
 class AccuracyScore(Score):
     def __init__(self, gate: Optional[float] = 0.5):
