@@ -585,6 +585,143 @@ def extract_frame(
     end = time.time()
     print(f"latency: {end-start} samples: {total_rows}")
 
+def check_size(
+    videos,
+    chunk_start,
+    chunk_size,
+    process_id,
+    num_processes,
+    total_rows,
+    sample_factor,
+    sample_strategy,
+    sample_frame_num,
+    sample_rate,
+    res_file,
+    lock,
+):
+    if process_id == num_processes - 1:
+        chunk_size = total_rows - chunk_start + 1
+    chunks = videos[chunk_start : chunk_start + chunk_size]
+    print(
+        f"Worker {process_id} Processing rows: {chunk_start} to {chunk_start + chunk_size - 1} \n"
+    )
+
+    processor = VideoProcessor(
+        sample_factor=sample_factor,
+        sample_strategy=sample_strategy,
+        sample_frame_num=sample_frame_num,
+        sample_rate=sample_rate,
+    )
+
+
+    write_str = ""
+    for idx, video in enumerate(chunks):
+        if idx % 30 == 0 and write_str != "":
+            with lock:
+                writer = open(res_file, "a+")
+                writer.write(write_str)
+                writer.flush()
+                writer.close()
+            write_str = ""
+        frames = processor._read(video)
+        print(f"debug length of frames: {len(frames)} for video {video}")
+        for index, frame in enumerate(frames):
+            if np.all(np.array(frame) == [255, 255, 255]):
+                print(f"skip placeholder image for {video} at index {index}")
+                continue
+            h = frame.size[1]
+            w = frame.size[0]
+            size = f"{w}x{h}"
+            write_str += f"{video}\t{size}\n"
+    if write_str != "":
+        with lock:
+            writer = open(res_file, "a+")
+            writer.write(write_str)
+            writer.flush()
+            writer.close()
+
+
+def read_video_size(
+    data_file,
+    names,
+    video_col="video",
+    sample_strategy="fix",
+    sample_frame_num=1,
+    sample_factor=1,
+    sample_rate=[0.5],
+    cache_dir="output"
+):
+    import re
+    import pandas as pd
+    import multiprocessing as mp
+
+    if isinstance(names, str) and names.strip() == "*":
+        names = None
+    if isinstance(names, str):
+        names = re.split(r"[,;]", names)
+        names = [n.strip() for n in names]
+    data = pd.read_csv(
+        data_file,
+        names=names,
+        sep="\t",
+        quoting=3,
+        header=None,
+    )
+    os.makedirs(cache_dir, exist_ok=True)
+    output_file = f"{cache_dir}/output.tsv"
+    if os.path.exists(output_file):
+        uniques = []
+        with open(output_file, "r") as f:
+            for line in f.readlines():
+                videoid, size = line.strip().split("\t")
+                uniques.append(videoid)
+        data = data[
+            ~data.apply(
+                lambda x: x[video_col] in uniques,
+                axis=1,
+            )
+        ]
+    print(f"Data loaded, total rows to move: {len(data)}")
+    assert video_col in data.columns, f"Column {video_col} not found in data."
+    videos = data[video_col].to_list()
+
+    num_processes = mp.cpu_count()
+    total_rows = len(videos)
+    chunk_size = total_rows // num_processes
+    start = time.time()
+    print(f"need to process {total_rows} videos")
+
+    lock = mp.Lock()
+
+    processes = []
+    print(f"need to process {total_rows} videos")
+    for i in range(num_processes):
+        p = mp.Process(
+            target=check_size,
+            args=(
+                videos,
+                i * chunk_size,
+                chunk_size,
+                i,
+                num_processes,
+                total_rows,
+                sample_factor,
+                sample_strategy,
+                sample_frame_num,
+                sample_rate,
+                output_file,
+                lock,
+            ),
+        )
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join()
+
+    end = time.time()
+    print(f"latency: {end-start} samples: {total_rows}")
+
 
 if __name__ == "__main__":
     fire.Fire()
