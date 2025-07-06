@@ -312,7 +312,7 @@ class BadCropProcessor(SiglipProcessor):
         image_ratio = image_width / image_height
         ratio_range = (w / image_height, image_width / h)
 
-        if image_ratio < ratio_range[0] or image_ratio > ratio_range[1]:
+        if ratio < ratio_range[0] or ratio > ratio_range[1]:
             return image
 
         if image_ratio > ratio:
