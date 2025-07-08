@@ -304,12 +304,12 @@ class VideoProcessor(ImageProcessor):
 
         assert sample_frame_num != None and sample_frame_num > 0
         assert sample_strategy != None, "sample_strategy is None"
-        print(
-            f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}"
-        )
+        #print(
+        #    f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}"
+        #)
 
         try:
-            print(f"process video {video}")
+            #print(f"process video {video}")
             if video.startswith("http://") or video.startswith("https://"):
                 video = self._download_video(video)
 
@@ -624,7 +624,7 @@ def check_size(
                 writer.close()
             write_str = ""
         frames = processor._read(video)
-        print(f"debug length of frames: {len(frames)} for video {video}")
+        #print(f"debug length of frames: {len(frames)} for video {video}")
         for index, frame in enumerate(frames):
             if np.all(np.array(frame) == [255, 255, 255]):
                 print(f"skip placeholder image for {video} at index {index}")
@@ -669,18 +669,26 @@ def read_video_size(
     )
     os.makedirs(cache_dir, exist_ok=True)
     output_file = f"{cache_dir}/output.tsv"
+    invalidcnt = 0
+    totalcnt = 0
     if os.path.exists(output_file):
         uniques = []
         with open(output_file, "r") as f:
             for line in f.readlines():
-                videoid, size = line.strip().split("\t")
-                uniques.append(videoid)
+                totalcnt += 1
+                try:
+                    videoid, size = line.strip().split("\t")
+                    uniques.append(videoid)
+                except Exception as e:
+                    print(f"Error parsing line: {line.strip()} with error: {e}")
+                    invalidcnt += 1
         data = data[
             ~data.apply(
                 lambda x: x[video_col] in uniques,
                 axis=1,
             )
         ]
+    print(f"Read previous results, total rows: {totalcnt}, invalid rows: {invalidcnt}")
     print(f"Data loaded, total rows to move: {len(data)}")
     assert video_col in data.columns, f"Column {video_col} not found in data."
     videos = data[video_col].to_list()

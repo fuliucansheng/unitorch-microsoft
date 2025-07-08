@@ -188,7 +188,7 @@ def image2video(
     neg_prompt_col: Optional[str] = None,
     aspect_ratio: Optional[str] = "16:9",
     duration: Optional[str] = "5",
-    model: Optional[str] = "I2V-01",  # I2V-01 I2V-01-live I2V-01-Director
+    model: Optional[str] = "MiniMax-Hailuo-02",  # I2V-01 I2V-01-live I2V-01-Director
     max_queue_size: Optional[int] = 2000,
     index_col: Optional[str] = None,
 ):
