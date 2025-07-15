@@ -29,9 +29,9 @@ def process_chunk(
     movement_str = ""
     for idx, video in enumerate(chunks):
         try:
-            src_file = os.path.join("/datablob/shutterstock", video)
+            src_file = video
             if os.path.exists(src_file):
-                dst_file = video.replace("/", "_")
+                dst_file = os.path.basename(src_file).replace("/", "_")
                 dst_file = os.path.join(cache_dir, dst_file)
                 cmd = f"cp {src_file} {dst_file}"
                 os.system(cmd)
@@ -174,7 +174,7 @@ def movement(
     names: Union[str, List[str]] = "video",
     move_col: str = "video",
     max_cnt: int = 100000000,
-    sub_folder: str = "video",
+    sub_folder: str = "",
     upload_to_azure: bool = False,
     connect_key: Optional[str] = None,
     account_name: Optional[str] = None,
