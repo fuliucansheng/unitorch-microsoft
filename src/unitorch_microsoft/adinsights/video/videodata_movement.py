@@ -35,10 +35,11 @@ def process_chunk(
                 dst_file = os.path.join(cache_dir, dst_file)
                 cmd = f"cp {src_file} {dst_file}"
                 os.system(cmd)
-                print(f"Worker {process_id} copy {src_file} to {dst_file}")
+                #print(f"Worker {process_id} copy {src_file} to {dst_file}")
                 movement_str += f"{video}\t{dst_file}\n"
                 if idx % 100 == 0:
                     with lock:
+                        print(f"Worker {process_id} processed {idx} videos")
                         writer = open(file_writer, "a+")
                         writer.write(movement_str)
                         writer.flush()
@@ -147,6 +148,7 @@ def process_chunk_azure(
                     continue
                 movement_str += f"{video}\t{video_url}\n"
                 if idx % 100 == 0:
+                    print(f"Worker {process_id} processed {idx} videos")
                     with lock:
                         writer = open(file_writer, "a+")
                         writer.write(movement_str)
@@ -301,6 +303,7 @@ def process_check(
                 res_str += f"{video}\n"
                 exist_cnt += 1
                 if idx % 100 == 0:
+                    print(f"Worker {process_id} processed {idx} videos")
                     with lock:
                         writer = open(file_writer, "a+")
                         writer.write(res_str)
