@@ -273,6 +273,12 @@ def _parse_args():
         help="Name of the column containing prompts.",
     )
     parser.add_argument(
+        "--camera_col",
+        type=str,
+        default='camera',
+        help="Name of the column containing camera information.",
+    )
+    parser.add_argument(
         "--start_frame_col",
         type=str,
         default=None,
@@ -303,6 +309,12 @@ def _parse_args():
         default=False,
         help="Disable Z3 flag",
     )
+    parser.add_argument(
+        "--enable_cm_adaln",
+        action="store_true",
+        default=False,
+        help="Enable CM-ADALN",
+    )
 
     args = parser.parse_args()
 
@@ -311,25 +323,41 @@ def _parse_args():
     return args
 
 
-def generation(pipe, start_frame, prompt, args):
+def generation(pipe, start_frame, prompt, camera, args):
     print(f"Process video gen for {start_frame}")
     image = readimg(start_frame, args.cache_dir, args.size)
     if image == None:
         return None
     print("finish read img")
     try:
-        video = pipe.generate(
-            prompt,
-            image,
-            max_area=MAX_AREA_CONFIGS[args.size],
-            frame_num=args.frame_num,
-            shift=args.sample_shift,
-            sample_solver=args.sample_solver,
-            sampling_steps=args.sample_steps,
-            guide_scale=args.sample_guide_scale,
-            seed=args.base_seed,
-            offload_model=args.offload_model,
-        )
+        if args.enable_cm_adaln:
+            video = pipe.generate(
+                prompt,
+                image,
+                max_area=MAX_AREA_CONFIGS[args.size],
+                frame_num=args.frame_num,
+                shift=args.sample_shift,
+                sample_solver=args.sample_solver,
+                sampling_steps=args.sample_steps,
+                guide_scale=args.sample_guide_scale,
+                seed=args.base_seed,
+                offload_model=args.offload_model,
+                camera=camera,
+            )
+        else:
+            video = pipe.generate(
+                prompt,
+                image,
+                max_area=MAX_AREA_CONFIGS[args.size],
+                frame_num=args.frame_num,
+                shift=args.sample_shift,
+                sample_solver=args.sample_solver,
+                sampling_steps=args.sample_steps,
+                guide_scale=args.sample_guide_scale,
+                seed=args.base_seed,
+                offload_model=args.offload_model,
+            )
+
 
         name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
         name = os.path.join(args.cache_dir, name)
@@ -557,7 +585,14 @@ def image2video(args):
                 if not pd.isna(row[args.start_frame_col])
                 else ""
             )
-        video = generation(pipe, _start_frame, _prompt, args)
+        _camera = ""
+        if args.enable_cm_adaln and args.camera_col is not None and args.camera_col in data.columns:
+            _camera = (
+                row[args.camera_col]
+                if not pd.isna(row[args.camera_col])
+                else ""
+            )
+        video = generation(pipe, _start_frame, _prompt, _camera, args)
         if video != None:
             record = {
                 "prompt": _prompt,
