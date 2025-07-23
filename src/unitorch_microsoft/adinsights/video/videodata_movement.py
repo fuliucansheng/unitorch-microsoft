@@ -176,7 +176,7 @@ def movement(
     names: Union[str, List[str]] = "video",
     move_col: str = "video",
     max_cnt: int = 100000000,
-    sub_folder: str = "",
+    sub_folder: str = "video",
     upload_to_azure: bool = False,
     connect_key: Optional[str] = None,
     account_name: Optional[str] = None,
