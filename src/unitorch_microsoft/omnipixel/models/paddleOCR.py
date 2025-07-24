@@ -69,7 +69,7 @@ def infer_ocr_text_batch(
     names: Union[str, List[str]],
     image_col: str = "image_path",
     batch_size: int = 32,
-    http_url: str = None,
+    http_url: str = "http://0.0.0.0:11230/?file={0}",
     output_format: str = "tsv_long",  # "tsv_long", "tsv_json", or "json"
     min_score: float = 0.8,
 ):

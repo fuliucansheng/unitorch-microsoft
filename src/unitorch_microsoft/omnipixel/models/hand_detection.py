@@ -42,7 +42,7 @@ def infer_hand_count_batch(
     names: Union[str, List[str]],
     image_col: str = "image_path",
     batch_size: int = 64,
-    http_url: str = None,
+    http_url: str = "http://0.0.0.0:11230/?file={0}",
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None

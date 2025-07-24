@@ -89,7 +89,7 @@ def infer_inspireface_batch(
     names: Union[str, List[str]],
     image_col: str = "image_path",
     batch_size: int = 64,
-    http_url: str = None,
+    http_url: str = "http://0.0.0.0:11230/?file={0}",
 ):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if isinstance(names, str) and names.strip() == "*":
