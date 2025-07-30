@@ -278,7 +278,7 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
             dist.broadcast_object_list(input_prompt, src=0)
         prompt = input_prompt[0]
         logging.info(f"Extended prompt: {prompt}")
-    if True:
+    try:
         if "ti2v" in args.task:
             video = pipe.generate(
                 prompt,
@@ -306,11 +306,10 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
                 seed=args.base_seed,
                 offload_model=args.offload_model,
             )
-            
+        name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
+        name = os.path.join(args.cache_dir, name)    
 
         if rank == 0:
-            name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
-            name = os.path.join(args.cache_dir, name)
             save_video(
                 tensor=video[None],
                 save_file=name,
@@ -323,9 +322,9 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
         torch.cuda.synchronize()
         print(f"finish generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
         return name
-    #except Exception as e:
-    #    print(e)
-    #    return None
+    except Exception as e:
+        print(e)
+        return None
 
 def _init_logging(rank):
     # logging
@@ -536,6 +535,12 @@ def image2video(args):
         print("Prepare pipeline error")
         return None
 
+
+    rank = int(os.getenv("RANK", 0))
+    world_size = int(os.getenv("WORLD_SIZE", 1))
+    local_rank = int(os.getenv("LOCAL_RANK", 0))
+    device = local_rank
+    print(f"Start generation {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
     cnt = 0
     for _, row in data.iterrows():
         _prompt = row[args.prompt_col] if not pd.isna(row[args.prompt_col]) else ""
@@ -561,7 +566,7 @@ def image2video(args):
                 else ""
             )
         video = generation(pipe, prompt_expander, _start_frame, _prompt, _camera, args)
-        if video != None:
+        if video != None and rank == 0:
             record = {
                 "prompt": _prompt,
                 "neg_prompt": _neg_prompt,
@@ -578,26 +583,34 @@ def image2video(args):
     output_file = f"{args.cache_dir}/output.jsonl"
     tsv_file = f"{args.cache_dir}/output.tsv"
     try:
-        with open(output_file, "r") as fin, open(
-            tsv_file, "w", encoding="utf-8"
-        ) as fout:
-            # Read all json lines
-            rows = [json.loads(line) for line in fin]
-            if rows:
-                # Write header
-                header = list(rows[0].keys())
-                # Write rows
-                for row in rows:
-                    fout.write(
-                        "\t".join(str(row.get(col, "")) for col in header) + "\n"
-                    )
-        print(f"Converted {output_file} to {tsv_file}")
+        if rank == 0:
+            with open(output_file, "r") as fin, open(
+                tsv_file, "w", encoding="utf-8"
+            ) as fout:
+                # Read all json lines
+                rows = [json.loads(line) for line in fin]
+                if rows:
+                    # Write header
+                    header = list(rows[0].keys())
+                    # Write rows
+                    for row in rows:
+                        fout.write(
+                            "\t".join(str(row.get(col, "")) for col in header) + "\n"
+                        )
+            print(f"Converted {output_file} to {tsv_file}")
     except Exception as e:
         print(f"Error converting jsonl to tsv: {e}")
+    
+
+    torch.cuda.synchronize()
+    if dist.is_initialized():
+        dist.barrier()
+        dist.destroy_process_group()
+
+    print("Finished.")
+
 
 
 if __name__ == "__main__":
     args = _parse_args()
     image2video(args)
-
-
