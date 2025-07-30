@@ -1,6 +1,9 @@
-import torch
-from PIL import Image
+import argparse
+import logging
 import os
+import sys
+import warnings
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 import re
 import pandas as pd
@@ -9,80 +12,49 @@ import json
 from io import BytesIO
 import requests
 import numpy as np
+
+warnings.filterwarnings('ignore')
+
+import random
+
+import torch
+import torch.distributed as dist
+from PIL import Image
+
 import wan
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
+from wan.distributed.util import init_distributed_group
 from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
+from wan.utils.utils import save_video, str2bool
 
-import argparse
-import random
-import sys
-
-
-def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
-    try:
-        if imagefile.startswith(("http://", "https://")):
-            response = requests.get(imagefile)
-            image = Image.open(BytesIO(response.content)).convert("RGB")
-        else:
-            image = Image.open(imagefile).convert("RGB")
-
-        h, w = max_area_str.split("*")
-        max_area = int(h) * int(w)
-
-        aspect_ratio = image.height / image.width
-        mod_value = 16
-        height = round(np.sqrt(max_area * aspect_ratio)) // mod_value * mod_value
-        width = round(np.sqrt(max_area / aspect_ratio)) // mod_value * mod_value
-        image = image.resize((width, height), resample=Image.LANCZOS)
-        if return_bytes:
-            return image
-        else:
-            name = hashlib.md5(imagefile.encode()).hexdigest() + ".jpg"
-            name = os.path.join(cache_dir, name)
-            image.save(name)
-            return name
-    except Exception as e:
-        print(e)
-        return None
-
-
+from unitorch_microsoft.adinsights.video.wan_official import readimg, load_z3_model, get_model_list, load_model, check_state_dict
+  
 def _validate_args(args):
     # Basic check
     assert args.ckpt_dir is not None, "Please specify the checkpoint directory."
     assert args.task in WAN_CONFIGS, f"Unsupport task: {args.task}"
 
-    # The default sampling steps are 40 for image-to-video tasks and 50 for text-to-video tasks.
+    cfg = WAN_CONFIGS[args.task]
+
     if args.sample_steps is None:
-        args.sample_steps = 50
-        if "i2v" in args.task:
-            args.sample_steps = 40
+        args.sample_steps = cfg.sample_steps
 
     if args.sample_shift is None:
-        args.sample_shift = 5.0
-        if "i2v" in args.task and args.size in ["832*480", "480*832"]:
-            args.sample_shift = 3.0
-        elif "flf2v" in args.task or "vace" in args.task:
-            args.sample_shift = 16
+        args.sample_shift = cfg.sample_shift
 
-    # The default number of frames are 1 for text-to-image tasks and 81 for other tasks.
+    if args.sample_guide_scale is None:
+        args.sample_guide_scale = cfg.sample_guide_scale
+
     if args.frame_num is None:
-        args.frame_num = 1 if "t2i" in args.task else 81
+        args.frame_num = cfg.frame_num
 
-    # T2I frame_num check
-    if "t2i" in args.task:
-        assert (
-            args.frame_num == 1
-        ), f"Unsupport frame_num {args.frame_num} for task {args.task}"
-
-    args.base_seed = (
-        args.base_seed if args.base_seed >= 0 else random.randint(0, sys.maxsize)
-    )
+    args.base_seed = args.base_seed if args.base_seed >= 0 else random.randint(
+        0, sys.maxsize)
     # Size check
-    assert (
-        args.size in SUPPORTED_SIZES[args.task]
-    ), f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
-
-
+    assert args.size in SUPPORTED_SIZES[
+        args.
+        task], f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
+    
 def _parse_args():
     parser = argparse.ArgumentParser(
         description="Generate a image or video from a text prompt or image using Wan"
@@ -90,167 +62,118 @@ def _parse_args():
     parser.add_argument(
         "--task",
         type=str,
-        default="t2v-14B",
+        default="i2v-A14B",
         choices=list(WAN_CONFIGS.keys()),
-        help="The task to run.",
-    )
+        help="The task to run.")
     parser.add_argument(
         "--size",
         type=str,
         default="1280*720",
         choices=list(SIZE_CONFIGS.keys()),
-        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image.",
+        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image."
     )
     parser.add_argument(
         "--frame_num",
         type=int,
         default=None,
-        help="How many frames to sample from a image or video. The number should be 4n+1",
+        help="How many frames of video are generated. The number should be 4n+1"
     )
     parser.add_argument(
         "--ckpt_dir",
         type=str,
         default=None,
-        help="The path to the checkpoint directory.",
-    )
+        help="The path to the checkpoint directory.")
     parser.add_argument(
         "--offload_model",
         type=str2bool,
         default=None,
-        help="Whether to offload the model to CPU after each model forward, reducing GPU memory usage.",
+        help="Whether to offload the model to CPU after each model forward, reducing GPU memory usage."
     )
     parser.add_argument(
         "--ulysses_size",
         type=int,
         default=1,
-        help="The size of the ulysses parallelism in DiT.",
-    )
-    parser.add_argument(
-        "--ring_size",
-        type=int,
-        default=1,
-        help="The size of the ring attention parallelism in DiT.",
-    )
+        help="The size of the ulysses parallelism in DiT.")
     parser.add_argument(
         "--t5_fsdp",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for T5.",
-    )
+        help="Whether to use FSDP for T5.")
     parser.add_argument(
         "--t5_cpu",
         action="store_true",
         default=False,
-        help="Whether to place T5 model on CPU.",
-    )
+        help="Whether to place T5 model on CPU.")
     parser.add_argument(
         "--dit_fsdp",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for DiT.",
-    )
+        help="Whether to use FSDP for DiT.")
     parser.add_argument(
         "--save_file",
         type=str,
         default=None,
-        help="The file to save the generated image or video to.",
-    )
-    parser.add_argument(
-        "--src_video",
-        type=str,
-        default=None,
-        help="The file of the source video. Default None.",
-    )
-    parser.add_argument(
-        "--src_mask",
-        type=str,
-        default=None,
-        help="The file of the source mask. Default None.",
-    )
-    parser.add_argument(
-        "--src_ref_images",
-        type=str,
-        default=None,
-        help="The file list of the source reference images. Separated by ','. Default None.",
-    )
+        help="The file to save the generated video to.")
     parser.add_argument(
         "--prompt",
         type=str,
         default=None,
-        help="The prompt to generate the image or video from.",
-    )
+        help="The prompt to generate the video from.")
     parser.add_argument(
         "--use_prompt_extend",
         action="store_true",
         default=False,
-        help="Whether to use prompt extend.",
-    )
+        help="Whether to use prompt extend.")
     parser.add_argument(
         "--prompt_extend_method",
         type=str,
         default="local_qwen",
         choices=["dashscope", "local_qwen"],
-        help="The prompt extend method to use.",
-    )
+        help="The prompt extend method to use.")
     parser.add_argument(
         "--prompt_extend_model",
         type=str,
         default=None,
-        help="The prompt extend model to use.",
-    )
+        help="The prompt extend model to use.")
     parser.add_argument(
         "--prompt_extend_target_lang",
         type=str,
         default="zh",
         choices=["zh", "en"],
-        help="The target language of prompt extend.",
-    )
+        help="The target language of prompt extend.")
     parser.add_argument(
         "--base_seed",
         type=int,
         default=43,
-        help="The seed to use for generating the image or video.",
-    )
+        help="The seed to use for generating the video.")
     parser.add_argument(
         "--image",
         type=str,
         default=None,
-        help="[image to video] The image to generate the video from.",
-    )
-    parser.add_argument(
-        "--first_frame",
-        type=str,
-        default=None,
-        help="[first-last frame to video] The image (first frame) to generate the video from.",
-    )
-    parser.add_argument(
-        "--last_frame",
-        type=str,
-        default=None,
-        help="[first-last frame to video] The image (last frame) to generate the video from.",
-    )
+        help="The image to generate the video from.")
     parser.add_argument(
         "--sample_solver",
         type=str,
-        default="unipc",
-        choices=["unipc", "dpm++"],
-        help="The solver used to sample.",
-    )
+        default='unipc',
+        choices=['unipc', 'dpm++'],
+        help="The solver used to sample.")
     parser.add_argument(
-        "--sample_steps", type=int, default=None, help="The sampling steps."
-    )
+        "--sample_steps", type=int, default=None, help="The sampling steps.")
     parser.add_argument(
         "--sample_shift",
         type=float,
         default=None,
-        help="Sampling shift factor for flow matching schedulers.",
-    )
+        help="Sampling shift factor for flow matching schedulers.")
     parser.add_argument(
         "--sample_guide_scale",
         type=float,
-        default=5.0,
-        help="Classifier free guidance scale.",
-    )
+        default=None,
+        help="Classifier free guidance scale.")
+    parser.add_argument(
+        "--convert_model_dtype",
+        action="store_true",
+        default=False,
+        help="Whether to convert model paramerters dtype.")
     parser.add_argument(
         "--data_file", type=str, default=None, help="Path to the input data file."
     )
@@ -322,19 +245,45 @@ def _parse_args():
 
     return args
 
-
-def generation(pipe, start_frame, prompt, camera, args):
-    from wan.utils.utils import cache_image, cache_video, str2bool
+def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
+    rank = int(os.getenv("RANK", 0))
+    world_size = int(os.getenv("WORLD_SIZE", 1))
+    local_rank = int(os.getenv("LOCAL_RANK", 0))
+    device = local_rank
+    print(f"generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
     print(f"Process video gen for {start_frame}")
     image = readimg(start_frame, args.cache_dir, args.size)
     if image == None:
         return None
     print("finish read img")
-    try:
-        if args.enable_cm_adaln:
+    print(f"prompt {prompt}")
+    if prompt_expander is not None:
+        logging.info("Extending prompt ...")
+        if rank == 0:
+            prompt_output = prompt_expander(
+                prompt,
+                image=image,
+                tar_lang=args.prompt_extend_target_lang,
+                seed=args.base_seed)
+            if prompt_output.status == False:
+                logging.info(
+                    f"Extending prompt failed: {prompt_output.message}")
+                logging.info("Falling back to original prompt.")
+            else:
+                prompt = prompt_output.prompt
+            input_prompt = [prompt]
+        else:
+            input_prompt = [None]
+        if dist.is_initialized():
+            dist.broadcast_object_list(input_prompt, src=0)
+        prompt = input_prompt[0]
+        logging.info(f"Extended prompt: {prompt}")
+    if True:
+        if "ti2v" in args.task:
             video = pipe.generate(
                 prompt,
                 image,
+                size=SIZE_CONFIGS[args.size],
                 max_area=MAX_AREA_CONFIGS[args.size],
                 frame_num=args.frame_num,
                 shift=args.sample_shift,
@@ -343,7 +292,6 @@ def generation(pipe, start_frame, prompt, camera, args):
                 guide_scale=args.sample_guide_scale,
                 seed=args.base_seed,
                 offload_model=args.offload_model,
-                camera=camera,
             )
         else:
             video = pipe.generate(
@@ -358,92 +306,37 @@ def generation(pipe, start_frame, prompt, camera, args):
                 seed=args.base_seed,
                 offload_model=args.offload_model,
             )
+            
 
-
-        name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
-        name = os.path.join(args.cache_dir, name)
-        cache_video(
-            tensor=video[None],
-            save_file=name,
-            fps=16,
-            nrow=1,
-            normalize=True,
-            value_range=(-1, 1),
-        )
+        if rank == 0:
+            name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
+            name = os.path.join(args.cache_dir, name)
+            save_video(
+                tensor=video[None],
+                save_file=name,
+                fps=16,
+                nrow=1,
+                normalize=True,
+                value_range=(-1, 1),
+            )
+        del video
+        torch.cuda.synchronize()
+        print(f"finish generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
         return name
-    except Exception as e:
-        print(e)
-        return None
+    #except Exception as e:
+    #    print(e)
+    #    return None
 
-
-def load_z3_model(ckpt_dir):
-    from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
-
-    state_dict = get_fp32_state_dict_from_zero_checkpoint(
-        ckpt_dir,
-        exclude_frozen_parameters=True,
-    )
-    for key in state_dict.keys():
-        print(f"Key: {key}, Shape: {state_dict[key].shape}")
-
-    print(f"Loaded {len(state_dict)} parameters from {ckpt_dir}")
-
-    return state_dict
-
-
-def get_model_list(ckpt_folder):
-    """
-    Get a list of model files in the specified folder.
-    """
-    model_files = []
-    for root, dirs, files in os.walk(ckpt_folder):
-        for file in files:
-            if file.endswith(".bin") or file.endswith(".safetensors"):
-                model_files.append(os.path.join(root, file))
-    return model_files
-
-
-def load_model(file_path):
-    if file_path.endswith("safetensors"):
-        from safetensors.torch import load_file, safe_open
-
-        state_dict = load_file(file_path)
+def _init_logging(rank):
+    # logging
+    if rank == 0:
+        # set format
+        logging.basicConfig(
+            level=logging.INFO,
+            format="[%(asctime)s] %(levelname)s: %(message)s",
+            handlers=[logging.StreamHandler(stream=sys.stdout)])
     else:
-        state_dict = torch.load(file_path, map_location="cpu")
-
-    return state_dict
-
-
-def check_state_dict(old_state_dict, state_dict):
-    import time
-
-    load_keys = []
-    non_load_keys = []
-    for key, value in state_dict.items():
-        if key in old_state_dict and old_state_dict[key].shape == state_dict[key].shape:
-            print(f"Key {key} found in old state dict with matching shape")
-            load_keys.append(key)
-        else:
-            print(f"Key {key} not found in old state dict or shape mismatch")
-            non_load_keys.append(key)
-    print(f"Total keys in state dict: {len(state_dict)}")
-    print(f"Total keys in old state dict: {len(old_state_dict)}")
-    load_percent = (
-        len(load_keys) / len(old_state_dict) * 100
-    )  # Calculate the percentage of loaded keys
-    print(f"load percent: {load_percent}%")
-    print(f"Non load keys in new weights: {list(non_load_keys)}")
-    print(f"missing keys in old weights: {list(old_state_dict.keys() - load_keys)}")
-    time.sleep(20)
-    print(f"Check state dict complete {load_keys[20]}")
-    old_val = old_state_dict[load_keys[20]]
-    new_val = state_dict[load_keys[20]]
-    print(f"shape diff: {old_val.shape} vs {new_val.shape}")
-    print(f"old val: {old_val}")
-    time.sleep(20)
-    print(f"new val: {new_val}")
-    time.sleep(20)
-
+        logging.basicConfig(level=logging.ERROR)
 
 def prepare_pipeline(args):
     try:
@@ -452,18 +345,92 @@ def prepare_pipeline(args):
         world_size = int(os.getenv("WORLD_SIZE", 1))
         local_rank = int(os.getenv("LOCAL_RANK", 0))
         device = local_rank
+        print(f"prepare PL rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
+
+        _init_logging(rank)
+
+        if args.offload_model is None:
+            args.offload_model = False if world_size > 1 else True
+            logging.info(
+                f"offload_model is not specified, set to {args.offload_model}.")
+        if world_size > 1:
+            torch.cuda.set_device(local_rank)
+            dist.init_process_group(
+                backend="nccl",
+                init_method="env://",
+                rank=rank,
+                world_size=world_size)
+        else:
+            assert not (
+                args.t5_fsdp or args.dit_fsdp
+            ), f"t5_fsdp and dit_fsdp are not supported in non-distributed environments."
+            assert not (
+                args.ulysses_size > 1
+            ), f"sequence parallel are not supported in non-distributed environments."
+
+        if args.ulysses_size > 1:
+            assert args.ulysses_size == world_size, f"The number of ulysses_size should be equal to the world size."
+            init_distributed_group()
+
+        if args.use_prompt_extend:
+            if args.prompt_extend_method == "dashscope":
+                prompt_expander = DashScopePromptExpander(
+                    model_name=args.prompt_extend_model,
+                    task=args.task,
+                    is_vl=args.image is not None)
+            elif args.prompt_extend_method == "local_qwen":
+                prompt_expander = QwenPromptExpander(
+                    model_name=args.prompt_extend_model,
+                    task=args.task,
+                    is_vl=args.image is not None,
+                    device=rank)
+            else:
+                raise NotImplementedError(
+                    f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
+        else:
+            prompt_expander = None
+        
         cfg = WAN_CONFIGS[args.task]
-        wan_i2v = wan.WanI2V(
-            config=cfg,
-            checkpoint_dir=args.ckpt_dir,
-            device_id=device,
-            rank=rank,
-            t5_fsdp=args.t5_fsdp,
-            dit_fsdp=args.dit_fsdp,
-            use_usp=(args.ulysses_size > 1 or args.ring_size > 1),
-            t5_cpu=args.t5_cpu,
-        )
-        print("Finish prepare I2V pipeline")
+        if args.ulysses_size > 1:
+            assert cfg.num_heads % args.ulysses_size == 0, f"`{cfg.num_heads=}` cannot be divided evenly by `{args.ulysses_size=}`."
+
+        logging.info(f"Generation job args: {args}")
+        logging.info(f"Generation model config: {cfg}")
+
+        if dist.is_initialized():
+            base_seed = [args.base_seed] if rank == 0 else [None]
+            dist.broadcast_object_list(base_seed, src=0)
+            args.base_seed = base_seed[0]
+
+        logging.info(f"Input prompt: {args.prompt}")
+
+        if "ti2v" in args.task:
+            print("Prepare WanTI2V pipeline")
+            wan_pipe = wan.WanTI2V(
+                config=cfg,
+                checkpoint_dir=args.ckpt_dir,
+                device_id=device,
+                rank=rank,
+                t5_fsdp=args.t5_fsdp,
+                dit_fsdp=args.dit_fsdp,
+                use_sp=(args.ulysses_size > 1),
+                t5_cpu=args.t5_cpu,
+                convert_model_dtype=args.convert_model_dtype,
+            )
+        else:
+            print("Prepare WanI2V pipeline")
+            wan_pipe = wan.WanI2V(
+                config=cfg,
+                checkpoint_dir=args.ckpt_dir,
+                device_id=device,
+                rank=rank,
+                t5_fsdp=args.t5_fsdp,
+                dit_fsdp=args.dit_fsdp,
+                use_sp=(args.ulysses_size > 1),
+                t5_cpu=args.t5_cpu,
+                convert_model_dtype=args.convert_model_dtype,
+            )
+            
         if args.transformer_folder is not None:
             state_dict = {}
             if not args.z3_flag_disable:
@@ -484,14 +451,14 @@ def prepare_pipeline(args):
                 state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )
 
-            check_state_dict(wan_i2v.model.state_dict(), state_dict)
-            m, u = wan_i2v.model.load_state_dict(state_dict, strict=False)
+            check_state_dict(wan_pipe.model.state_dict(), state_dict)
+            m, u = wan_pipe.model.load_state_dict(state_dict, strict=False)
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
 
-        return wan_i2v
+        return wan_pipe, prompt_expander
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
-        return None
+        return None, None
 
 
 def image2video(args):
@@ -564,7 +531,7 @@ def image2video(args):
         args.start_frame_col in data.columns or args.end_frame_col in data.columns
     ), f"At least one image needed."
 
-    pipe = prepare_pipeline(args)
+    pipe, prompt_expander = prepare_pipeline(args)
     if pipe == None:
         print("Prepare pipeline error")
         return None
@@ -593,7 +560,7 @@ def image2video(args):
                 if not pd.isna(row[args.camera_col])
                 else ""
             )
-        video = generation(pipe, _start_frame, _prompt, _camera, args)
+        video = generation(pipe, prompt_expander, _start_frame, _prompt, _camera, args)
         if video != None:
             record = {
                 "prompt": _prompt,
@@ -631,7 +598,6 @@ def image2video(args):
 
 if __name__ == "__main__":
     args = _parse_args()
-    if args.task == "i2v-14B":
-        image2video(args)
-    else:
-        print(f"Unsupport task {args.task}")
+    image2video(args)
+
+
