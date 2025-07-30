@@ -84,6 +84,7 @@ def _validate_args(args):
 
 
 def _parse_args():
+    from wan.utils.utils import cache_image, cache_video, str2bool
     parser = argparse.ArgumentParser(
         description="Generate a image or video from a text prompt or image using Wan"
     )
