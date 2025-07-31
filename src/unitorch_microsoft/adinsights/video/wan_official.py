@@ -45,7 +45,12 @@ def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
         print(e)
         return None
 
-
+def get_smaller_size(size_str1, size_str2):
+    width1, height1 = map(int, size_str1.split("*"))
+    width2, height2 = map(int, size_str2.split("*"))
+    area1 = width1 * height1
+    area2 = width2 * height2
+    return size_str1 if area1 < area2 else size_str2
 def _validate_args(args):
     # Basic check
     assert args.ckpt_dir is not None, "Please specify the checkpoint directory."
@@ -100,6 +105,12 @@ def _parse_args():
         type=str,
         default="1280*720",
         choices=list(SIZE_CONFIGS.keys()),
+        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image.",
+    )
+    parser.add_argument(
+        "--resize_max_area",
+        type=str,
+        default="1280*720",
         help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image.",
     )
     parser.add_argument(
@@ -327,7 +338,7 @@ def _parse_args():
 def generation(pipe, start_frame, prompt, camera, args):
     from wan.utils.utils import cache_image, cache_video, str2bool
     print(f"Process video gen for {start_frame}")
-    image = readimg(start_frame, args.cache_dir, args.size)
+    image = readimg(start_frame, args.cache_dir, get_smaller_size(args.resize_max_area, args.size))
     if image == None:
         return None
     print("finish read img")
