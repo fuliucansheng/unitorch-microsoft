@@ -227,6 +227,12 @@ def _parse_args():
         help="point to the FTed ckpt folder",
     )
     parser.add_argument(
+        "--transformer_folder_highnoise",
+        type=str,
+        default=None,
+        help="point to the FTed ckpt folder for high noise model",
+    )
+    parser.add_argument(
         "--z3_flag_disable",
         action="store_true",
         default=False,
@@ -416,8 +422,31 @@ def prepare_pipeline(args):
                 t5_cpu=args.t5_cpu,
                 convert_model_dtype=args.convert_model_dtype,
             )
+            if args.transformer_folder is not None:
+                state_dict = {}
+                if not args.z3_flag_disable:
+                    state_dict = load_z3_model(args.transformer_folder)
+                else:
+                    if os.path.isdir(args.transformer_folder):
+                        model_files = get_model_list(args.transformer_folder)
+                        for model_file in model_files:
+                            state_dict.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                    else:
+                        if os.path.exists(args.transformer_folder):
+                            state_dict = load_model(args.transformer_folder)
+                            print(
+                                f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
+                            )
+                state_dict = (
+                    state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+                )
+
+                check_state_dict(wan_pipe.model.state_dict(), state_dict)
+                m, u = wan_pipe.model.load_state_dict(state_dict, strict=False)
+                print(f"loading transformer weight for ti2v5B missing keys: {len(m)}, unexpected keys: {len(u)}")
         else:
-            print("Prepare WanI2V pipeline")
+            print("Prepare WanI2V pipeline.")
             wan_pipe = wan.WanI2V(
                 config=cfg,
                 checkpoint_dir=args.ckpt_dir,
@@ -430,29 +459,54 @@ def prepare_pipeline(args):
                 convert_model_dtype=args.convert_model_dtype,
             )
             
-        if args.transformer_folder is not None:
-            state_dict = {}
-            if not args.z3_flag_disable:
-                state_dict = load_z3_model(args.transformer_folder)
-            else:
-                if os.path.isdir(args.transformer_folder):
-                    model_files = get_model_list(args.transformer_folder)
-                    for model_file in model_files:
-                        state_dict.update(load_model(model_file))
-                    print(f"Loaded {len(state_dict)} parameters from {model_files}")
+            if args.transformer_folder is not None:
+                state_dict = {}
+                if not args.z3_flag_disable:
+                    state_dict = load_z3_model(args.transformer_folder)
                 else:
-                    if os.path.exists(args.transformer_folder):
-                        state_dict = load_model(args.transformer_folder)
-                        print(
-                            f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
-                        )
-            state_dict = (
-                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
-            )
+                    if os.path.isdir(args.transformer_folder):
+                        model_files = get_model_list(args.transformer_folder)
+                        for model_file in model_files:
+                            state_dict.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                    else:
+                        if os.path.exists(args.transformer_folder):
+                            state_dict = load_model(args.transformer_folder)
+                            print(
+                                f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
+                            )
+                state_dict = (
+                    state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+                )
 
-            check_state_dict(wan_pipe.model.state_dict(), state_dict)
-            m, u = wan_pipe.model.load_state_dict(state_dict, strict=False)
-            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
+                check_state_dict(wan_pipe.low_noise_model.state_dict(), state_dict)
+                m, u = wan_pipe.low_noise_model.load_state_dict(state_dict, strict=False)
+                print(f"I2V14B low noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}")
+        
+            if args.transformer_folder_highnoise is not None:
+                state_dict = {}
+                if not args.z3_flag_disable:
+                    state_dict = load_z3_model(args.transformer_folder_highnoise)
+                else:
+                    if os.path.isdir(args.transformer_folder_highnoise):
+                        model_files = get_model_list(args.transformer_folder_highnoise)
+                        for model_file in model_files:
+                            state_dict.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                    else:
+                        if os.path.exists(args.transformer_folder_highnoise):
+                            state_dict = load_model(args.transformer_folder_highnoise)
+                            print(
+                                f"Loaded {len(state_dict)} parameters from {args.transformer_folder_highnoise}"
+                            )
+                state_dict = (
+                    state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+                )
+
+                check_state_dict(wan_pipe.high_noise_model.state_dict(), state_dict)
+                m, u = wan_pipe.high_noise_model.load_state_dict(state_dict, strict=False)
+                print(f"I2V14B high noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}")
+
 
         return wan_pipe, prompt_expander
     except Exception as e:
