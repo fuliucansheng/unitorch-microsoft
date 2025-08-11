@@ -22,9 +22,10 @@ from videox_fun.models import (
     CLIPModel,
     WanT5EncoderModel,
     WanTransformer3DModel,
+    Wan2_2Transformer3DModel
 )
 from videox_fun.models.cache_utils import get_teacache_coefficients
-from videox_fun.pipeline import WanI2VPipeline
+from videox_fun.pipeline import WanI2VPipeline, Wan2_2I2VPipeline
 from videox_fun.utils.fp8_optimization import (
     convert_model_weight_to_float8,
     replace_parameters_by_name,
@@ -89,20 +90,37 @@ def generation(pipe, generator, start_frame, prompt, negative_prompt, args):
                 video_length=args.video_length,
                 sample_size=[height, width],
             )
-            sample = pipe(
-                prompt,
-                num_frames=args.video_length,
-                negative_prompt="Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards",
-                height=height,
-                width=width,
-                generator=generator,
-                guidance_scale=args.guidance_scale,
-                num_inference_steps=args.num_inference_steps,
-                video=input_video,
-                mask_video=input_video_mask,
-                clip_image=clip_image,
-                shift=args.shift,
-            ).videos
+            if args.version == 2.1:
+                sample = pipe(
+                    prompt,
+                    num_frames=args.video_length,
+                    negative_prompt="Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards",
+                    height=height,
+                    width=width,
+                    generator=generator,
+                    guidance_scale=args.guidance_scale,
+                    num_inference_steps=args.num_inference_steps,
+                    video=input_video,
+                    mask_video=input_video_mask,
+                    clip_image=clip_image,
+                    shift=args.shift,
+                ).videos
+            elif args.version == 2.2:
+                sample = pipe(
+                    prompt,
+                    num_frames=args.video_length,
+                    negative_prompt="Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards",
+                    height=height,
+                    width=width,
+                    generator=generator,
+                    guidance_scale=args.guidance_scale,
+                    num_inference_steps=args.num_inference_steps,
+                    boundary = args.boundary,
+                    video=input_video,
+                    mask_video=input_video_mask,
+                    shift=args.shift,
+                ).videos
+
 
             name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
             name = os.path.join(args.cache_dir, name)
@@ -185,6 +203,12 @@ def _parse_args():
         help="Index of intrinsic frequency for Riflex",
     )
     parser.add_argument(
+        "--version",
+        type=float,
+        default=2.1,
+        help="Version number of Wan model to use, e.g., 2.1 or 2.2",
+    )
+    parser.add_argument(
         "--config_path",
         type=str,
         default="config/wan2.1/wan_civitai.yaml",
@@ -213,10 +237,19 @@ def _parse_args():
         help="Path to pretrained transformer checkpoint",
     )
     parser.add_argument(
+        "--transformer_high_path",
+        type=str,
+        default=None,
+        help="Path to pretrained transformer checkpoint",
+    )
+    parser.add_argument(
         "--vae_path", type=str, default=None, help="Path to pretrained VAE checkpoint"
     )
     parser.add_argument(
         "--lora_path", type=str, default=None, help="Path to LoRA checkpoint"
+    )
+    parser.add_argument(
+        "--lora_high_path", type=str, default=None, help="Path to LoRA checkpoint"
     )
     parser.add_argument(
         "--sample_size",
@@ -284,6 +317,12 @@ def _parse_args():
         type=str,
         default=None,
         help="Name of the column containing negative prompts.",
+    )
+    parser.add_argument(
+        "--boundary",
+        type=float,
+        default=0.9,
+        help="Boundary for the prompt",
     )
     args = parser.parse_args()
 
@@ -369,29 +408,53 @@ def prepare_pipeline(args):
         print("Prepare I2V pipeline")
         device = set_multi_gpus_devices(args.ulysses_degree, args.ring_degree)
         config = OmegaConf.load(args.config_path)
+        if 'boundary' in config['transformer_additional_kwargs']:
+            args.boundary = config['transformer_additional_kwargs']['boundary']
         weight_dtype = (
             torch.bfloat16 if args.weight_dtype == "bfloat16" else torch.float16
         )
+        if args.version == 2.1:
+            WanModel = WanTransformer3DModel
+        elif args.version == 2.2:
+            WanModel = Wan2_2Transformer3DModel
+        else:
+            raise ValueError(f"Unsupported version {args.version}")
 
-        transformer = WanTransformer3DModel.from_pretrained(
-            os.path.join(
-                args.model_name,
-                config["transformer_additional_kwargs"].get(
-                    "transformer_subpath", "transformer"
+        if args.version == 2.1:
+            transformer = WanModel.from_pretrained(
+                os.path.join(
+                    args.model_name,
+                    config["transformer_additional_kwargs"].get(
+                        "transformer_subpath", "transformer"
+                    ),
                 ),
-            ),
-            transformer_additional_kwargs=OmegaConf.to_container(
-                config["transformer_additional_kwargs"]
-            ),
-            low_cpu_mem_usage=True if not args.fsdp_dit else False,
-            torch_dtype=weight_dtype,
-        )
+                transformer_additional_kwargs=OmegaConf.to_container(
+                    config["transformer_additional_kwargs"]
+                ),
+                low_cpu_mem_usage=True if not args.fsdp_dit else False,
+                torch_dtype=weight_dtype,
+            )
+            transformer_2 = None
 
-        print(f"Transformer model loaded from {args.model_name}")
-        print(f"device: {device}")
+            print(f"Transformer model loaded Wan version {args.version} from {args.model_name} on device {device}")
+        elif args.version == 2.2:
+            transformer = WanModel.from_pretrained(
+                os.path.join(args.model_name, config['transformer_additional_kwargs'].get('transformer_low_noise_model_subpath', 'transformer')),
+                transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
+                low_cpu_mem_usage=True if not args.fsdp_dit else False,
+                torch_dtype=weight_dtype,
+            )
+            print(f"Transformer model loaded Wan version {args.version} from {args.model_name} low_noise on device {device}")
+
+            transformer_2 = WanModel.from_pretrained(
+                os.path.join(args.model_name, config['transformer_additional_kwargs'].get('transformer_high_noise_model_subpath', 'transformer')),
+                transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
+                low_cpu_mem_usage=True if not args.fsdp_dit else False,
+                torch_dtype=weight_dtype,
+            )
+            print(f"Transformer model loaded Wan version {args.version} from {args.model_name} high_noise on device {device}")
 
         if args.transformer_path is not None:
-            print(f"From checkpoint: {args.transformer_path}")
             state_dict = {}
             if not args.z3_flag_disable:
                 state_dict = load_z3_model(args.transformer_path)
@@ -413,8 +476,33 @@ def prepare_pipeline(args):
 
             check_state_dict(transformer.state_dict(), state_dict)
             m, u = transformer.load_state_dict(state_dict, strict=False)
-            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
+            print(f"load FT ckpt from {args.transformer_path} missing keys: {len(m)}, unexpected keys: {len(u)}")
 
+        if args.transformer_high_path is not None:
+            print(f"From checkpoint: {args.transformer_high_path}")
+            state_dict = {}
+            if not args.z3_flag_disable:
+                state_dict = load_z3_model(args.transformer_high_path)
+            else:
+                if os.path.isdir(args.transformer_high_path):
+                    model_files = get_model_list(args.transformer_high_path)
+                    for model_file in model_files:
+                        state_dict.update(load_model(model_file))
+                    print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                else:
+                    if os.path.exists(args.transformer_high_path):
+                        state_dict = load_model(args.transformer_high_path)
+                        print(
+                            f"Loaded {len(state_dict)} parameters from {args.transformer_high_path}"
+                        )
+            state_dict = (
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+            )
+
+            check_state_dict(transformer_2.state_dict(), state_dict)
+            m, u = transformer_2.load_state_dict(state_dict, strict=False)
+            print(f"load FT ckpt from {args.transformer_high_path} missing keys: {len(m)}, unexpected keys: {len(u)}")
+        
         vae = AutoencoderKLWan.from_pretrained(
             os.path.join(
                 args.model_name, config["vae_kwargs"].get("vae_subpath", "vae")
@@ -457,15 +545,18 @@ def prepare_pipeline(args):
         )
         text_encoder = text_encoder.eval()
 
-        clip_image_encoder = CLIPModel.from_pretrained(
-            os.path.join(
-                args.model_name,
-                config["image_encoder_kwargs"].get(
-                    "image_encoder_subpath", "image_encoder"
+        if args.version == 2.1:
+            clip_image_encoder = CLIPModel.from_pretrained(
+                os.path.join(
+                    args.model_name,
+                    config["image_encoder_kwargs"].get(
+                        "image_encoder_subpath", "image_encoder"
+                    ),
                 ),
-            ),
-        ).to(weight_dtype)
-        clip_image_encoder = clip_image_encoder.eval()
+            ).to(weight_dtype)
+            clip_image_encoder = clip_image_encoder.eval()
+        elif args.version == 2.2:
+            clip_image_encoder = None
 
         Choosen_Scheduler = scheduler_dict = {
             "Flow": FlowMatchEulerDiscreteScheduler,
@@ -479,25 +570,37 @@ def prepare_pipeline(args):
                 Choosen_Scheduler, OmegaConf.to_container(config["scheduler_kwargs"])
             )
         )
-
-        pipeline = WanI2VPipeline(
-            transformer=transformer,
-            vae=vae,
-            tokenizer=tokenizer,
-            text_encoder=text_encoder,
-            scheduler=scheduler,
-            clip_image_encoder=clip_image_encoder,
-        )
+        if args.version == 2.1:
+            pipeline = WanI2VPipeline(
+                transformer=transformer,
+                vae=vae,
+                tokenizer=tokenizer,
+                text_encoder=text_encoder,
+                scheduler=scheduler,
+                clip_image_encoder=clip_image_encoder,
+            )
+        elif args.version == 2.2:
+            pipeline = Wan2_2I2VPipeline(
+                transformer=transformer,
+                transformer_2=transformer_2,
+                vae=vae,
+                tokenizer=tokenizer,
+                text_encoder=text_encoder,
+                scheduler=scheduler,
+            )
 
         if args.ulysses_degree > 1 or args.ring_degree > 1:
             from functools import partial
-
             transformer.enable_multi_gpus_inference()
+            if transformer_2 is not None:
+                transformer_2.enable_multi_gpus_inference()
             if args.fsdp_dit:
                 shard_fn = partial(
                     shard_model, device_id=device, param_dtype=weight_dtype
                 )
                 pipeline.transformer = shard_fn(pipeline.transformer)
+                if transformer_2 is not None:
+                    pipeline.transformer_2 = shard_fn(pipeline.transformer_2)
                 print("Add FSDP DIT")
             if args.fsdp_text_encoder:
                 shard_fn = partial(
@@ -511,6 +614,11 @@ def prepare_pipeline(args):
                 pipeline.transformer.blocks[i] = torch.compile(
                     pipeline.transformer.blocks[i]
                 )
+            if transformer_2 is not None:
+                for i in range(len(pipeline.transformer_2.blocks)):
+                    pipeline.transformer_2.blocks[i] = torch.compile(
+                        pipeline.transformer_2.blocks[i]
+                    )
             print("Add Compile")
 
         if args.GPU_memory_mode == "sequential_cpu_offload":
@@ -522,6 +630,15 @@ def prepare_pipeline(args):
                 device=device,
             )
             transformer.freqs = transformer.freqs.to(device=device)
+            if transformer_2 is not None:
+                replace_parameters_by_name(
+                    transformer_2,
+                    [
+                        "modulation",
+                    ],
+                    device=device,
+                )
+                transformer_2.freqs = transformer_2.freqs.to(device=device)
             pipeline.enable_sequential_cpu_offload(device=device)
         elif args.GPU_memory_mode == "model_cpu_offload_and_qfloat8":
             convert_model_weight_to_float8(
@@ -532,6 +649,15 @@ def prepare_pipeline(args):
                 device=device,
             )
             convert_weight_dtype_wrapper(transformer, weight_dtype)
+            if transformer_2 is not None:
+                convert_model_weight_to_float8(
+                    transformer_2,
+                    exclude_module_name=[
+                        "modulation",
+                    ],
+                    device=device,
+                )
+                convert_weight_dtype_wrapper(transformer_2, weight_dtype)
             pipeline.enable_model_cpu_offload(device=device)
         elif args.GPU_memory_mode == "model_cpu_offload":
             pipeline.enable_model_cpu_offload(device=device)
@@ -544,6 +670,15 @@ def prepare_pipeline(args):
                 device=device,
             )
             convert_weight_dtype_wrapper(transformer, weight_dtype)
+            if transformer_2 is not None:
+                convert_model_weight_to_float8(
+                    transformer_2,
+                    exclude_module_name=[
+                        "modulation",
+                    ],
+                    device=device,
+                )
+                convert_weight_dtype_wrapper(transformer_2, weight_dtype)
             pipeline.to(device=device)
         else:
             pipeline.to(device=device)
@@ -562,17 +697,26 @@ def prepare_pipeline(args):
                 num_skip_start_steps=args.num_skip_start_steps,
                 offload=args.teacache_offload,
             )
+            if transformer_2 is not None:
+                pipeline.transformer_2.share_teacache(transformer=pipeline.transformer)
 
         if args.cfg_skip_ratio is not None:
             print(f"Enable cfg_skip_ratio {args.cfg_skip_ratio}.")
             pipeline.transformer.enable_cfg_skip(
                 args.cfg_skip_ratio, args.num_inference_steps
             )
+            if not transformer_2 is None:
+                pipeline.transformer_2.share_cfg_skip(transformer=pipeline.transformer)
 
         if args.lora_path is not None:
             print(f"Load LoRA from {args.lora_path}")
             pipeline = merge_lora(
                 pipeline, args.lora_path, args.lora_weight, device=device
+            )
+        if args.lora_high_path is not None:
+            print(f"Load LoRA from {args.lora_high_path}")
+            pipeline = merge_lora(
+                pipeline, args.lora_high_path, args.lora_weight, device=device, sub_transformer_name="transformer_2"
             )
 
         generator = torch.Generator(device=device).manual_seed(args.seed)
