@@ -465,17 +465,7 @@ def prepare_pipeline(args):
         local_rank = int(os.getenv("LOCAL_RANK", 0))
         device = local_rank
         cfg = WAN_CONFIGS[args.task]
-        wan_i2v = wan.WanI2V(
-            config=cfg,
-            checkpoint_dir=args.ckpt_dir,
-            device_id=device,
-            rank=rank,
-            t5_fsdp=args.t5_fsdp,
-            dit_fsdp=args.dit_fsdp,
-            use_usp=(args.ulysses_size > 1 or args.ring_size > 1),
-            t5_cpu=args.t5_cpu,
-        )
-        print("Finish prepare I2V pipeline")
+        #load transformer state
         if args.transformer_folder is not None:
             state_dict = {}
             if not args.z3_flag_disable:
@@ -495,11 +485,32 @@ def prepare_pipeline(args):
             state_dict = (
                 state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )
+            #check_state_dict(wan_i2v.model.state_dict(), state_dict)
+        else:
+            state_dict = None
 
-            check_state_dict(wan_i2v.model.state_dict(), state_dict)
+        if args.enable_cm_adaln and state_dict is not None:
+            checkpoint_state = state_dict
+        else:
+            checkpoint_state = None
+        wan_i2v = wan.WanI2V(
+            config=cfg,
+            checkpoint_dir=args.ckpt_dir,
+            device_id=device,
+            rank=rank,
+            t5_fsdp=args.t5_fsdp,
+            dit_fsdp=args.dit_fsdp,
+            use_usp=(args.ulysses_size > 1 or args.ring_size > 1),
+            t5_cpu=args.t5_cpu,
+            checkpoint_state=checkpoint_state,
+        )
+
+        print("Finish prepare I2V pipeline")
+        #meta_params = [name for name, param in wan_i2v.model.named_parameters() if param.is_meta]
+        #print("Meta parameters:", meta_params)
+        if args.transformer_folder is not None and not args.enable_cm_adaln:
             m, u = wan_i2v.model.load_state_dict(state_dict, strict=False)
-            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
-
+            print(f"load from transformer folder missing keys: {len(m)}, unexpected keys: {len(u)}")
         return wan_i2v
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
