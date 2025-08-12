@@ -15,6 +15,7 @@ import numpy as np
 import argparse
 import random
 import sys
+import time
 from videox_fun.dist import set_multi_gpus_devices, shard_model
 from videox_fun.models import (
     AutoencoderKLWan,
@@ -803,6 +804,7 @@ def image2video(args):
         return None
 
     cnt = 0
+    total_start = time.time()
     for _, row in data.iterrows():
         _prompt = row[args.prompt_col] if not pd.isna(row[args.prompt_col]) else ""
         _neg_prompt = ""
@@ -819,7 +821,9 @@ def image2video(args):
                 if not pd.isna(row[args.start_frame_col])
                 else ""
             )
+        start = time.time()
         video = generation(pipe, generator, _start_frame, _prompt, _neg_prompt, args)
+        print(f"Generation time: {time.time() - start} seconds for {_start_frame}")
         if video != None:
             record = {
                 "prompt": _prompt,
@@ -833,6 +837,7 @@ def image2video(args):
             writer.write(json.dumps(record) + "\n")
             cnt += 1
     print(f"Finish video gen for {cnt} videos")
+    print(f"Total time: {time.time() - total_start} seconds for {cnt} videos")
     writer.close()
     # Convert output jsonl to tsv
     output_file = f"{args.cache_dir}/output.jsonl"
