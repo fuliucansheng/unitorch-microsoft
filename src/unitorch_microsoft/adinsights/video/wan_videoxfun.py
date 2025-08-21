@@ -168,7 +168,7 @@ def _parse_args():
         help="Enable torch.compile for DiT.",
     )
     parser.add_argument(
-        "--enable_teacache", action="store_true", default=True, help="Enable TeaCache."
+        "--enable_teacache", action="store_true", default=False, help="Enable TeaCache."
     )
     parser.add_argument(
         "--teacache_threshold", type=float, default=0.10, help="TeaCache threshold"
@@ -684,6 +684,8 @@ def prepare_pipeline(args):
         else:
             pipeline.to(device=device)
 
+        print(f"check param teacache {args.enable_teacache} {args.GPU_memory_mode} {args.cfg_skip_ratio} ")
+        print(f"check arguments {args}")
         coefficients = (
             get_teacache_coefficients(args.model_name) if args.enable_teacache else None
         )
@@ -822,6 +824,7 @@ def image2video(args):
                 else ""
             )
         start = time.time()
+        print(_start_frame)
         video = generation(pipe, generator, _start_frame, _prompt, _neg_prompt, args)
         print(f"Generation time: {time.time() - start} seconds for {_start_frame}")
         if video != None:

@@ -12,6 +12,8 @@ import json
 from io import BytesIO
 import requests
 import numpy as np
+import torch.nn as nn
+from safetensors import safe_open
 
 warnings.filterwarnings('ignore')
 
@@ -28,7 +30,97 @@ from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
 from wan.utils.utils import save_video, str2bool
 
 from unitorch_microsoft.adinsights.video.wan_official import readimg, load_z3_model, get_model_list, load_model, check_state_dict
-  
+
+def build_lora_names(key, lora_down_key, lora_up_key, is_native_weight):
+    base = "diffusion_model." if is_native_weight else ""
+    lora_down = base + key.replace(".weight", lora_down_key)
+    lora_up = base + key.replace(".weight", lora_up_key)
+    lora_alpha = base + key.replace(".weight", ".alpha")
+    return lora_down, lora_up, lora_alpha
+
+def load_and_merge_lora_weight(
+    model: nn.Module,
+    lora_state_dict: dict,
+    lora_down_key: str=".lora_down.weight",
+    lora_up_key: str=".lora_up.weight"):
+    is_native_weight = any("diffusion_model." in key for key in lora_state_dict)
+    update_key = []
+    for key, value in model.named_parameters():
+        lora_down_name, lora_up_name, lora_alpha_name = build_lora_names(
+            key, lora_down_key, lora_up_key, is_native_weight
+        )
+        #print(f"Processing {key}, lora_down: {lora_down_name}, lora_up: {lora_up_name}, lora_alpha: {lora_alpha_name}")
+        if lora_down_name in lora_state_dict:
+            lora_down = lora_state_dict[lora_down_name]
+            lora_up = lora_state_dict[lora_up_name]
+            lora_alpha = float(lora_state_dict[lora_alpha_name])
+            rank = lora_down.shape[0]
+            scaling_factor = lora_alpha / rank
+            #assert lora_up.dtype == torch.float32
+            #assert lora_down.dtype == torch.float32
+            delta_W = scaling_factor * torch.matmul(lora_up, lora_down)
+            value.data = value.data + delta_W
+            #print(f"Updated {key} with lora down: {lora_down_name}, lora up: {lora_up_name}, lora alpha: {lora_alpha_name}")
+            update_key.append(lora_down_name)
+            update_key.append(lora_up_name)
+            update_key.append(lora_alpha_name)
+    
+    #check if all lora keys are used
+    non_used = 0
+    for key in lora_state_dict.keys():
+        if key not in update_key:
+            print(f"Warning: {key} is not used in the model.")
+            non_used += 1
+    print(f"Total {len(lora_state_dict)} lora keys, {len(update_key)} used, {non_used} not used.")
+
+    return model
+
+
+def load_and_merge_lora_weight_from_safetensors_wan22(
+    model: nn.Module,
+    lora_weight_path:str,
+    lora_down_key:str=".lora_down.weight",
+    lora_up_key:str=".lora_up.weight"):
+    lora_state_dict = {}
+    with safe_open(lora_weight_path, framework="pt", device="cpu") as f:
+        for key in f.keys():
+            lora_state_dict[key] = f.get_tensor(key)
+    #print(f"check lora_state_dit ")
+    #for key, value in lora_state_dict.items():
+    #    print(f"lora_state_dict {key} {value.shape} {value.dtype}")
+    #print(f"============end========== len(lora_state_dict): {len(lora_state_dict)}")
+    model = load_and_merge_lora_weight(model, lora_state_dict, lora_down_key, lora_up_key)
+    return model
+
+def load_and_merge_lora_weight_from_safetensors_wan21(
+    model: nn.Module,
+    lora_weight_path:str,
+    lora_down_key:str=".lora_down.weight",
+    lora_up_key:str=".lora_up.weight"):
+    from unitorch_microsoft.adinsights.video.lora_rapper import WanLoraWrapper
+    lora_rapper = WanLoraWrapper(model)
+    lora_name = lora_rapper.load_lora(lora_weight_path)
+    strength = 1.0
+    lora_rapper.apply_lora(lora_name, strength)
+    print(f"Loaded LoRA: {lora_name} with strength: {strength}")
+    return model
+
+def load_and_merge_lora_weight_from_safetensors(
+    model: nn.Module,
+    lora_weight_path:str,
+    lora_version:str,
+    lora_down_key:str=".lora_down.weight",
+    lora_up_key:str=".lora_up.weight"):
+    if lora_version == '2.1':
+        model = load_and_merge_lora_weight_from_safetensors_wan21(
+            model, lora_weight_path, lora_down_key, lora_up_key
+        )
+    else:
+        model = load_and_merge_lora_weight_from_safetensors_wan22(
+            model, lora_weight_path, lora_down_key, lora_up_key
+        )
+    return model
+
 def _validate_args(args):
     # Basic check
     assert args.ckpt_dir is not None, "Please specify the checkpoint directory."
@@ -54,7 +146,8 @@ def _validate_args(args):
     assert args.size in SUPPORTED_SIZES[
         args.
         task], f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
-    
+    print(f"Check arguments: {args}")
+
 def _parse_args():
     parser = argparse.ArgumentParser(
         description="Generate a image or video from a text prompt or image using Wan"
@@ -155,7 +248,7 @@ def _parse_args():
         "--sample_solver",
         type=str,
         default='unipc',
-        choices=['unipc', 'dpm++'],
+        choices=['unipc', 'dpm++', 'euler'],
         help="The solver used to sample.")
     parser.add_argument(
         "--sample_steps", type=int, default=None, help="The sampling steps.")
@@ -166,14 +259,20 @@ def _parse_args():
         help="Sampling shift factor for flow matching schedulers.")
     parser.add_argument(
         "--sample_guide_scale",
-        type=float,
+        type=lambda s: tuple(map(float, s.split(','))),
         default=None,
-        help="Classifier free guidance scale.")
+        help="Classifier free guidance scale. Provide as comma-separated values, e.g., '7.5,8.0'."
+    )
     parser.add_argument(
         "--convert_model_dtype",
         action="store_true",
         default=False,
         help="Whether to convert model paramerters dtype.")
+    parser.add_argument(
+        "--param_dtype",
+        type=str,
+        default='bf16', #torch.float8_e4m3fn #trch.bfloat16
+        help="The data type to convert model parameters to.")
     parser.add_argument(
         "--data_file", type=str, default=None, help="Path to the input data file."
     )
@@ -233,6 +332,30 @@ def _parse_args():
         help="point to the FTed ckpt folder for high noise model",
     )
     parser.add_argument(
+        "--lora_folder",
+        type=str,
+        default=None,
+        help="point to the lora folder",
+    )
+    parser.add_argument(
+        "--lora_name_lownoise",
+        type=str,
+        default='low_noise_model.safetensors',
+        help="point to the lora path of low noise",
+    )
+    parser.add_argument(
+        "--lora_name_highnoise",
+        type=str,
+        default='high_noise_model.safetensors',
+        help="point to the lora path of high noise",
+    )
+    parser.add_argument(
+        "--lora_version",
+        type=str,
+        default='2.1',
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
+    parser.add_argument(
         "--z3_flag_disable",
         action="store_true",
         default=False,
@@ -250,6 +373,13 @@ def _parse_args():
     _validate_args(args)
 
     return args
+
+param_dtype_map = {
+    'bf16': torch.bfloat16,
+    #'fp16': torch.float16,
+    #'fp32': torch.float32,
+    #'fp8': torch.float8_e4m3fn
+}
 
 def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
     rank = int(os.getenv("RANK", 0))
@@ -398,9 +528,10 @@ def prepare_pipeline(args):
         cfg = WAN_CONFIGS[args.task]
         if args.ulysses_size > 1:
             assert cfg.num_heads % args.ulysses_size == 0, f"`{cfg.num_heads=}` cannot be divided evenly by `{args.ulysses_size=}`."
-
-        logging.info(f"Generation job args: {args}")
-        logging.info(f"Generation model config: {cfg}")
+        if args.param_dtype in param_dtype_map:
+            cfg.param_dtype = param_dtype_map[args.param_dtype]
+        print(f"Generation job args: {args}")
+        print(f"Generation model config: {cfg}")
 
         if dist.is_initialized():
             base_seed = [args.base_seed] if rank == 0 else [None]
@@ -456,7 +587,7 @@ def prepare_pipeline(args):
                 dit_fsdp=args.dit_fsdp,
                 use_sp=(args.ulysses_size > 1),
                 t5_cpu=args.t5_cpu,
-                convert_model_dtype=args.convert_model_dtype,
+                convert_model_dtype=False,
             )
             
             if args.transformer_folder is not None:
@@ -506,7 +637,26 @@ def prepare_pipeline(args):
                 check_state_dict(wan_pipe.high_noise_model.state_dict(), state_dict)
                 m, u = wan_pipe.high_noise_model.load_state_dict(state_dict, strict=False)
                 print(f"I2V14B high noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}")
-
+            if args.lora_folder is not None:
+                low_noise_lora_path = os.path.join(args.lora_folder, args.lora_name_lownoise)
+                high_noise_lora_path = os.path.join(args.lora_folder, args.lora_name_highnoise)
+                wan_pipe.low_noise_model = load_and_merge_lora_weight_from_safetensors(
+                    wan_pipe.low_noise_model, low_noise_lora_path, args.lora_version,
+                )
+                wan_pipe.high_noise_model = load_and_merge_lora_weight_from_safetensors(
+                    wan_pipe.high_noise_model, high_noise_lora_path, args.lora_version,
+                )
+                print(f"Loaded lora weights from {args.lora_folder}")
+            if args.convert_model_dtype and not args.dit_fsdp:
+                wan_pipe.high_noise_model.to(dtype=cfg.param_dtype)
+                wan_pipe.low_noise_model.to(dtype=cfg.param_dtype)
+                print(f"convert model dtype to {cfg.param_dtype} outside")
+                for key, value in wan_pipe.high_noise_model.named_parameters():
+                    print(f"Parameter {key} dtype: {value.dtype}")
+                    break
+                for key, value in wan_pipe.low_noise_model.named_parameters():
+                    print(f"Parameter {key} dtype: {value.dtype}")
+                    break
 
         return wan_pipe, prompt_expander
     except Exception as e:

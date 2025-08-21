@@ -431,9 +431,12 @@ def check_state_dict(old_state_dict, state_dict):
 
     load_keys = []
     non_load_keys = []
+    cnt = 0
     for key, value in state_dict.items():
         if key in old_state_dict and old_state_dict[key].shape == state_dict[key].shape:
-            print(f"Key {key} found in old state dict with matching shape")
+            if cnt == 0:
+                print(f"Key {key} found in old state dict with matching shape, old dtype: {old_state_dict[key].dtype}, new dtype: {value.dtype}")
+                cnt += 1
             load_keys.append(key)
         else:
             print(f"Key {key} not found in old state dict or shape mismatch")
