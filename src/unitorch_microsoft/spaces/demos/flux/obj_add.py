@@ -14,8 +14,10 @@ from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.bria import BRIAForSegmentationPipeline
-from unitorch.cli.fastapis.stable_flux import (
+from unitorch.cli.fastapis.stable_flux.inpainting import (
     StableFluxForImageInpaintingFastAPIPipeline,
+)
+from unitorch.cli.fastapis.stable_flux.redux_inpainting import (
     StableFluxForReduxInpaintingFastAPIPipeline,
 )
 from unitorch.cli.webuis import SimpleWebUI
@@ -98,7 +100,7 @@ class AddObjWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[image, mask_image, refer_image],
             outputs=[output_image],
             trigger_mode="once",
@@ -149,7 +151,7 @@ class AddObjWebUI(SimpleWebUI):
         image = ImageOps.invert(image)
         return image
 
-    def serve(self, image, mask, refer_image):
+    def generate(self, image, mask, refer_image):
         image = image["background"].convert("RGB")
         white = Image.new("RGB", (image.width, image.height), (255, 255, 255))
         image.paste(white, mask=mask.convert("L"))

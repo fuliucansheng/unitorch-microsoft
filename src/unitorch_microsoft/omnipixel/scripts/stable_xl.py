@@ -17,13 +17,9 @@ from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.tools import controlnet_processes
-from unitorch.cli.fastapis.stable_xl import (
-    StableXLForText2ImageFastAPIPipeline,
-    StableXLForImageInpaintingFastAPIPipeline,
-)
-from unitorch.cli.fastapis.controlnet_xl import (
-    ControlNetXLForImageInpaintingFastAPIPipeline,
-)
+from unitorch.cli.fastapis.stable_xl.text2image import StableXLForText2ImageFastAPIPipeline
+from unitorch.cli.fastapis.stable_xl.inpainting import StableXLForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet_xl.inpainting import ControlNetXLForImageInpaintingFastAPIPipeline
 import unitorch_microsoft.models.diffusers
 
 

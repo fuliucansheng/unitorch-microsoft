@@ -17,11 +17,9 @@ from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.tools import controlnet_processes
-from unitorch.cli.fastapis.stable import (
-    StableForText2ImageFastAPIPipeline,
-    StableForImageInpaintingFastAPIPipeline,
-)
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.stable.text2image import StableForText2ImageFastAPIPipeline
+from unitorch.cli.fastapis.stable.inpainting import StableForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet.inpainting import ControlNetForImageInpaintingFastAPIPipeline
 import unitorch_microsoft.models.diffusers
 
 

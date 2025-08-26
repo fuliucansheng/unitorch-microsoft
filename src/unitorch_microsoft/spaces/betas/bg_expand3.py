@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageEnhance
-from transformers import AutoModelForImageSegmentation
+
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
@@ -108,7 +108,7 @@ class ExpandBG3WebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, input_ratio, input_prompt],
             outputs=[output_image1, output_image2],
             trigger_mode="once",
@@ -224,7 +224,7 @@ class ExpandBG3WebUI(SimpleWebUI):
         )
         return image, mask
 
-    def serve(self, image, ratio, prompt):
+    def generate(self, image, ratio, prompt):
         caption = prompt
 
         new_image, new_mask = self.process(image, ratio)

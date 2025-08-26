@@ -17,7 +17,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
+from unitorch_microsoft.chatgpt.papyrus import get_gpt5_response
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -101,7 +101,7 @@ class GPT4WebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_prompt, *input_images],
             outputs=[output_answer],
             trigger_mode="once",
@@ -124,8 +124,8 @@ class GPT4WebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, prompt, *images):
-        result = get_gpt4_response(
+    def generate(self, prompt, *images):
+        result = get_gpt5_response(
             prompt,
             images=images,
         )

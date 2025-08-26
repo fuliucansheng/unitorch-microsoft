@@ -16,7 +16,7 @@ from unitorch.cli.models import (
     GenerationTargets,
 )
 from unitorch.cli.models.bert import pretrained_bert_infos
-from unitorch.cli.models.bert import BertProcessor
+from unitorch.cli.models.bert.processing import BertProcessor
 
 
 class TribertV9Processor(BertProcessor):

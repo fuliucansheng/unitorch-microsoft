@@ -92,7 +92,7 @@ class ZoomInWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[origin_input_image, frames, boxes_points],
             outputs=[output_video],
             trigger_mode="once",
@@ -117,7 +117,7 @@ class ZoomInWebUI(SimpleWebUI):
 
         return new_image, click_points
 
-    def serve(self, image, frames, points):
+    def generate(self, image, frames, points):
         x1 = min([point[0] for point in points])
         y1 = min([point[1] for point in points])
         x2 = max([point[0] for point in points])

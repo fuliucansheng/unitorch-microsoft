@@ -21,7 +21,9 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.stable.interrogator import ClipInterrogatorPipeline
 from unitorch.cli.pipelines.bria import BRIAForSegmentationPipeline
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet.inpainting import (
+    ControlNetForImageInpaintingFastAPIPipeline,
+)
 from unitorch.cli.pipelines.tools import depth, canny
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
@@ -102,7 +104,7 @@ class ChangeBGWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, prompt],
             outputs=[output_image],
             trigger_mode="once",
@@ -141,7 +143,7 @@ class ChangeBGWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def serve(self, image, prompt):
+    def generate(self, image, prompt):
         if (
             getattr(self, "_pipe1", None) is None
             or getattr(self, "_pipe2", None) is None

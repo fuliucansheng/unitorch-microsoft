@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
+
 from diffusers import (
     StableDiffusionInpaintPipeline,
     StableDiffusionControlNetInpaintPipeline,
@@ -22,7 +22,9 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.stable.interrogator import ClipInterrogatorPipeline
 from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet.inpainting import (
+    ControlNetForImageInpaintingFastAPIPipeline,
+)
 from unitorch.cli.pipelines.tools import depth, canny
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
@@ -109,7 +111,7 @@ class ExpandBGWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, prompt, width, height],
             outputs=[output_image],
             trigger_mode="once",
@@ -148,7 +150,7 @@ class ExpandBGWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def serve(self, image, prompt, width, height):
+    def generate(self, image, prompt, width, height):
         mask = Image.new("L", (width, height), 255)
         im_width, im_height = image.size
         assert width >= im_width and height >= im_height

@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from transformers import AutoModelForImageSegmentation
+
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
@@ -93,7 +93,7 @@ class CaptionImgWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_prompt, input_image],
             outputs=[output_caption],
             trigger_mode="once",
@@ -126,7 +126,7 @@ class CaptionImgWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, prompt, image):
+    def generate(self, prompt, image):
         new_prompt = f"[INST] <image>\n {prompt} [/INST]"
         caption = self._pipe(
             new_prompt,

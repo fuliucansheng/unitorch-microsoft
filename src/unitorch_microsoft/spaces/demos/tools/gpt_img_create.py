@@ -113,7 +113,7 @@ class GPTCreateImgWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_prompt, image_size, image_brush, mask_brush, *input_images],
             outputs=[output_image],
             trigger_mode="once",
@@ -150,7 +150,7 @@ class GPTCreateImgWebUI(SimpleWebUI):
         image = ImageOps.invert(image)
         return image
 
-    def serve(self, prompt, size, image_brush, mask_brush, *images):
+    def generate(self, prompt, size, image_brush, mask_brush, *images):
         if image_brush is None or mask_brush is None:
             result = get_gpt_image_response(
                 prompt,

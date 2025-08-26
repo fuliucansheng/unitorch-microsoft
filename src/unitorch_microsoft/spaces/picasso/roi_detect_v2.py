@@ -99,7 +99,7 @@ class ROIDetectV2WebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, threshold],
             outputs=[output_image],
             trigger_mode="once",
@@ -131,7 +131,7 @@ class ROIDetectV2WebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, image, threshold=0.5):
+    def generate(self, image, threshold=0.5):
         result = self._pipe(
             image,
             threshold=threshold,

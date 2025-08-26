@@ -75,36 +75,62 @@ page_routers_replaces = []
 
 for index, (router, page) in enumerate(page_routers):
     page_routers_replaces.append((router, f"/_page{index}"))
-    app = gr.mount_gradio_app(app, page, path=f"/_page{index}", favicon_path=icon_path)
+    app = gr.mount_gradio_app(
+        app, page, path=f"/_page{index}", favicon_path=icon_path, allowed_paths=["/"]
+    )
 
 page_routers_replaces.reverse()
+
+from fastapi import Request, Response
+from urllib.parse import urljoin, urlparse, urlunparse
+import httpx
 
 
 @app.middleware("http")
 async def ReverseMiddleware(request: Request, call_next):
     if not request.url.path.startswith("/_"):
+        new_path = None
         for router, replace in page_routers_replaces:
             if router != "/" and request.url.path.startswith(router):
-                new_path = request.url.path.replace(router, replace)
+                new_path = request.url.path.replace(router, replace, 1)
                 break
             elif router == "/":
                 new_path = replace + request.url.path
                 break
-        new_url = urljoin(str(request.url), new_path)
-        async with httpx.AsyncClient() as client:
-            response = await client.request(
-                request.method,
-                new_url,
-                headers=request.headers.raw,
-                data=await request.body(),
-                follow_redirects=True,
-            )
 
-        return Response(
-            content=response.content,
-            status_code=response.status_code,
-            headers=response.headers,
-        )
+        if new_path:
+            parsed_url = request.url
+            new_url = urljoin(str(parsed_url), new_path)
+            parsed_new = urlparse(new_url)
+            new_url = urlunparse(parsed_new._replace(query=parsed_url.query))
+
+            headers = dict(request.headers)
+            headers.pop("host", None)
+            headers.pop("content-length", None)
+
+            async with httpx.AsyncClient(timeout=3600.0) as client:
+                # GET/DELETE 不要传 body
+                if request.method.upper() in ["GET", "DELETE"]:
+                    response = await client.request(
+                        method=request.method,
+                        url=new_url,
+                        headers=headers,
+                        follow_redirects=True,
+                    )
+                else:
+                    response = await client.request(
+                        method=request.method,
+                        url=new_url,
+                        headers=headers,
+                        content=await request.body(),
+                        follow_redirects=True,
+                    )
+
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+            )
 
     return await call_next(request)
 

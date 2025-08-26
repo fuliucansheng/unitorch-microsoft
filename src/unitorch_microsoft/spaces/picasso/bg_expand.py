@@ -11,7 +11,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from transformers import AutoModelForImageSegmentation
+
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
@@ -102,7 +102,7 @@ class ExpandBGWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, input_ratio],
             outputs=[output_image],
             trigger_mode="once",
@@ -187,7 +187,7 @@ class ExpandBGWebUI(SimpleWebUI):
 
         return new_image, mask
 
-    def serve(self, image, ratio):
+    def generate(self, image, ratio):
         caption = get_gpt4_response(
             "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
             images=[image],

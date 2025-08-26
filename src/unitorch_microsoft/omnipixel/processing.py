@@ -373,6 +373,56 @@ class OmnipixelProcessor:
 
         return mask
 
+    @register_process("microsoft/omnipixel/process/outpainting/fitting")
+    def _outpainting_fitting(
+        self,
+        image: Union[Image.Image, str],
+        ratio: Optional[float] = 1.91,
+    ):
+        if isinstance(image, str):
+            image = Image.open(image).convert("RGB")
+
+        width, height = image.size
+
+        longest_side = 1024
+        shortest_side = (
+            int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
+        )
+        size = (
+            (longest_side, shortest_side)
+            if ratio > 1
+            else (shortest_side, longest_side)
+        )
+
+        scale = min(size[0] / width, size[1] / height)
+        if scale > 1:
+            size = (int(size[0] // scale), int(size[1] // scale))
+        if size[0] < 512:
+            size = (512, int(size[1] * 512 / size[0]))
+        if size[1] < 512:
+            size = (int(size[0] * 512 / size[1]), 512)
+
+        size = (size[0] // 8 * 8, size[1] // 8 * 8)
+
+        scale = min(size[0] / width, size[1] / height)
+
+        new_width = math.ceil(width * scale)
+        new_height = math.ceil(height * scale)
+
+        image = image.resize(
+            (new_width // 8 * 8, new_height // 8 * 8), resample=Image.LANCZOS
+        )
+
+        im_width, im_height = image.size
+
+        mask = Image.new("L", (size[0], size[1]), 255)
+        black = Image.new("RGB", (im_width, im_height), (0, 0, 0))
+        mask.paste(black, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+        new_image = Image.new("RGB", (size[0], size[1]), (255, 255, 255))
+        new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
+
+        return new_image, mask
+
     @register_process("microsoft/omnipixel/process/dominate_color")
     def _dominate_color(
         self,

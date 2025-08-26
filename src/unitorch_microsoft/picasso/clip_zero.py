@@ -361,15 +361,19 @@ class ClipZeroClassificationProcessor:
                 for row_idx in range(len(topk_texts))
             ]
             res[f"class2_{i}"] = [
-                topk_texts[row_idx][i]["c1"]
-                if i < len(topk_texts[row_idx]) and "c1" in topk_texts[row_idx][i]
-                else ""
+                (
+                    topk_texts[row_idx][i]["c1"]
+                    if i < len(topk_texts[row_idx]) and "c1" in topk_texts[row_idx][i]
+                    else ""
+                )
                 for row_idx in range(len(topk_texts))
             ]
             res[f"score_{i}"] = [
-                f"{topk_scores[row_idx][i]:.6f}"
-                if i < len(topk_scores[row_idx])
-                else ""
+                (
+                    f"{topk_scores[row_idx][i]:.6f}"
+                    if i < len(topk_scores[row_idx])
+                    else ""
+                )
                 for row_idx in range(len(topk_scores))
             ]
 

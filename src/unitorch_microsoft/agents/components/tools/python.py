@@ -5,7 +5,12 @@ import io
 import sys
 import subprocess
 from typing import Any, Dict, Optional
-from unitorch_microsoft.agents.components.tools import GenericTool, GenericResult
+from numpy import std
+from unitorch_microsoft.agents.components import (
+    GenericTool,
+    GenericResult,
+    GenericError,
+)
 
 _PYTHON_DESCRIPTION = """
 Use this tool to execute Python code. Note that only print outputs are visible, and function return values are not captured. Use print statements to see results.
@@ -28,8 +33,7 @@ class PythonTool(GenericTool):
         "required": ["code"],
     }
 
-    def execute(self, code: str) -> Optional[Dict[str, Any]]:
-        results = {"code": code}
+    async def execute(self, code: str) -> Optional[Dict[str, Any]]:
         process = subprocess.Popen(
             [sys.executable, "-c", code],
             stdout=subprocess.PIPE,
@@ -37,7 +41,11 @@ class PythonTool(GenericTool):
             text=True,
         )
         stdout, stderr = process.communicate()
-        results["returncode"] = process.returncode
-        results["stdout"] = stdout.strip()
-        results["stderr"] = stderr.strip()
-        return results
+        return GenericResult(
+            output=(
+                f"Execution return code: {process.returncode}. " + stdout.strip()
+                if stdout
+                else ""
+            ),
+            error=stderr.strip() if stderr else "",
+        )

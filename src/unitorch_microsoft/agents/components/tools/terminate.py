@@ -1,7 +1,11 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
-from unitorch_microsoft.agents.components.tools import GenericTool, GenericResult
+from unitorch_microsoft.agents.components import (
+    GenericTool,
+    GenericResult,
+    GenericError,
+)
 
 _TERMINATE_DESCRIPTION = """
 Terminate the interaction when the request is met OR if the assistant cannot proceed further with the task. When you have finished all the tasks, call this tool to end the work.
@@ -25,8 +29,7 @@ class TerminateTool(GenericTool):
         "required": ["status"],
     }
 
-    def execute(self, status: str):
-        return {
-            "status": status,
-            "message": f"The interaction has been completed with status: {status}",
-        }
+    async def execute(self, status: str):
+        return GenericResult(
+            output=f"The interaction has been completed with status: {status}",
+        )

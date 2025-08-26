@@ -62,7 +62,7 @@ class OmniPixelImageClickWebUI(SimpleWebUI):
             fn=self.composite_images, inputs=[image], outputs=[processed_image]
         )
         submit.click(
-            self.serve,
+            self.generate,
             inputs=[processed_image],
             outputs=[score],
             trigger_mode="once",
@@ -105,6 +105,6 @@ class OmniPixelImageClickWebUI(SimpleWebUI):
             return None
         return images["composite"]
 
-    def serve(self, image):
+    def generate(self, image):
         result = self._pipe(image)
         return result

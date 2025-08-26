@@ -29,8 +29,5 @@ from unitorch_microsoft.spaces.utils import (
     create_dashboard_cards_group,
     create_cards_group,
     hashed_link,
-    start_http_server,
     call_fastapi,
 )
-
-http_url = start_http_server()

@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
+
 from diffusers import (
     StableDiffusionInpaintPipeline,
     StableDiffusionControlNetInpaintPipeline,
@@ -21,7 +21,9 @@ from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet.inpainting import (
+    ControlNetForImageInpaintingFastAPIPipeline,
+)
 from unitorch.cli.pipelines.tools import depth, canny
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
@@ -264,12 +266,12 @@ class RemoveObjWebUI(SimpleWebUI):
         return image
 
     def serve_click(self, prompt, image, mask):
-        return self.serve(prompt, image, mask)
+        return self.generate(prompt, image, mask)
 
     def serve_brush(self, prompt, image, mask):
-        return self.serve(prompt, image["background"], mask)
+        return self.generate(prompt, image["background"], mask)
 
-    def serve(self, prompt, image, mask):
+    def generate(self, prompt, image, mask):
         image = image.convert("RGB")
         white = Image.new("RGB", (image.width, image.height), (255, 255, 255))
         image.paste(white, mask=mask.convert("L"))

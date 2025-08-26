@@ -12,3 +12,7 @@ cache*/
 .vs/*
 .vs
 ./pytest_cache/*
+.lumio/*
+lumio_cli.py
+*.cer
+*.key

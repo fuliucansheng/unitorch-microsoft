@@ -87,7 +87,7 @@ class Ali1688ImageSelectionWebUI(SimpleWebUI):
         start.click(self.start, inputs=[name], outputs=[status], trigger_mode="once")
         stop.click(self.stop, outputs=[status], trigger_mode="once")
         search.click(
-            self.serve,
+            self.generate,
             inputs=[text, image, topk],
             outputs=[result],
             trigger_mode="once",
@@ -122,7 +122,7 @@ class Ali1688ImageSelectionWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(
+    def generate(
         self,
         text: Optional[str] = None,
         image: Optional[Image.Image] = None,
@@ -215,7 +215,7 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
             trigger_mode="once",
         )
         submit.click(
-            self.serve,
+            self.generate,
             inputs=[offerid, images, best_name],
             outputs=[
                 offerid,
@@ -256,7 +256,7 @@ class Ali1688ImageHumanlabelWebUI(SimpleWebUI):
         offerimage = load_from_url(imageurl)
         return offerid, offerurl, offerimage, title, images
 
-    def serve(
+    def generate(
         self,
         offerid,
         images,

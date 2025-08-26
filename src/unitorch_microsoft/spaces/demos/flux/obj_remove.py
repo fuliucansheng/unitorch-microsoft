@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
+
 
 from torchvision import transforms
 from unitorch import mktempfile
@@ -260,12 +260,12 @@ class RemoveObjWebUI(SimpleWebUI):
         return image
 
     def serve_click(self, prompt, image, mask):
-        return self.serve(prompt, image, mask)
+        return self.generate(prompt, image, mask)
 
     def serve_brush(self, prompt, image, mask):
-        return self.serve(prompt, image["background"], mask)
+        return self.generate(prompt, image["background"], mask)
 
-    def serve(self, prompt, image, mask):
+    def generate(self, prompt, image, mask):
         image = image.convert("RGB")
         white = Image.new("RGB", (image.width, image.height), (255, 255, 255))
         image.paste(white, mask=mask.convert("L"))

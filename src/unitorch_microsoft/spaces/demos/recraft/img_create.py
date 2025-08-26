@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
+
 
 from torchvision import transforms
 from unitorch import mktempfile
@@ -136,7 +136,7 @@ class CreateImgWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[prompt, width, height],
             outputs=[output_image],
             trigger_mode="once",
@@ -166,7 +166,7 @@ class CreateImgWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def serve(self, prompt, width, height):
+    def generate(self, prompt, width, height):
         if width != 1024 and height != 1024:
             gr.Warning(
                 "Please note that the width or height must have one value as 1024."

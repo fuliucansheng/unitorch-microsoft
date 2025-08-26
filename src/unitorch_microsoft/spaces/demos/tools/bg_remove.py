@@ -91,7 +91,7 @@ class RemoveBGWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image],
             outputs=[output_image],
             trigger_mode="once",
@@ -123,7 +123,7 @@ class RemoveBGWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, image):
+    def generate(self, image):
         mask = self._pipe(
             image,
             threshold=0.5,

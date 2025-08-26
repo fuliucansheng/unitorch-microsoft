@@ -33,17 +33,6 @@ from unitorch.cli.webuis import (
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft.fastapis.collector import reported_item
 
-
-def get_random_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("0.0.0.0", 0))
-        return s.getsockname()[1]
-
-
-def get_host_name():
-    return socket.gethostname()
-
-
 _js = """
 () => {}
 """
@@ -68,7 +57,6 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         config: CoreConfigureParser,
         default_section: str = "microsoft/webui/labeling/classification",
         default_name: str = "Human Classification Labeling",
-        http_url: str = None,
     ):
         self._config = config
         config.set_default_section(default_section)
@@ -99,27 +87,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.dataset["Index"] = self.dataset.index.map(lambda x: f"No.{x}")
         self.result_file = result_file
 
-        # start http server: unitorch-service start services/http_files.ini --daemon_mode False --html_dir /
-        if http_url is not None:
-            self.http_url = http_url
-        else:
-            self.http_host = config.getoption("http_host", get_host_name())
-            self.http_port = get_random_port()
-            self.http_process = subprocess.Popen(
-                [
-                    "unitorch-service",
-                    "start",
-                    "services/http_files.ini",
-                    "--daemon_mode",
-                    "False",
-                    "--html_dir",
-                    "/",
-                    "--port",
-                    str(self.http_port),
-                ],
-            )
-            self.http_url = f"http://{self.http_host}:{self.http_port}/" + "{0}"
-
+        self.http_url = "/gradio_api/file={0}"
         # show columns
         self.group_text_cols = config.getoption("group_text_cols", None)
         self.text_cols = config.getoption("text_cols", None)

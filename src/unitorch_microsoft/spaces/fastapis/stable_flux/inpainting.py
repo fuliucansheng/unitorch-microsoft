@@ -828,9 +828,9 @@ class StableFluxReduxInpaintingFastAPI(GenericFastAPI):
         )
         self._pipe = None
         self._router = APIRouter(prefix=router)
-        self._router.add_api_route("/generate1", self.serve1, methods=["POST"])
-        self._router.add_api_route("/generate2", self.serve2, methods=["POST"])
-        self._router.add_api_route("/generate3", self.serve3, methods=["POST"])
+        self._router.add_api_route("/generate1", self.generate1, methods=["POST"])
+        self._router.add_api_route("/generate2", self.generate2, methods=["POST"])
+        self._router.add_api_route("/generate3", self.generate3, methods=["POST"])
         self._router.add_api_route("/status", self.status, methods=["GET"])
         self._router.add_api_route("/start", self.start, methods=["GET"])
         self._router.add_api_route("/stop", self.stop, methods=["GET"])
@@ -861,7 +861,7 @@ class StableFluxReduxInpaintingFastAPI(GenericFastAPI):
     def status(self):
         return "running" if self._pipe is not None else "stopped"
 
-    async def serve1(
+    async def generate1(
         self,
         text: str,
         image: UploadFile,
@@ -898,7 +898,7 @@ class StableFluxReduxInpaintingFastAPI(GenericFastAPI):
             media_type="image/png",
         )
 
-    async def serve2(
+    async def generate2(
         self,
         text: str,
         image: UploadFile,
@@ -939,7 +939,7 @@ class StableFluxReduxInpaintingFastAPI(GenericFastAPI):
             media_type="image/png",
         )
 
-    async def serve3(
+    async def generate3(
         self,
         text: str,
         image: UploadFile,

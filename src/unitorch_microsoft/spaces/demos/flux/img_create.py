@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
+
 
 from torchvision import transforms
 from unitorch import mktempfile
@@ -16,7 +16,9 @@ from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 
-from unitorch.cli.fastapis.stable_flux import StableFluxForText2ImageFastAPIPipeline
+from unitorch.cli.fastapis.stable_flux.text2image import (
+    StableFluxForText2ImageFastAPIPipeline,
+)
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.spaces import (
@@ -98,7 +100,7 @@ class CreateImgWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[prompt, width, height],
             outputs=[output_image],
             trigger_mode="once",
@@ -129,7 +131,7 @@ class CreateImgWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def serve(self, prompt, width, height):
+    def generate(self, prompt, width, height):
         if getattr(self, "_pipe", None) is None:
             raise gr.Error("Please start the model first.")
         pos_prompt = (

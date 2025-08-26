@@ -21,7 +21,6 @@ from unitorch_microsoft.spaces import (
     create_dashboard_cards_group,
     create_cards_group,
     hashed_link,
-    http_url as _http_url,
 )
 from unitorch_microsoft.spaces.picasso.dashboard import DashboardWebUI
 from unitorch_microsoft.spaces.picasso.img_insights import ImgInsightsWebUI

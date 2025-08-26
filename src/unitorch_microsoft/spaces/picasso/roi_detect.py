@@ -98,7 +98,7 @@ class ROIDetectWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, mask_threshold],
             outputs=[output_image],
             trigger_mode="once",
@@ -129,7 +129,7 @@ class ROIDetectWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def serve(self, image, mask_threshold=0.1):
+    def generate(self, image, mask_threshold=0.1):
         mask = self._pipe(
             image,
             threshold=mask_threshold,

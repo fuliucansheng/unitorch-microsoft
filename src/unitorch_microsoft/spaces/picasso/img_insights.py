@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from transformers import AutoModelForImageSegmentation
+
 from torchvision import transforms
 from unitorch import mktempfile
 from unitorch.utils import read_file
@@ -42,6 +42,7 @@ from unitorch_microsoft.models.bletchley.pipeline_v3 import (
     BletchleyForMatchingV2Pipeline as BletchleyV3ForMatchingV2Pipeline,
     BletchleyForImageClassificationPipeline as BletchleyV3ForImageClassificationPipeline,
 )
+from unitorch_microsoft.models.siglip.pipeline import Siglip2ForMatchingV2Pipeline
 
 
 class ImgInsightsWebUI(SimpleWebUI):
@@ -75,25 +76,32 @@ class ImgInsightsWebUI(SimpleWebUI):
         result4 = gr.Label(label="Blurry")
         result5 = gr.Label(label="ICE Category")
         result6 = gr.Label(label="Watermark")
+        result7 = gr.Label(label="Bad Cropped")
 
         left = create_column(input_image, generate, scale=1)
         right = create_column(
             create_tabs(
                 create_tab(
                     create_row(
-                        result1,
-                        result2,
-                    ),
-                    create_row(
                         result4,
                         result6,
                     ),
-                    name="Insights",
+                    create_row(
+                        result7,
+                    ),
+                    name="Quality",
                 ),
-                create_tab(result3, name="General Category"),
+                create_tab(result3, name="Open Category"),
                 create_tab(
                     result5,
                     name="ICE Category",
+                ),
+                create_tab(
+                    create_row(
+                        result1,
+                        result2,
+                    ),
+                    name="Others",
                 ),
             )
         )
@@ -127,7 +135,7 @@ class ImgInsightsWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image],
             outputs=[result1, result2, result3, result4, result5, result6],
             trigger_mode="once",
@@ -236,6 +244,15 @@ class ImgInsightsWebUI(SimpleWebUI):
             },
             act_fn="sigmoid",
         )
+        self._pipe6 = Siglip2ForMatchingV2Pipeline.from_core_configure(
+            self._config,
+            pretrained_name="siglip2-so400m-patch14-384",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/siglip/pytorch_model.v2.lora4.badcrop.2506.bin",
+            label_dict={
+                "bad": "bad cropped, cut off, mutilated",
+            },
+            act_fn="sigmoid",
+        )
         self._status = "Running"
         return self._status
 
@@ -252,12 +269,14 @@ class ImgInsightsWebUI(SimpleWebUI):
         del self._pipe4
         self._pipe5.to("cpu")
         del self._pipe5
+        self._pipe6.to("cpu")
+        del self._pipe6
         gc.collect()
         torch.cuda.empty_cache()
         self._status = "Stopped"
         return self._status
 
-    def serve(self, image):
+    def generate(self, image):
         results = self._pipe1(image)
         result1 = {k: results[k] for k in ["white", "simple", "complex"]}
         result2 = {k: results[k] for k in ["poster", "logo", "real"]}
@@ -265,5 +284,6 @@ class ImgInsightsWebUI(SimpleWebUI):
         result4 = self._pipe3(image)
         result5 = self._pipe4(image)
         result6 = self._pipe5(image)
+        result7 = self._pipe6(image)
 
-        return result1, result2, result3, result4, result5, result6
+        return result1, result2, result3, result4, result5, result6, result7

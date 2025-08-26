@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw, ImageOps
-from transformers import AutoModelForImageSegmentation
+
 from diffusers import (
     StableDiffusionInpaintPipeline,
     StableDiffusionControlNetInpaintPipeline,
@@ -21,7 +21,9 @@ from unitorch.utils import read_file
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.pipelines.sam import SamForSegmentationPipeline
-from unitorch.cli.fastapis.controlnet import ControlNetForImageInpaintingFastAPIPipeline
+from unitorch.cli.fastapis.controlnet.inpainting import (
+    ControlNetForImageInpaintingFastAPIPipeline,
+)
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
 import unitorch_microsoft.models.sam
@@ -104,7 +106,7 @@ class AddObjWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[prompt, image, mask_image],
             outputs=[output_image],
             trigger_mode="once",
@@ -151,7 +153,7 @@ class AddObjWebUI(SimpleWebUI):
         image = ImageOps.invert(image)
         return image
 
-    def serve(self, prompt, image, mask):
+    def generate(self, prompt, image, mask):
         image = image["background"].convert("RGB")
         white = Image.new("RGB", (image.width, image.height), (255, 255, 255))
         image.paste(white, mask=mask.convert("1"))

@@ -105,7 +105,7 @@ class GenerateObjectWebUI(SimpleWebUI):
         )
 
         generate.click(
-            fn=self.serve,
+            fn=self.generate,
             inputs=[input_image, prompt],
             outputs=[output_image1, output_image2, output_image3],
             trigger_mode="once",
@@ -152,7 +152,7 @@ class GenerateObjectWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def serve(self, image, prompt):
+    def generate(self, image, prompt):
         caption = call_fastapi(
             self._joycaption2_endpoint + "/generate",
             images={"image": image},

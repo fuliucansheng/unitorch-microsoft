@@ -7,6 +7,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from PIL import Image
+from torch import autocast
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from transformers.models.siglip.modeling_siglip import (
     SiglipConfig,
@@ -27,7 +28,6 @@ from unitorch.cli import (
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
-from torch import autocast
 from unitorch.cli import WriterOutputs, register_process
 from unitorch.cli.models import (
     TensorsInputs,

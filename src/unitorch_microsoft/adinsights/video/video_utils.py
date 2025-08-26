@@ -304,12 +304,12 @@ class VideoProcessor(ImageProcessor):
 
         assert sample_frame_num != None and sample_frame_num > 0
         assert sample_strategy != None, "sample_strategy is None"
-        #print(
+        # print(
         #    f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}"
-        #)
+        # )
 
         try:
-            #print(f"process video {video}")
+            # print(f"process video {video}")
             if video.startswith("http://") or video.startswith("https://"):
                 video = self._download_video(video)
 
@@ -585,6 +585,7 @@ def extract_frame(
     end = time.time()
     print(f"latency: {end-start} samples: {total_rows}")
 
+
 def check_size(
     videos,
     chunk_start,
@@ -613,7 +614,6 @@ def check_size(
         sample_rate=sample_rate,
     )
 
-
     write_str = ""
     for idx, video in enumerate(chunks):
         if idx % 30 == 0 and write_str != "":
@@ -624,7 +624,7 @@ def check_size(
                 writer.close()
             write_str = ""
         frames = processor._read(video)
-        #print(f"debug length of frames: {len(frames)} for video {video}")
+        # print(f"debug length of frames: {len(frames)} for video {video}")
         for index, frame in enumerate(frames):
             if np.all(np.array(frame) == [255, 255, 255]):
                 print(f"skip placeholder image for {video} at index {index}")
@@ -649,7 +649,7 @@ def read_video_size(
     sample_frame_num=1,
     sample_factor=1,
     sample_rate=[0.5],
-    cache_dir="output"
+    cache_dir="output",
 ):
     import re
     import pandas as pd

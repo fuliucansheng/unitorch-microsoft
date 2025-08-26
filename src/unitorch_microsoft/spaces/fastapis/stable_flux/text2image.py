@@ -340,9 +340,9 @@ class FluxPipelineV2(FluxPipeline):
 
                 self._current_timestep = t
                 if image_embeds is not None:
-                    self._joint_attention_kwargs[
-                        "ip_adapter_image_embeds"
-                    ] = image_embeds
+                    self._joint_attention_kwargs["ip_adapter_image_embeds"] = (
+                        image_embeds
+                    )
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand(latents.shape[0]).to(latents.dtype)
 
@@ -360,9 +360,9 @@ class FluxPipelineV2(FluxPipeline):
 
                 if do_true_cfg:
                     if negative_image_embeds is not None:
-                        self._joint_attention_kwargs[
-                            "ip_adapter_image_embeds"
-                        ] = negative_image_embeds
+                        self._joint_attention_kwargs["ip_adapter_image_embeds"] = (
+                            negative_image_embeds
+                        )
                     neg_noise_pred = self.transformer(
                         hidden_states=latents,
                         timestep=timestep / 1000,
@@ -869,10 +869,10 @@ class StableFluxText2ImageGenerationFastAPI(GenericFastAPI):
         )
         self._pipe = None
         self._router = APIRouter(prefix=router)
-        self._router.add_api_route("/generate1", self.serve1, methods=["POST"])
-        self._router.add_api_route("/generate2", self.serve2, methods=["POST"])
-        self._router.add_api_route("/generate3", self.serve3, methods=["POST"])
-        self._router.add_api_route("/generate4", self.serve4, methods=["POST"])
+        self._router.add_api_route("/generate1", self.generate1, methods=["POST"])
+        self._router.add_api_route("/generate2", self.generate2, methods=["POST"])
+        self._router.add_api_route("/generate3", self.generate3, methods=["POST"])
+        self._router.add_api_route("/generate4", self.generate4, methods=["POST"])
         self._router.add_api_route("/status", self.status, methods=["GET"])
         self._router.add_api_route("/start", self.start, methods=["GET"])
         self._router.add_api_route("/stop", self.stop, methods=["GET"])
@@ -905,7 +905,7 @@ class StableFluxText2ImageGenerationFastAPI(GenericFastAPI):
     def status(self):
         return "running" if self._pipe is not None else "stopped"
 
-    async def serve1(
+    async def generate1(
         self,
         text: str,
         height: Optional[int] = 1024,
@@ -938,7 +938,7 @@ class StableFluxText2ImageGenerationFastAPI(GenericFastAPI):
             media_type="image/png",
         )
 
-    async def serve2(
+    async def generate2(
         self,
         text: str,
         redux_image: UploadFile,
@@ -975,7 +975,7 @@ class StableFluxText2ImageGenerationFastAPI(GenericFastAPI):
             media_type="image/png",
         )
 
-    async def serve3(
+    async def generate3(
         self,
         text: str,
         latent_image: UploadFile,
@@ -1012,7 +1012,7 @@ class StableFluxText2ImageGenerationFastAPI(GenericFastAPI):
             media_type="image/png",
         )
 
-    async def serve4(
+    async def generate4(
         self,
         text: str,
         latent_image: UploadFile,

@@ -12,6 +12,8 @@ import hashlib
 import configparser
 import unitorch
 import unitorch.cli
+import pillow_avif
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.utils import replace
 from unitorch import is_deepspeed_available
@@ -21,9 +23,18 @@ from unitorch.cli import cached_path as _cached_path
 if is_deepspeed_available():
     import deepspeed.runtime.zero as zero
     import deepspeed.runtime.zero.partition_parameters as partition_parameters
+
     zero.partition_parameters = partition_parameters
 
 VERSION = "0.0.0.2"
+
+UNITORCH_HOME = os.environ.get("UNITORCH_HOME", os.path.join(os.getenv("HOME", "."), ".unitorch"))
+if not os.path.exists(UNITORCH_HOME):
+    os.makedirs(UNITORCH_HOME)
+
+def get_unitorch_home():
+    """Get the path to the Unitorch home directory."""
+    return UNITORCH_HOME
 
 logger = logging.getLogger()
 
@@ -48,6 +59,7 @@ except importlib_metadata.PackageNotFoundError:
 
 def is_openai_available():
     return _openai_available
+
 
 @replace(unitorch.cli.cached_path)
 def cached_path(
