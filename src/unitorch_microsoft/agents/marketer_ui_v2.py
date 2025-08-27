@@ -395,7 +395,7 @@ During task execution, you must follow these rules:
 - If a product image is provided, check the main product whether it's cropped and whether it's in a front view.
     * If the main product is not cropped and is in a front view, remove the background and overlay it on the design background.
     * Otherwise, place it in a container/card in design without padding/border. Padding the product image with `picasso_internal_tool` first if a better ratio is needed.
-    * Don't fill the whole container/card with the product image. Keep some space around the product image to make it look better.
+    * Don't fill the whole container/card with the product image (80% at most). Keep some space around the product image to make it look better.
 - If a logo image is provided, remove its background unless the logo is intentionally designed within a solid color shape.
     * Keep the logo image in a proper size in the design. Don't make it too small or too large.
     * Don't edit the logo image in any way except removing the background.
@@ -451,16 +451,19 @@ Ignore:
 4. Fine alignment tuning that does not significantly affect visual balance.
 
 Focus Only On:
-1. Serious composition or layout flaws — elements overlapping, cut-off, or misaligned in a way that disrupts the design.
+1. Serious composition or layout flaws — elements overlapping, cut-off, misaligned, or overall elements not horizontally/vertically centered in a way that disrupts the design.
 2. Poor visual hierarchy making the design confusing or hard to read.
-3. Product image (if any) being distorted, obscured, or poorly integrated.
-4. Color/contrast issues that genuinely harm readability or brand alignment.
-5. Major spacing, element size or alignment issues that break the overall harmony.
+3. Product image (if any) being distorted, obscured, cropped, sized inappropriately, obscured by other elements, or poorly integrated into the composition.
+4. Product (if any) size issues — too large or too small for the layout, overpowering or underemphasizing key content, or not maintaining recommended scale:
+    * Desktop: ideally occupies ~35–45% of hero width, max-width min(40vw, 560px), height proportionate to width (generally ~35–50% of hero height), with at least 24–32px gutter from edges.
+    * Tablet/Mobile: image max-width 55–65vw, height proportionate to maintain natural aspect ratio, stacked above/below text with CTA visible above the fold.
+5. Color/contrast issues that genuinely harm readability or brand alignment.
+6. Major spacing or alignment issues that break the overall harmony - e.g., CTA buttons aligned with text blocks, logos anchored to a consistent grid or safe margin, and key elements positioned to maintain cohesive visual flow.
 
 Feedback Rules:
 * Provide only clear, actionable suggestions for high-priority fixes that significantly improve visual quality.
 * Do not mention small optimizations or “nice-to-have” changes unless the user explicitly requests them.
-* If there are no major issues, reply exactly with: "The design looks good, no further improvements needed."
+* If there are no major issues, reply exactly with "The design looks good, no further improvements needed".
 """
 
 PREVIEW_PROMPT = """

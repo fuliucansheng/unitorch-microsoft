@@ -37,7 +37,7 @@ from unitorch.models import (
 from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.models.diffusers import compute_snr
 
-# from unitorch.models.diffusers import GenericStableFluxModel
+from unitorch.models.diffusers import GenericStableFluxModel
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -50,9 +50,9 @@ from unitorch.cli.models.diffusers import (
     load_weight,
 )
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.models.diffusers.modeling_flux_utils import (
-    GenericStableFluxModel,
-)
+# from unitorch_microsoft.models.diffusers.modeling_flux_utils import (
+#     GenericStableFluxModel,
+# )
 
 
 @register_model("microsoft/omnipixel/diffusers/text2image/stable_flux")
@@ -262,21 +262,12 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
             )
         return inst
 
-    def cuda(self):
-        if torch.cuda.is_available():
-            device = torch.cuda.current_device()
-            self.pipeline.enable_model_cpu_offload(device)
-        return self
-
-    def cpu(self):
-        self.pipeline.cpu()
-        return self
-
     @add_default_section_for_function(
         "microsoft/omnipixel/diffusers/text2image/stable_flux"
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
+        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def forward(
         self,
@@ -293,10 +284,6 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
             input2_ids=input2_ids,
             attention_mask=attention_mask,
             attention2_mask=attention2_mask,
-            enable_cpu_offload=True if torch.cuda.is_available() else False,
-            cpu_offload_device=(
-                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-            ),
         )
 
         images = self.pipeline(
@@ -524,21 +511,12 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
             )
         return inst
 
-    def cuda(self):
-        if torch.cuda.is_available():
-            device = torch.cuda.current_device()
-            self.pipeline.enable_model_cpu_offload(device)
-        return self
-
-    def cpu(self):
-        self.pipeline.cpu()
-        return self
-
     @add_default_section_for_function(
         "microsoft/omnipixel/diffusers/inpainting/stable_flux"
     )
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
+        dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
     )
     def forward(
         self,
@@ -556,10 +534,6 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
             input2_ids=input2_ids,
             attention_mask=attention_mask,
             attention2_mask=attention2_mask,
-            enable_cpu_offload=True if torch.cuda.is_available() else False,
-            cpu_offload_device=(
-                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-            ),
         )
 
         images = self.pipeline(
