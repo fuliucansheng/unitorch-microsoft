@@ -431,7 +431,7 @@ class BadCropProcessor(SiglipProcessor):
             rois = process(rois)
             image = self._processing_campaign_crop(image, rois, ratio)
         outputs = super().image_classification(image=image)
-        if ratio is not None:
+        if ratio is not None and image.height > 0:
             _ratio = image.width / image.height
             is_valid = torch.tensor(
                 [1.0 if abs(_ratio - ratio) < 0.01 else 0.0],

@@ -417,6 +417,7 @@ class DesignerAgent(GenericAgent):
 
     def load(self, name):
         record = self._saved_records.get(name, None)
+        self._name = name
         self._user_inputs = record.get("user_inputs", {})
         self.current_step = record.get("current_step", 1)
         self._logs = record.get("logs", [])
