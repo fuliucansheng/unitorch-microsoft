@@ -81,6 +81,7 @@ class TULRV6Config(PretrainedConfig):
         max_rel_pos (:obj:`int`, optional, defaults to 128):
             Max relative position length supported.
     """
+
     model_type = "tulrv6"
 
     def __init__(

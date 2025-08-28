@@ -289,8 +289,8 @@ DESIGNER_SYSTEM_PROMPT = """
 You are a Designer AI Assistant, built to solve a wide range of visual design tasks presented by the user. You have access to a variety of tools that you can invoke to efficiently complete complex objectives. 
 
 **Important**: 
-1. You should follow <picasso_rules> & <designer_rules> strictly to complete the design tasks. 
-2. Improvments from the `review_image_tool` must be resolved before finishing the design task.
+1. You should follow <picasso_rules> & <designer_rules> strictly to complete the design tasks.
+2. Don't need to check much on the results from `picasso_html_tool` as they are always good enough.
 
 You are operating in an agent loop, iteratively completing tasks through these steps:
 1. Analyze Events: Understand user needs and current state through event stream, focusing on latest user messages and execution results
@@ -309,8 +309,7 @@ You can use the following tools to complete tasks:
 6. `picasso_html_tool`: Render HTML content to an image.
 7. `notify_human`: Notify user some messages/progress or results without waiting for user's response. (message tools)
 8. `check_image_tool`: Analysis the image with the provided prompt or mark the image to the priority for view.
-9. `review_image_tool`: Check the designed image and give feedback from a professional visual designer perspective.
-10. `handoff_tool`: Hand off the task to another agent. The available agents are: Coordinator, Marketer, Designer.
+9. `handoff_tool`: Hand off the task to another agent. The available agents are: Coordinator, Marketer, Designer.
     * Coordinator: A planner agent that can assign tasks to other agents, and terminate the task when it's done.
     * Marketer: A highly capable AI assistant designed to handle any task (except image-related tasks) agent that can solve all kinds of tasks like planning, coding, web search, browsing urls, etc.
     * Designer: A designer agent that can solve image/video design tasks. Please prepare enough text/image assets (few assets might be difficult for design) in local by Marketer before handoff.
@@ -402,7 +401,6 @@ During task execution, you must follow these rules:
     * Don't change the logo image in any way except removing the background.
 - Don't edit the image in-place, always create a new file after processing the image.
 - Don't design the image in a resolution more than 2048x2048. Resize the image (don't change the ratio) and save it to a new file when the image is larger than this resolution.
-- Use `review_image_tool` to check the designed image and get feedbacks from a professional visual designer.
 - Use `python` to resize the result to the expected size after finalize the design if user specifies it.
 </designer_rules>
 
@@ -439,49 +437,6 @@ Choose the most efficient path forward:
 
 Don't do duplicated work, and don't repeat the same step again.
 Be concise in your reasoning, check the current step and then select one appropriate tool or action as next step. After using each tool, clearly explain the execution results and suggest the next steps.
-"""
-
-DESIGNER_REVIEW_PROMPT = """
-You are a professional visual designer and experienced design critic.
-Evaluate the final designed image purely from a visual design perspective, ignoring content-related issues and minor cosmetic adjustments.
-
-Ignore
-
-Do not flag or comment on:
-1. Small typography refinements (e.g., avoiding single-word orphans, slight font-size tweaks).
-2. Minor spacing/padding adjustments (e.g., moving elements by a few pixels).
-3. Subtle color, opacity, or shadow tweaks.
-4. Fine alignment tuning that does not significantly affect visual balance.
-
-Focus Only On
-
-Identify high-priority, visually impactful flaws in:
-1. Serious Composition or Layout Flaws
-* Elements overlapping, cut-off, overflowing the container, or visually unbalanced.
-* Overall elements not horizontally/vertically centered in a way that disrupts the design.
-2. Visual Hierarchy & Readability
-* Poor arrangement of elements that makes the design confusing or difficult to read.
-* Important content (headlines, CTAs) not visually prioritized or being overshadowed.
-3. Product Image Issues (if applicable)
-* Distorted, stretched, or squashed proportions.
-* Cropped in a way that removes essential product details.
-* Sized inappropriately for the layout.
-* Poorly integrated into the composition (e.g., unnatural placement, clashing background).
-* Size Guidelines:
-    * Desktop – ideally 35–45% of hero width, max-width min(40vw, 560px), height proportionate (~35–50% of hero height), with at least 24–32px gutter from edges.
-    * Tablet/Mobile – max-width 55–65vw, maintain natural aspect ratio, stacked above/below text, CTA visible above the fold.
-4 Color / Contrast Problems
-    * Choices that genuinely harm readability, accessibility, or brand cohesion.
-5 Major Spacing & Alignment Problems
-* CTA buttons not aligned with text blocks or too far from related content (e.g., “Shop Now” button placed far from main message, making it feel disconnected).
-* Headline, subtext, and logo misaligned, creating visual imbalance.
-* Logos, CTAs, or key elements not anchored to a consistent grid or safe margins.
-* Inconsistent spacing between grouped elements that disrupts visual flow.
-
-Feedback Rules
-* Provide only clear, actionable suggestions for fixing high-impact issues.
-* Do not include “nice-to-have” or small optimization tips unless explicitly requested.
-* If no major issues are found, respond exactly with: The design looks good, no further improvements needed
 """
 
 PREVIEW_PROMPT = """
@@ -560,60 +515,6 @@ Must be one of the available agents.
         return result
 
 
-class ReviewImageTool(GenericTool):
-    name: str = "review_image_tool"
-    description: str = """
-Use this tool to check the designed image and give feedback from a professional visual designer perspective.
-
-Parameters:
-- `image`: The image path for checking.
-"""
-
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "image": {
-                "type": "string",
-                "description": "The image path for checking or marking.",
-            },
-        },
-        "required": ["image"],
-    }
-    gpt: Any = GPTModel()
-    system_message: Message = None
-    user_message: Message = None
-    
-    def setup(self, system_prompt):
-        self.system_message = Message.system_message(content=system_prompt)
-    
-    def set_user_message(self, msg):
-        self.user_message = Message.user_message(content=msg)
-
-    async def execute(
-        self,
-        image: str,
-    ):
-        """Execute the tool to check the image."""
-        if image is None or not os.path.exists(image):
-            raise ValueError("image is required and must exist.")
-        content = f"Please review the image {image} and give feedback from a professional visual designer perspective."
-        msg = Message.assistant_message(
-            content=content,
-            images=[{"path": image, "width": None, "height": None, "priority": "high"}],
-        )
-        new_memory = Memory(
-            messages=[self.system_message, self.user_message]
-            + [msg]
-        )
-        resp = self.gpt.ask(messages=new_memory.to_dict_list())
-        if not resp.content:
-            raise ValueError("No content returned from GPT-4 model.")
-        return GenericResult(
-            output=f"Review result: {resp.content}",
-            images=[{"path": image, "width": None, "height": None, "priority": "low"}],
-        )
-
-
 class DesignerAgent(GenericAgent):
     name: str = "Designer"
     description: str = (
@@ -632,19 +533,14 @@ class DesignerAgent(GenericAgent):
         PicassoHtmlTool(),
         NotifyHumanTool(),
         CheckImageTool(),
-        ReviewImageTool(),
         HandOffTool(),
     )
     gpt: Any = GPTModel()
 
-    def __init__(self, system_prompt, action_prompt, review_prompt):
+    def __init__(self, system_prompt, action_prompt):
         super().__init__()
         self._system_prompt = system_prompt
         self._action_prompt = action_prompt
-        self._review_prompt = review_prompt
-        self.available_tools.get_tool("review_image_tool").setup(
-            system_prompt=self._review_prompt
-        )
         self._action_message = Message.user_message(content=self._action_prompt)
         self._question = ""
         self._answer = ""
@@ -660,9 +556,6 @@ class DesignerAgent(GenericAgent):
         """Set the agent to hand off the task to."""
         self._handoff_agent = agent
         self._message = msg
-
-    def set_review_user_message(self, msg):
-        self.available_tools.get_tool("review_image_tool").set_user_message(msg)
 
     def setup(self, workspace):
         self._system_message = Message.system_message(
@@ -724,9 +617,7 @@ class DesignerAgent(GenericAgent):
 
             if tool_call.function.name == "handoff_tool":
                 args = json.loads(tool_call.function.arguments)
-                logging.info(
-                    f"🧯 Transfer the task to the agent {args.get('agent')}."
-                )
+                logging.info(f"🧯 Transfer the task to the agent {args.get('agent')}.")
                 self.set_handoff_agent(args.get("agent"), args.get("message", ""))
                 break
 
@@ -837,9 +728,7 @@ class MarketerAgent(GenericAgent):
 
             if tool_call.function.name == "handoff_tool":
                 args = json.loads(tool_call.function.arguments)
-                logging.info(
-                    f"🧯 Transfer the task to the agent {args.get('agent')}."
-                )
+                logging.info(f"🧯 Transfer the task to the agent {args.get('agent')}.")
                 self.set_handoff_agent(args.get("agent"), args.get("message", ""))
                 break
 
@@ -944,9 +833,7 @@ class CoordinatorAgent(GenericAgent):
 
             if tool_call.function.name == "handoff_tool":
                 args = json.loads(tool_call.function.arguments)
-                logging.info(
-                    f"🧯 Transfer the task to the agent {args.get('agent')}."
-                )
+                logging.info(f"🧯 Transfer the task to the agent {args.get('agent')}.")
                 self.set_handoff_agent(args.get("agent"), args.get("message", ""))
                 break
 
@@ -958,6 +845,7 @@ class CoordinatorAgent(GenericAgent):
 
 class MarketerV2(GenericAgent):
     """Coordinator Flow Agent that orchestrates the Coordinator, Marketer, and Designer agents."""
+
     name: str = "MarketerV2"
     description: str = (
         "An agent that orchestrates the Coordinator, Marketer, and Designer agents to complete a task."
@@ -976,15 +864,14 @@ class MarketerV2(GenericAgent):
         marketer_action_prompt,
         designer_system_prompt,
         designer_action_prompt,
-        designer_review_prompt,
         preview_prompt,
     ):
         super().__init__()
-        self.coordinator = CoordinatorAgent(coordinator_system_prompt, coordinator_action_prompt)
-        self.marketer = MarketerAgent(marketer_system_prompt, marketer_action_prompt)
-        self.designer = DesignerAgent(
-            designer_system_prompt, designer_action_prompt, designer_review_prompt
+        self.coordinator = CoordinatorAgent(
+            coordinator_system_prompt, coordinator_action_prompt
         )
+        self.marketer = MarketerAgent(marketer_system_prompt, marketer_action_prompt)
+        self.designer = DesignerAgent(designer_system_prompt, designer_action_prompt)
         self.agents = {
             "Coordinator": self.coordinator,
             "Marketer": self.marketer,
@@ -1118,7 +1005,9 @@ class MarketerV2(GenericAgent):
                 f"🔷 {'━'*10} {self.active_agent} | Step {self.current_step} {'━'*10} 🔷"
             )
             _logs, _previews = copy.deepcopy(self._logs), copy.deepcopy(self._previews)
-            _logs += [f"### 🔷 {self.active_agent} | Step {self.current_step}",]
+            _logs += [
+                f"### 🔷 {self.active_agent} | Step {self.current_step}",
+            ]
             async for logs, previews in active_agent.execute(self.memory):
                 self._logs = _logs + logs
                 self._previews = _previews + [previews]
@@ -1130,8 +1019,6 @@ class MarketerV2(GenericAgent):
                     f"🧯 Transfer the task to the agent {active_agent._handoff_agent}."
                 )
                 self.active_agent = active_agent._handoff_agent
-                if self.active_agent == "Designer":
-                    self.agents.get("Designer").set_review_user_message(active_agent._message)
                 active_agent.set_handoff_agent(None)
 
             elif getattr(active_agent, "_terminate", False):
@@ -1175,7 +1062,6 @@ def cli_main(host: str = "0.0.0.0", port: int = 7050):
         marketer_action_prompt=MARKETER_ACTION_PROMPT,
         designer_system_prompt=DESIGNER_SYSTEM_PROMPT,
         designer_action_prompt=DESIGNER_ACTION_PROMPT,
-        designer_review_prompt=DESIGNER_REVIEW_PROMPT,
         preview_prompt=PREVIEW_PROMPT,
     )
 

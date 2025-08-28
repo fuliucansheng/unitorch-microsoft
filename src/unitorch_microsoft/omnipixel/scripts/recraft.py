@@ -420,9 +420,11 @@ def resolution(
 
         try:
             response = client.post(
-                path="/images/clarityUpscale"
-                if method == "clarity"
-                else "/images/generativeUpscale",
+                path=(
+                    "/images/clarityUpscale"
+                    if method == "clarity"
+                    else "/images/generativeUpscale"
+                ),
                 cast_to=object,
                 options={"headers": {"Content-Type": "multipart/form-data"}},
                 files={

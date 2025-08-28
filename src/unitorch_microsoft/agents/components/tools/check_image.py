@@ -18,6 +18,7 @@ from unitorch_microsoft.agents.components import (
 )
 from unitorch_microsoft.agents.components.tools import GPT4FormatTool
 from unitorch_microsoft.agents.utils.chatgpt import GPTModel
+
 # from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 
 

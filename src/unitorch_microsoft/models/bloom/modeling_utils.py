@@ -243,25 +243,33 @@ class BloomModel(transformers.models.bloom.modeling_bloom.BloomModel):
         # value: [batch_size * num_heads, seq_length, head_dim] -> [batch_size, num_heads, seq_length, head_dim]
         return [
             [
-                layer_past[0].view(batch_size, num_heads, head_dim, seq_length)
-                if layer_past[0] is not None
-                else None,
-                layer_past[1].view(batch_size, num_heads, seq_length, head_dim)
-                if layer_past[1] is not None
-                else None,
-                layer_past[2].view(-1, num_heads, head_dim, prefix_seq_length)
-                if layer_past[2] is not None
-                else None,
-                layer_past[3].view(-1, num_heads, prefix_seq_length, head_dim)
-                if layer_past[3] is not None
-                else None,
+                (
+                    layer_past[0].view(batch_size, num_heads, head_dim, seq_length)
+                    if layer_past[0] is not None
+                    else None
+                ),
+                (
+                    layer_past[1].view(batch_size, num_heads, seq_length, head_dim)
+                    if layer_past[1] is not None
+                    else None
+                ),
+                (
+                    layer_past[2].view(-1, num_heads, head_dim, prefix_seq_length)
+                    if layer_past[2] is not None
+                    else None
+                ),
+                (
+                    layer_past[3].view(-1, num_heads, prefix_seq_length, head_dim)
+                    if layer_past[3] is not None
+                    else None
+                ),
             ]
             for layer_past in past_key_value
         ]
 
     @staticmethod
     def _convert_to_bloom_cache(
-        past_key_value: Tuple[Tuple[torch.Tensor, torch.Tensor]]
+        past_key_value: Tuple[Tuple[torch.Tensor, torch.Tensor]],
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor]]:
         """
         Converts the cache to the format expected by Bloom, i.e. to tuple(tuple([batch_size * num_heads, ...]))
@@ -276,18 +284,26 @@ class BloomModel(transformers.models.bloom.modeling_bloom.BloomModel):
         # value: [batch_size, num_heads, seq_length, head_dim] -> [batch_size * num_heads, seq_length, head_dim]
         return [
             [
-                layer_past[0].view(batch_size_times_num_heads, head_dim, seq_length)
-                if layer_past[0] is not None
-                else None,
-                layer_past[1].view(batch_size_times_num_heads, seq_length, head_dim)
-                if layer_past[1] is not None
-                else None,
-                layer_past[2].view(-1, head_dim, prefix_seq_length)
-                if layer_past[2] is not None
-                else None,
-                layer_past[3].view(-1, prefix_seq_length, head_dim)
-                if layer_past[3] is not None
-                else None,
+                (
+                    layer_past[0].view(batch_size_times_num_heads, head_dim, seq_length)
+                    if layer_past[0] is not None
+                    else None
+                ),
+                (
+                    layer_past[1].view(batch_size_times_num_heads, seq_length, head_dim)
+                    if layer_past[1] is not None
+                    else None
+                ),
+                (
+                    layer_past[2].view(-1, head_dim, prefix_seq_length)
+                    if layer_past[2] is not None
+                    else None
+                ),
+                (
+                    layer_past[3].view(-1, prefix_seq_length, head_dim)
+                    if layer_past[3] is not None
+                    else None
+                ),
             ]
             for layer_past in past_key_value
         ]
@@ -486,25 +502,33 @@ class BloomForCausalLM(transformers.models.bloom.modeling_bloom.BloomForCausalLM
         # value: [batch_size * num_heads, seq_length, head_dim] -> [batch_size, num_heads, seq_length, head_dim]
         return [
             [
-                layer_past[0].view(batch_size, num_heads, head_dim, seq_length)
-                if layer_past[0] is not None
-                else None,
-                layer_past[1].view(batch_size, num_heads, seq_length, head_dim)
-                if layer_past[1] is not None
-                else None,
-                layer_past[2].view(-1, num_heads, head_dim, prefix_seq_length)
-                if layer_past[2] is not None
-                else None,
-                layer_past[3].view(-1, num_heads, prefix_seq_length, head_dim)
-                if layer_past[3] is not None
-                else None,
+                (
+                    layer_past[0].view(batch_size, num_heads, head_dim, seq_length)
+                    if layer_past[0] is not None
+                    else None
+                ),
+                (
+                    layer_past[1].view(batch_size, num_heads, seq_length, head_dim)
+                    if layer_past[1] is not None
+                    else None
+                ),
+                (
+                    layer_past[2].view(-1, num_heads, head_dim, prefix_seq_length)
+                    if layer_past[2] is not None
+                    else None
+                ),
+                (
+                    layer_past[3].view(-1, num_heads, prefix_seq_length, head_dim)
+                    if layer_past[3] is not None
+                    else None
+                ),
             ]
             for layer_past in past_key_value
         ]
 
     @staticmethod
     def _convert_to_bloom_cache(
-        past_key_value: Tuple[Tuple[torch.Tensor, torch.Tensor]]
+        past_key_value: Tuple[Tuple[torch.Tensor, torch.Tensor]],
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor]]:
         """
         Converts the cache to the format expected by Bloom, i.e. to tuple(tuple([batch_size * num_heads, ...]))
@@ -519,18 +543,26 @@ class BloomForCausalLM(transformers.models.bloom.modeling_bloom.BloomForCausalLM
         # value: [batch_size, num_heads, seq_length, head_dim] -> [batch_size * num_heads, seq_length, head_dim]
         return [
             [
-                layer_past[0].view(batch_size_times_num_heads, head_dim, seq_length)
-                if layer_past[0] is not None
-                else None,
-                layer_past[1].view(batch_size_times_num_heads, seq_length, head_dim)
-                if layer_past[1] is not None
-                else None,
-                layer_past[2].view(-1, head_dim, prefix_seq_length)
-                if layer_past[2] is not None
-                else None,
-                layer_past[3].view(-1, prefix_seq_length, head_dim)
-                if layer_past[3] is not None
-                else None,
+                (
+                    layer_past[0].view(batch_size_times_num_heads, head_dim, seq_length)
+                    if layer_past[0] is not None
+                    else None
+                ),
+                (
+                    layer_past[1].view(batch_size_times_num_heads, seq_length, head_dim)
+                    if layer_past[1] is not None
+                    else None
+                ),
+                (
+                    layer_past[2].view(-1, head_dim, prefix_seq_length)
+                    if layer_past[2] is not None
+                    else None
+                ),
+                (
+                    layer_past[3].view(-1, prefix_seq_length, head_dim)
+                    if layer_past[3] is not None
+                    else None
+                ),
             ]
             for layer_past in past_key_value
         ]
@@ -614,12 +646,20 @@ class BloomForCausalLM(transformers.models.bloom.modeling_bloom.BloomForCausalLM
         }
         reordered_past = [
             [
-                layer_past[0].index_select(0, device_to_beam_idx[layer_past[0].device])
-                if layer_past[0] is not None
-                else None,
-                layer_past[1].index_select(0, device_to_beam_idx[layer_past[0].device])
-                if layer_past[1] is not None
-                else None,
+                (
+                    layer_past[0].index_select(
+                        0, device_to_beam_idx[layer_past[0].device]
+                    )
+                    if layer_past[0] is not None
+                    else None
+                ),
+                (
+                    layer_past[1].index_select(
+                        0, device_to_beam_idx[layer_past[0].device]
+                    )
+                    if layer_past[1] is not None
+                    else None
+                ),
                 layer_past[2],
                 layer_past[3],
             ]

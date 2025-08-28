@@ -21,4 +21,7 @@ def get_picasso_temp_dir() -> str:
 
 from unitorch_microsoft.agents.components.picasso.image import PicassoImageTool
 from unitorch_microsoft.agents.components.picasso.internal import PicassoInternalTool
-from unitorch_microsoft.agents.components.picasso.html import PicassoHtmlTool, PicassoLayoutTool
+from unitorch_microsoft.agents.components.picasso.html import (
+    PicassoHtmlTool,
+    PicassoLayoutTool,
+)

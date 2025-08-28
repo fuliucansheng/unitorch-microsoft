@@ -2,11 +2,13 @@ import gc
 import os
 
 import torch
-#from loguru import logger
+
+# from loguru import logger
 from safetensors import safe_open
 
-#from lightx2v.utils.envs import *
+# from lightx2v.utils.envs import *
 from functools import lru_cache
+
 DTYPE_MAP = {
     "BF16": torch.bfloat16,
     "FP16": torch.float16,
@@ -18,11 +20,14 @@ DTYPE_MAP = {
     "torch.float16": torch.float16,
     "torch.float32": torch.float32,
 }
+
+
 @lru_cache(maxsize=None)
 def GET_DTYPE():
     RUNNING_FLAG = os.getenv("DTYPE", "BF16")
     assert RUNNING_FLAG in ["BF16", "FP16"]
     return DTYPE_MAP[RUNNING_FLAG]
+
 
 class WanLoraWrapper:
     def __init__(self, wan_model):
@@ -47,7 +52,7 @@ class WanLoraWrapper:
         with safe_open(file_path, framework="pt", device="cpu") as f:
             tensor_dict = {key: f.get_tensor(key).to(GET_DTYPE()) for key in f.keys()}
         print(f"Loaded LoRA file: {file_path}, tensors: {len(tensor_dict.keys())}")
-        #for key, value in tensor_dict.items():
+        # for key, value in tensor_dict.items():
         #    print(f"lora_state_dict {key} {value.shape} {value.dtype}")
         return tensor_dict
 
@@ -95,24 +100,26 @@ class WanLoraWrapper:
                 total_key.append(key)
 
                 try_lora_pair(key, prefix, "lora_A.weight", "lora_B.weight", "weight")
-                try_lora_pair(key, prefix, "lora_down.weight", "lora_up.weight", "weight")
+                try_lora_pair(
+                    key, prefix, "lora_down.weight", "lora_up.weight", "weight"
+                )
                 try_lora_diff(key, prefix, "diff", "weight")
                 try_lora_diff(key, prefix, "diff_b", "bias")
                 try_lora_diff(key, prefix, "diff_m", "modulation")
-        
+
         applied = []
         applied_count = 0
         for name, param in self.model.named_parameters():
-            #print(f"check original {name} {param.shape} {param.dtype}")
+            # print(f"check original {name} {param.shape} {param.dtype}")
             if name in lora_pairs:
                 if name not in self.override_dict:
                     self.override_dict[name] = param.clone().cpu()
                 name_lora_A, name_lora_B = lora_pairs[name]
                 lora_A = lora_weights[name_lora_A].to(param.device, param.dtype)
                 lora_B = lora_weights[name_lora_B].to(param.device, param.dtype)
-                
+
                 if param.shape == (lora_B.shape[0], lora_A.shape[1]):
-                    #print(f"Applying LoRA pair: {name} with {name_lora_A} shapes {lora_A.shape}, {lora_B.shape}")
+                    # print(f"Applying LoRA pair: {name} with {name_lora_A} shapes {lora_A.shape}, {lora_B.shape}")
                     param += torch.matmul(lora_B, lora_A) * alpha
                     applied_count += 1
                     applied.append(name_lora_A)
@@ -124,14 +131,17 @@ class WanLoraWrapper:
                 name_diff = lora_diffs[name]
                 lora_diff = lora_weights[name_diff].to(param.device, param.dtype)
                 if param.shape == lora_diff.shape:
-                    #print(f"Applying LoRA diff: {name} with {name_diff} shape {lora_diff.shape}")
+                    # print(f"Applying LoRA diff: {name} with {name_diff} shape {lora_diff.shape}")
                     param += lora_diff * alpha
                     applied_count += 1
                     applied.append(name_diff)
 
-        
-        print(f"Total LoRA pairs: {len(lora_pairs)}, Total LoRA diffs: {len(lora_diffs)} from {len(total_key)} total keys")
-        print(f"Applied {applied_count} LoRA weight adjustments, applied name {len(applied)}")
+        print(
+            f"Total LoRA pairs: {len(lora_pairs)}, Total LoRA diffs: {len(lora_diffs)} from {len(total_key)} total keys"
+        )
+        print(
+            f"Applied {applied_count} LoRA weight adjustments, applied name {len(applied)}"
+        )
         missed = 0
         for name in total_key:
             if name not in applied:

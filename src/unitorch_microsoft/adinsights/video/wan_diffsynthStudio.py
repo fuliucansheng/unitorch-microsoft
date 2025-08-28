@@ -223,9 +223,10 @@ def image2video(
     output_file = f"{args.cache_dir}/output.jsonl"
     tsv_file = f"{args.cache_dir}/output.tsv"
     try:
-        with open(output_file, "r") as fin, open(
-            tsv_file, "w", encoding="utf-8"
-        ) as fout:
+        with (
+            open(output_file, "r") as fin,
+            open(tsv_file, "w", encoding="utf-8") as fout,
+        ):
             # Read all json lines
             rows = [json.loads(line) for line in fin]
             if rows:

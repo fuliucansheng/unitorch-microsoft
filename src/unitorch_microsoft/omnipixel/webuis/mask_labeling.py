@@ -235,10 +235,8 @@ class PicassoInpaintingMaskWebUI(SimpleWebUI):
         progress = f"{len(self.dataset[self.dataset['Label'] != ''])} / {total}"
 
         results = labeled.copy()
-        url = (
-            lambda x: x
-            if x.startswith("http")
-            else self.http_url.format(os.path.abspath(x))
+        url = lambda x: (
+            x if x.startswith("http") else self.http_url.format(os.path.abspath(x))
         )
         for col in [self.image_col, "Label"]:
             results[col] = results[col].map(url)

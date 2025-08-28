@@ -45,12 +45,15 @@ def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
         print(e)
         return None
 
+
 def get_smaller_size(size_str1, size_str2):
     width1, height1 = map(int, size_str1.split("*"))
     width2, height2 = map(int, size_str2.split("*"))
     area1 = width1 * height1
     area2 = width2 * height2
     return size_str1 if area1 < area2 else size_str2
+
+
 def _validate_args(args):
     # Basic check
     assert args.ckpt_dir is not None, "Please specify the checkpoint directory."
@@ -90,6 +93,7 @@ def _validate_args(args):
 
 def _parse_args():
     from wan.utils.utils import cache_image, cache_video, str2bool
+
     parser = argparse.ArgumentParser(
         description="Generate a image or video from a text prompt or image using Wan"
     )
@@ -287,7 +291,7 @@ def _parse_args():
     parser.add_argument(
         "--camera_col",
         type=str,
-        default='camera',
+        default="camera",
         help="Name of the column containing camera information.",
     )
     parser.add_argument(
@@ -337,8 +341,11 @@ def _parse_args():
 
 def generation(pipe, start_frame, prompt, camera, args):
     from wan.utils.utils import cache_image, cache_video, str2bool
+
     print(f"Process video gen for {start_frame}")
-    image = readimg(start_frame, args.cache_dir, get_smaller_size(args.resize_max_area, args.size))
+    image = readimg(
+        start_frame, args.cache_dir, get_smaller_size(args.resize_max_area, args.size)
+    )
     if image == None:
         return None
     print("finish read img")
@@ -370,7 +377,6 @@ def generation(pipe, start_frame, prompt, camera, args):
                 seed=args.base_seed,
                 offload_model=args.offload_model,
             )
-
 
         name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
         name = os.path.join(args.cache_dir, name)
@@ -435,7 +441,9 @@ def check_state_dict(old_state_dict, state_dict):
     for key, value in state_dict.items():
         if key in old_state_dict and old_state_dict[key].shape == state_dict[key].shape:
             if cnt == 0:
-                print(f"Key {key} found in old state dict with matching shape, old dtype: {old_state_dict[key].dtype}, new dtype: {value.dtype}")
+                print(
+                    f"Key {key} found in old state dict with matching shape, old dtype: {old_state_dict[key].dtype}, new dtype: {value.dtype}"
+                )
                 cnt += 1
             load_keys.append(key)
         else:
@@ -468,7 +476,7 @@ def prepare_pipeline(args):
         local_rank = int(os.getenv("LOCAL_RANK", 0))
         device = local_rank
         cfg = WAN_CONFIGS[args.task]
-        #load transformer state
+        # load transformer state
         if args.transformer_folder is not None:
             state_dict = {}
             if not args.z3_flag_disable:
@@ -488,10 +496,9 @@ def prepare_pipeline(args):
             state_dict = (
                 state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )
-            #check_state_dict(wan_i2v.model.state_dict(), state_dict)
+            # check_state_dict(wan_i2v.model.state_dict(), state_dict)
         else:
             state_dict = None
-
 
         if args.enable_cm_adaln and state_dict is not None:
             checkpoint_state = state_dict
@@ -521,7 +528,9 @@ def prepare_pipeline(args):
 
             if args.transformer_folder is not None and not args.enable_cm_adaln:
                 m, u = wan_i2v.model.load_state_dict(state_dict, strict=False)
-                print(f"load from transformer folder missing keys: {len(m)}, unexpected keys: {len(u)}")
+                print(
+                    f"load from transformer folder missing keys: {len(m)}, unexpected keys: {len(u)}"
+                )
         return wan_i2v
     except Exception as e:
         print(f"Prepare I2V pipeline error {e}")
@@ -621,12 +630,12 @@ def image2video(args):
                 else ""
             )
         _camera = ""
-        if args.enable_cm_adaln and args.camera_col is not None and args.camera_col in data.columns:
-            _camera = (
-                row[args.camera_col]
-                if not pd.isna(row[args.camera_col])
-                else ""
-            )
+        if (
+            args.enable_cm_adaln
+            and args.camera_col is not None
+            and args.camera_col in data.columns
+        ):
+            _camera = row[args.camera_col] if not pd.isna(row[args.camera_col]) else ""
         video = generation(pipe, _start_frame, _prompt, _camera, args)
         if video != None:
             record = {
@@ -645,9 +654,10 @@ def image2video(args):
     output_file = f"{args.cache_dir}/output.jsonl"
     tsv_file = f"{args.cache_dir}/output.tsv"
     try:
-        with open(output_file, "r") as fin, open(
-            tsv_file, "w", encoding="utf-8"
-        ) as fout:
+        with (
+            open(output_file, "r") as fin,
+            open(tsv_file, "w", encoding="utf-8") as fout,
+        ):
             # Read all json lines
             rows = [json.loads(line) for line in fin]
             if rows:

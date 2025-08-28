@@ -28,13 +28,17 @@ if is_deepspeed_available():
 
 VERSION = "0.0.0.2"
 
-UNITORCH_HOME = os.environ.get("UNITORCH_HOME", os.path.join(os.getenv("HOME", "."), ".unitorch"))
+UNITORCH_HOME = os.environ.get(
+    "UNITORCH_HOME", os.path.join(os.getenv("HOME", "."), ".unitorch")
+)
 if not os.path.exists(UNITORCH_HOME):
     os.makedirs(UNITORCH_HOME)
+
 
 def get_unitorch_home():
     """Get the path to the Unitorch home directory."""
     return UNITORCH_HOME
+
 
 logger = logging.getLogger()
 

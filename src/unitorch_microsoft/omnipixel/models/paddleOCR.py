@@ -24,26 +24,36 @@ def load_image(image: str, http_url: str) -> Union[np.ndarray, None]:
         print(f"[Warning] Cannot load image {image}: {e}")
         return None
 
-def process_ocr_batch(images: List[np.ndarray], ocr_model, paths: List[str], min_score: float = 0.8) -> List[dict]:
+
+def process_ocr_batch(
+    images: List[np.ndarray], ocr_model, paths: List[str], min_score: float = 0.8
+) -> List[dict]:
     results = []
     for img, path in zip(images, paths):
         try:
             ocr_result = ocr_model.predict(img)
             entries = []
             for res in ocr_result:
-                texts = res['rec_texts']        # 识别出的文字
-                scores = res['rec_scores']      # 识别置信度
-                rec_polys = res['rec_polys']         # 文本区域的多边形坐标
+                texts = res["rec_texts"]  # 识别出的文字
+                scores = res["rec_scores"]  # 识别置信度
+                rec_polys = res["rec_polys"]  # 文本区域的多边形坐标
 
                 for text, score, polys in zip(texts, scores, rec_polys):
                     if score >= min_score:
-                        entries.append({"text": text, "score": round(score, 4), "box": polys.tolist() })
-                
+                        entries.append(
+                            {
+                                "text": text,
+                                "score": round(score, 4),
+                                "box": polys.tolist(),
+                            }
+                        )
+
             results.append({"image": path, "ocr_results": entries})
         except Exception as e:
             print(f"[Warning] OCR failed on image {path}: {e}")
             results.append({"image": path, "ocr_results": []})
     return results
+
 
 def write_results(results: List[dict], output_file: str, output_format: str):
     with open(output_file, "w", encoding="utf-8") as f:
@@ -53,7 +63,9 @@ def write_results(results: List[dict], output_file: str, output_format: str):
         elif output_format == "tsv_json":
             f.write("image_path\tocr_results\n")
             for res in results:
-                f.write(f"{res['image']}\t{json.dumps(res['ocr_results'], ensure_ascii=False)}\n")
+                f.write(
+                    f"{res['image']}\t{json.dumps(res['ocr_results'], ensure_ascii=False)}\n"
+                )
 
         elif output_format == "tsv_long":
             f.write("image_path\ttext\tscore\tbox\n")
@@ -62,6 +74,7 @@ def write_results(results: List[dict], output_file: str, output_format: str):
                     f.write(f"{res['image']}\t{r['text']}\t{r['score']}\t{r['box']}\n")
         else:
             raise ValueError(f"Unsupported output format: {output_format}")
+
 
 def infer_ocr_text_batch(
     data_file: str,
@@ -85,7 +98,7 @@ def infer_ocr_text_batch(
     ocr = PaddleOCR(
         use_doc_orientation_classify=False,
         use_doc_unwarping=False,
-        use_textline_orientation=False
+        use_textline_orientation=False,
     )
 
     buffer_images = []
@@ -102,7 +115,9 @@ def infer_ocr_text_batch(
 
         if len(buffer_images) == batch_size or idx == len(df) - 1:
             if buffer_images:
-                batch_results = process_ocr_batch(buffer_images, ocr, buffer_paths, min_score)
+                batch_results = process_ocr_batch(
+                    buffer_images, ocr, buffer_paths, min_score
+                )
                 all_results.extend(batch_results)
                 buffer_images.clear()
                 buffer_paths.clear()
@@ -112,6 +127,7 @@ def infer_ocr_text_batch(
 
     write_results(all_results, output_file, output_format)
     print(f"[✓] Done. Results saved to: {output_file}")
+
 
 if __name__ == "__main__":
     fire.Fire(infer_ocr_text_batch)

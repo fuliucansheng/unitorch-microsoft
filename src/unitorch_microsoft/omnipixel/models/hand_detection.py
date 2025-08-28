@@ -9,6 +9,7 @@ from PIL import Image
 from io import BytesIO
 import numpy as np
 
+
 def load_image(image: str, http_url: str) -> Union[np.ndarray, None]:
     try:
         if http_url:
@@ -21,6 +22,7 @@ def load_image(image: str, http_url: str) -> Union[np.ndarray, None]:
     except Exception as e:
         print(f"[Warning] Cannot load image {image}: {e}")
         return None
+
 
 def process_batch(images: List[np.ndarray], detector) -> List[int]:
     counts = []
@@ -35,6 +37,7 @@ def process_batch(images: List[np.ndarray], detector) -> List[int]:
             counts.append(0)
 
     return counts
+
 
 def infer_hand_count_batch(
     data_file: str,
@@ -55,9 +58,7 @@ def infer_hand_count_batch(
 
     mp_hands = mp.solutions.hands
     detector = mp_hands.Hands(
-        static_image_mode=True,
-        max_num_hands=10,
-        min_detection_confidence=0.1
+        static_image_mode=True, max_num_hands=10, min_detection_confidence=0.1
     )
 
     hand_counts = []
@@ -87,6 +88,7 @@ def infer_hand_count_batch(
     df["hand_count"] = hand_counts
     df.to_csv(output_file, sep="\t", index=False, quoting=3, header=False)
     print(f"[✓] Done. Results saved to: {output_file}")
+
 
 if __name__ == "__main__":
     fire.Fire(infer_hand_count_batch)

@@ -39,6 +39,7 @@ ACT2FN = {
     "softmax": torch.nn.Softmax(dim=1),
 }
 
+
 class Siglip2ForMatchingV2Pipeline(SiglipForMatchingV2):
     def __init__(
         self,
@@ -122,7 +123,9 @@ class Siglip2ForMatchingV2Pipeline(SiglipForMatchingV2):
         )
         vision_config_path = pop_value(
             vision_config_path,
-            nested_dict_value(pretrained_siglip_infos, pretrained_name, "vision_config"),
+            nested_dict_value(
+                pretrained_siglip_infos, pretrained_name, "vision_config"
+            ),
         )
 
         vision_config_path = cached_path(vision_config_path)
@@ -169,18 +172,14 @@ class Siglip2ForMatchingV2Pipeline(SiglipForMatchingV2):
         return inst
 
     @torch.no_grad()
-    @add_default_section_for_function(
-        "microsoft/models/siglip/pipeline/matching/v2"
-    )
+    @add_default_section_for_function("microsoft/models/siglip/pipeline/matching/v2")
     def __call__(
         self,
         image,
     ):
         assert image is not None, "image must be provided"
         inputs = self.processor.image_classification(image)
-        inputs = {
-            k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()
-        }
+        inputs = {k: v.unsqueeze(0) if v is not None else v for k, v in inputs.items()}
         inputs = {
             k: v.to(device=self._device) if v is not None else v
             for k, v in inputs.items()

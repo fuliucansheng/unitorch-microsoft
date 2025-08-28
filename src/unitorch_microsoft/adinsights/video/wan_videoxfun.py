@@ -23,7 +23,7 @@ from videox_fun.models import (
     CLIPModel,
     WanT5EncoderModel,
     WanTransformer3DModel,
-    Wan2_2Transformer3DModel
+    Wan2_2Transformer3DModel,
 )
 from videox_fun.models.cache_utils import get_teacache_coefficients
 from videox_fun.pipeline import WanI2VPipeline, Wan2_2I2VPipeline
@@ -116,12 +116,11 @@ def generation(pipe, generator, start_frame, prompt, negative_prompt, args):
                     generator=generator,
                     guidance_scale=args.guidance_scale,
                     num_inference_steps=args.num_inference_steps,
-                    boundary = args.boundary,
+                    boundary=args.boundary,
                     video=input_video,
                     mask_video=input_video_mask,
                     shift=args.shift,
                 ).videos
-
 
             name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
             name = os.path.join(args.cache_dir, name)
@@ -409,8 +408,8 @@ def prepare_pipeline(args):
         print("Prepare I2V pipeline")
         device = set_multi_gpus_devices(args.ulysses_degree, args.ring_degree)
         config = OmegaConf.load(args.config_path)
-        if 'boundary' in config['transformer_additional_kwargs']:
-            args.boundary = config['transformer_additional_kwargs']['boundary']
+        if "boundary" in config["transformer_additional_kwargs"]:
+            args.boundary = config["transformer_additional_kwargs"]["boundary"]
         weight_dtype = (
             torch.bfloat16 if args.weight_dtype == "bfloat16" else torch.float16
         )
@@ -437,23 +436,43 @@ def prepare_pipeline(args):
             )
             transformer_2 = None
 
-            print(f"Transformer model loaded Wan version {args.version} from {args.model_name} on device {device}")
+            print(
+                f"Transformer model loaded Wan version {args.version} from {args.model_name} on device {device}"
+            )
         elif args.version == 2.2:
             transformer = WanModel.from_pretrained(
-                os.path.join(args.model_name, config['transformer_additional_kwargs'].get('transformer_low_noise_model_subpath', 'transformer')),
-                transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
+                os.path.join(
+                    args.model_name,
+                    config["transformer_additional_kwargs"].get(
+                        "transformer_low_noise_model_subpath", "transformer"
+                    ),
+                ),
+                transformer_additional_kwargs=OmegaConf.to_container(
+                    config["transformer_additional_kwargs"]
+                ),
                 low_cpu_mem_usage=True if not args.fsdp_dit else False,
                 torch_dtype=weight_dtype,
             )
-            print(f"Transformer model loaded Wan version {args.version} from {args.model_name} low_noise on device {device}")
+            print(
+                f"Transformer model loaded Wan version {args.version} from {args.model_name} low_noise on device {device}"
+            )
 
             transformer_2 = WanModel.from_pretrained(
-                os.path.join(args.model_name, config['transformer_additional_kwargs'].get('transformer_high_noise_model_subpath', 'transformer')),
-                transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
+                os.path.join(
+                    args.model_name,
+                    config["transformer_additional_kwargs"].get(
+                        "transformer_high_noise_model_subpath", "transformer"
+                    ),
+                ),
+                transformer_additional_kwargs=OmegaConf.to_container(
+                    config["transformer_additional_kwargs"]
+                ),
                 low_cpu_mem_usage=True if not args.fsdp_dit else False,
                 torch_dtype=weight_dtype,
             )
-            print(f"Transformer model loaded Wan version {args.version} from {args.model_name} high_noise on device {device}")
+            print(
+                f"Transformer model loaded Wan version {args.version} from {args.model_name} high_noise on device {device}"
+            )
 
         if args.transformer_path is not None:
             state_dict = {}
@@ -477,7 +496,9 @@ def prepare_pipeline(args):
 
             check_state_dict(transformer.state_dict(), state_dict)
             m, u = transformer.load_state_dict(state_dict, strict=False)
-            print(f"load FT ckpt from {args.transformer_path} missing keys: {len(m)}, unexpected keys: {len(u)}")
+            print(
+                f"load FT ckpt from {args.transformer_path} missing keys: {len(m)}, unexpected keys: {len(u)}"
+            )
 
         if args.transformer_high_path is not None:
             print(f"From checkpoint: {args.transformer_high_path}")
@@ -502,8 +523,10 @@ def prepare_pipeline(args):
 
             check_state_dict(transformer_2.state_dict(), state_dict)
             m, u = transformer_2.load_state_dict(state_dict, strict=False)
-            print(f"load FT ckpt from {args.transformer_high_path} missing keys: {len(m)}, unexpected keys: {len(u)}")
-        
+            print(
+                f"load FT ckpt from {args.transformer_high_path} missing keys: {len(m)}, unexpected keys: {len(u)}"
+            )
+
         vae = AutoencoderKLWan.from_pretrained(
             os.path.join(
                 args.model_name, config["vae_kwargs"].get("vae_subpath", "vae")
@@ -592,6 +615,7 @@ def prepare_pipeline(args):
 
         if args.ulysses_degree > 1 or args.ring_degree > 1:
             from functools import partial
+
             transformer.enable_multi_gpus_inference()
             if transformer_2 is not None:
                 transformer_2.enable_multi_gpus_inference()
@@ -684,7 +708,9 @@ def prepare_pipeline(args):
         else:
             pipeline.to(device=device)
 
-        print(f"check param teacache {args.enable_teacache} {args.GPU_memory_mode} {args.cfg_skip_ratio} ")
+        print(
+            f"check param teacache {args.enable_teacache} {args.GPU_memory_mode} {args.cfg_skip_ratio} "
+        )
         print(f"check arguments {args}")
         coefficients = (
             get_teacache_coefficients(args.model_name) if args.enable_teacache else None
@@ -719,7 +745,11 @@ def prepare_pipeline(args):
         if args.lora_high_path is not None:
             print(f"Load LoRA from {args.lora_high_path}")
             pipeline = merge_lora(
-                pipeline, args.lora_high_path, args.lora_weight, device=device, sub_transformer_name="transformer_2"
+                pipeline,
+                args.lora_high_path,
+                args.lora_weight,
+                device=device,
+                sub_transformer_name="transformer_2",
             )
 
         generator = torch.Generator(device=device).manual_seed(args.seed)
@@ -846,9 +876,10 @@ def image2video(args):
     output_file = f"{args.cache_dir}/output.jsonl"
     tsv_file = f"{args.cache_dir}/output.tsv"
     try:
-        with open(output_file, "r") as fin, open(
-            tsv_file, "w", encoding="utf-8"
-        ) as fout:
+        with (
+            open(output_file, "r") as fin,
+            open(tsv_file, "w", encoding="utf-8") as fout,
+        ):
             # Read all json lines
             rows = [json.loads(line) for line in fin]
             if rows:

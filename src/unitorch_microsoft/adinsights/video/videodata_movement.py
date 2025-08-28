@@ -35,7 +35,7 @@ def process_chunk(
                 dst_file = os.path.join(cache_dir, dst_file)
                 cmd = f"cp {src_file} {dst_file}"
                 os.system(cmd)
-                #print(f"Worker {process_id} copy {src_file} to {dst_file}")
+                # print(f"Worker {process_id} copy {src_file} to {dst_file}")
                 movement_str += f"{video}\t{dst_file}\n"
                 if idx % 100 == 0:
                     with lock:

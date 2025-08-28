@@ -52,7 +52,7 @@ You can use the following actions:
 3. `fitting`: Fit the input image to the expected ratio. The ratio is a float value, where 1 means square, < 1 means portrait, and > 1 means landscape.
 4. `padding`: Pad the input image with specified pad_size (left, top, right, bottom) pixels to fit the expected size controlled by prompt. The new image size will be (width + left + right, height + top + bottom).
 5. `change_background`: Change the background of the input image based on the provided prompt.
-6. `remove_background`: Remove the background of the input image. set crop_object to true if you want to remove useless transparent background. It will return the image with transparent background.
+6. `remove_background`: Remove the background of the input image. set crop_object to false if you don't want to remove useless transparent background. It will return the image with transparent background.
 
 Note:
 - Parameters `width`, `height` are only used for `create` and `editing` actions, they specify the size of the generated image.
@@ -102,12 +102,19 @@ def processing_outpainting(image, ratio):
         mode = "RGB"
 
     mask = Image.new("L", (size[0], size[1]), 255)
-    black = Image.new(mode, (im_width, im_height), (0, 0, 0) if mode == "RGB" else (0, 0, 0, 0))
+    black = Image.new(
+        mode, (im_width, im_height), (0, 0, 0) if mode == "RGB" else (0, 0, 0, 0)
+    )
     mask.paste(black, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
-    new_image = Image.new(mode, (size[0], size[1]), (255, 255, 255) if mode == "RGB" else (255, 255, 255, 0))
+    new_image = Image.new(
+        mode,
+        (size[0], size[1]),
+        (255, 255, 255) if mode == "RGB" else (255, 255, 255, 0),
+    )
     new_image.paste(image, ((size[0] - im_width) // 2, (size[1] - im_height) // 2))
 
     return new_image, mask
+
 
 def resized_image(image, min_pixel=256, max_pixel=2048):
     if isinstance(image, str):
@@ -117,11 +124,15 @@ def resized_image(image, min_pixel=256, max_pixel=2048):
     if max(width, height) > max_pixel:
         scale = max_pixel / max(width, height)
         new_size = (int(width * scale), int(height * scale))
-        image = image.resize((new_size[0] // 8 * 8, new_size[1] // 8 * 8), resample=Image.LANCZOS)
+        image = image.resize(
+            (new_size[0] // 8 * 8, new_size[1] // 8 * 8), resample=Image.LANCZOS
+        )
     elif min(width, height) < min_pixel:
         scale = min_pixel / min(width, height)
         new_size = (int(width * scale), int(height * scale))
-        image = image.resize((new_size[0] // 8 * 8, new_size[1] // 8 * 8), resample=Image.LANCZOS)
+        image = image.resize(
+            (new_size[0] // 8 * 8, new_size[1] // 8 * 8), resample=Image.LANCZOS
+        )
 
     return image
 
@@ -280,7 +291,7 @@ class PicassoInternalTool(GenericTool):
             },
             "crop_object": {
                 "type": "boolean",
-                "default": False,
+                "default": True,
                 "description": "Whether to crop the foreground object after remove_background action.",
             },
         },
@@ -305,14 +316,16 @@ class PicassoInternalTool(GenericTool):
         ratio: Optional[float] = None,
         pad_size: Optional[list[int]] = None,
         refer_images: Optional[list[str]] = None,
-        crop_object: bool = False,
+        crop_object: bool = True,
     ) -> str:
         try:
             if action == "create":
                 if not prompt:
                     raise GenericError("prompt is required for create action.")
                 if not width or not height:
-                    raise GenericError("width and height are required for create action.")
+                    raise GenericError(
+                        "width and height are required for create action."
+                    )
                 ratio = width / height
                 size = "1024x1024"
                 if ratio > 0.8:
@@ -323,7 +336,11 @@ class PicassoInternalTool(GenericTool):
                     size = "1536x1024"
                 result = get_gpt_image_response(
                     prompt=prompt,
-                    images=[Image.open(im) for im in refer_images] if refer_images else None,
+                    images=(
+                        [Image.open(im) for im in refer_images]
+                        if refer_images
+                        else None
+                    ),
                     size=size,
                 )
                 result = call_fastapi(

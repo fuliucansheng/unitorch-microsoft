@@ -8,4 +8,3 @@ from unitorch.utils import is_diffusers_available
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import register_webui
 from unitorch.cli.webuis import SimpleWebUI
-

@@ -4,6 +4,7 @@
 import glob
 import os
 import io
+import json
 import logging
 import tempfile
 import subprocess
@@ -21,7 +22,14 @@ from unitorch_microsoft.agents.components import (
     GenericTool,
     GenericResult,
     GenericError,
+    ToolCollection,
+    Memory,
+    Message,
+    ToolCall,
+    ToolChoice,
 )
+from unitorch_microsoft.agents.components.tools import GPT4FormatTool, TerminateTool
+from unitorch_microsoft.agents.utils.chatgpt import GPTModel
 from unitorch_microsoft.agents.components.picasso import get_picasso_temp_dir
 
 tailwind_file = cached_path("agents/components/picasso/tailwind-browser.js")
@@ -29,6 +37,7 @@ tailwind_file = cached_path("agents/components/picasso/tailwind-browser.js")
 _browser = None
 _playwright = None
 _http_file_process = None
+
 
 async def init_browser():
     global _browser, _playwright, _http_file_process
@@ -47,7 +56,10 @@ async def init_browser():
         )
     return _browser
 
-async def html_to_image(html: str, viewport=(1920, 1080), use_tailwind_template=True) -> Image.Image:
+
+async def html_to_image(
+    html: str, viewport=(1920, 1080), use_tailwind_template=True
+) -> Image.Image:
     global _browser
     if _browser is None:
         _browser = await init_browser()
@@ -105,6 +117,7 @@ async def html_to_image(html: str, viewport=(1920, 1080), use_tailwind_template=
 
     return Image.open(io.BytesIO(screenshot_bytes))
 
+
 _HTML_DESCRIPTION = """
 Use the html_to_image tool to convert structured HTML content into high-quality image output. This is ideal for generating posters, social media cards, banners, or any composite layout involving styled text, images, and layout elements.
 
@@ -138,6 +151,54 @@ Always use box-border to include padding and border in width/height calculations
 For grid layouts, use grid with gap-* to define spacing, e.g. grid-cols-3 gap-6.
 """
 
+_HTML_SYSTEM_PROMPT = """
+You are a professional graphic designer. You need to create a poster image based on the user's prompt with html_to_image tool. 
+
+* You may need multiple iterations to refine the html code, by checking the previous generated image to ensure it meets the requirements finally.
+* Only use one tool call in each step.
+
+You can use the following tools to complete tasks:
+1. `gpt4_format`: Use this tool to put the refined html code into the required format which will be used to generate the image.
+2. `terminate`: The designed image is perfect, and you can terminate the process.
+
+Design the image with Tailwind CSS, including text, images, and styles. Follow these guidelines to ensure your poster designs are visually consistent, pixel-perfect, and responsive to layout constraints:
+* Overall Style:
+    * Sophisticated, futuristic, high-tech aesthetic.
+    * Flat design with a card-based layout; harmonious card colors, spacing, and alignment with the overall theme.
+        * Choose a color scheme suited to the content (e.g., Morandi palette, advanced gray tones, Memphis, Mondrian).
+        * No gradients. Maintain high text-background contrast for readability.
+        * Avoid plain white backgrounds unless explicitly requested.
+        * Avoid ordinary or tacky designs.
+        * Treat the page as one unified container — no nested cards or isolated container blocks.
+* Layout Guidelines:
+    * Avoid overlap, clutter, emptiness, overflow, or truncation.
+    * Color palette must be harmonious and consistent with the theme; avoid harsh tones.
+    * Place content in the visual focal area. If minimal content, enlarge fonts slightly and center the card.
+    * For multiple cards, ensure a clear arrangement, alignment, and proportionate sizing with minimal unused white space. No overlapping or cluttering of cards.
+    * All elements must be fully visible within the page boundaries with proper size. Adjust font sizes, card/image/video dimensions, spacing, and positioning to maintain balance.
+
+When checking the previous designed image, consider:
+1. Is the overall composition visually appealing and professionally executed?
+2. Does the design clearly communicate its intended purpose or message?
+3. Does the aesthetic reflect a modern and refined visual style?
+4. Are there flaws such as text, product or any key elements overlap (including the elements from background from visual view), inconsistent spacing, imbalanced sizing or misaligned elements?
+5. Are horizontal and vertical alignments precise and intentional?
+6. What specific, actionable improvements can enhance the visual outcome?
+7. Is the product image preserved and integrated effectively into the design if a product is provided?
+8. Does the image meet the user's requirements and expectations?
+9. Does the image has any issues from the visual design perspective to be improved?
+
+If flaws are identified, refine it or create a new one right now. Please focus on the high-priority issues that can significantly enhance the design quality.
+If the overall looks prefect, use the `terminate` tool to end the process.
+"""
+
+
+class RefinedHtml(BaseModel):
+    raw_html: str = Field(
+        description="The raw html text to be rendered",
+    )
+
+
 class PicassoHtmlTool(GenericTool):
     """Add a tool to generate images based on the provided prompt & images."""
 
@@ -160,6 +221,13 @@ class PicassoHtmlTool(GenericTool):
                 "type": "string",
                 "description": "The raw html text to be rendered",
             },
+            "auto_refine_steps": {
+                "type": "integer",
+                "description": "The maximum number of steps to automatically refine the html design. Default is 20.",
+                "default": 20,
+                "minimum": 0,
+                "maximum": 30,
+            },
             "viewport": {
                 "type": "array",
                 "items": {"type": "integer"},
@@ -171,24 +239,89 @@ class PicassoHtmlTool(GenericTool):
         },
         "required": ["raw_html"],
     }
+    gpt: Any = GPTModel()
+    available_tools: ToolCollection = ToolCollection(
+        GPT4FormatTool(RefinedHtml),
+        TerminateTool(),
+    )
 
     async def execute(
         self,
         action: str,
         raw_html: str,
+        auto_refine_steps: Optional[int] = 10,
         viewport: Optional[tuple[int, int]] = (1920, 1080),
     ) -> str:
         if action == "html_to_image":
             if not raw_html:
                 raise ValueError("raw_html is required for html_to_image action.")
             result = await html_to_image(raw_html, viewport=viewport)
-
-        if isinstance(result, Image.Image):
             temp_file = tempfile.NamedTemporaryFile(
                 suffix=".png", dir=get_picasso_temp_dir(), delete=False
             )
             result.save(temp_file.name)
             result = temp_file.name
+
+            designed_html, designed_image = raw_html, result
+            system_message = Message.system_message(content=_HTML_SYSTEM_PROMPT)
+            user_message = Message.user_message(
+                content="""
+refine the previous design or create a new one if it's not perfect. 
+
+* Don't change the assets content in the html code including title, images, videos. 
+* Don't change the viewport size.
+* You can optimize the size, color, size, layout, and add more assets to make it look better.
+""",
+            )
+            for _ in range(auto_refine_steps):
+                assistant_message = Message.assistant_message(
+                    content=f"""
+The previous design is as follows. The HTML code is:
+{designed_html}
+The designed image is: {designed_image}
+You need to check if the designed image meets the requirements. If not, refine the HTML code or generate a new design.
+""",
+                    images=[
+                        {
+                            "path": designed_image,
+                            "width": None,
+                            "height": None,
+                            "priority": "high",
+                        }
+                    ],
+                )
+
+                for _ in range(3):
+                    resp = self.gpt.ask_tools(
+                        messages=Memory(
+                            messages=[
+                                system_message,
+                                user_message,
+                                assistant_message,
+                            ]
+                        ).to_dict_list(),
+                        tools=self.available_tools.to_params(),
+                        tool_choice=ToolChoice.REQUIRED,
+                    )
+                    tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
+                    if len(tool_calls) == 1:
+                        break
+                    print("Poster Tool calls:", tool_calls)
+
+                tool_call = tool_calls[0]
+                if tool_call.function.name == "terminate":
+                    logging.info("Finish the html refine process.")
+                    break
+                args = json.loads(tool_calls[0].function.arguments)
+                raw_html = args.get("raw_html", None)
+                designed_image = await html_to_image(raw_html, viewport=viewport)
+                temp_file = tempfile.NamedTemporaryFile(
+                    suffix=".png", dir=get_picasso_temp_dir(), delete=False
+                )
+                designed_image.save(temp_file.name)
+                designed_html, designed_image = raw_html, temp_file.name
+                result = designed_image
+                logging.info(f"Designed image: {designed_image}")
 
         if result is None:
             return {
@@ -226,41 +359,43 @@ async def layout_to_image(
     api_url = "http://br1t45-s1-01:8787/generate"
     asset_url = "http://10.172.118.59:49876/{0}"
     response = requests.post(
-                api_url,
-                json={
-                    "grid_width": viewport[0],
-                    "grid_height": viewport[1],
-                    "headline": title,
-                    "subcopy": description,
-                    "cta": call_to_action,
-                    "cta_width": call_to_action_size[0],
-                    "cta_height": call_to_action_size[1],
-                    "background_prompt": background_prompt,
-                    "product_image_url": asset_url.format(product_image),
-                    "logo_image_url": asset_url.format(logo_image),
-                },
-                headers={"Content-Type": "application/json"},
-                timeout=60,
+        api_url,
+        json={
+            "grid_width": viewport[0],
+            "grid_height": viewport[1],
+            "headline": title,
+            "subcopy": description,
+            "cta": call_to_action,
+            "cta_width": call_to_action_size[0],
+            "cta_height": call_to_action_size[1],
+            "background_prompt": background_prompt,
+            "product_image_url": asset_url.format(product_image),
+            "logo_image_url": asset_url.format(logo_image),
+        },
+        headers={"Content-Type": "application/json"},
+        timeout=60,
     ).json()
-    html_results = response.get('html_files', [])
+    html_results = response.get("html_files", [])
     for html_results in html_results:
-        html_str = html_results.get('content', '')
+        html_str = html_results.get("content", "")
         if not html_str:
             continue
         logging.info(f"HTML content from interal layout tool: {html_str}")
-        image = await html_to_image(html_str, viewport=viewport, use_tailwind_template=False)
+        image = await html_to_image(
+            html_str, viewport=viewport, use_tailwind_template=False
+        )
         temp_file = tempfile.NamedTemporaryFile(
-                suffix=".png", dir=get_picasso_temp_dir(), delete=False
+            suffix=".png", dir=get_picasso_temp_dir(), delete=False
         )
         image.save(temp_file.name)
         return temp_file.name
     return None
-    
 
 
 _LAYOUT_DESCRIPTION = """
 Use the layout_to_image tool to create visually appealing layouts for posters, banners, or social media cards with the provided inputs.
 """
+
 
 class PicassoLayoutTool(GenericTool):
     """Add a tool to generate images based on the provided layout parameters."""
@@ -280,15 +415,11 @@ class PicassoLayoutTool(GenericTool):
             },
             "product_image": {
                 "type": ["string"],
-                "description": (
-                    'The product image path.'
-                ),
+                "description": ("The product image path."),
             },
             "logo_image": {
                 "type": ["string"],
-                "description": (
-                    'The logo image path'
-                ),
+                "description": ("The logo image path"),
             },
             "call_to_action": {
                 "type": "string",
@@ -307,7 +438,7 @@ class PicassoLayoutTool(GenericTool):
             "background_prompt": {
                 "type": ["string", "null"],
                 "description": (
-                    'The background prompt for the background of the generatted layout image. (default is None)'
+                    "The background prompt for the background of the generatted layout image. (default is None)"
                 ),
             },
             "viewport": {
@@ -345,7 +476,7 @@ class PicassoLayoutTool(GenericTool):
             raise ValueError(
                 "title, description, product_image and logo_image are required."
             )
-        
+
         product = Image.open(product_image)
         logo = Image.open(logo_image)
 
@@ -384,7 +515,7 @@ class PicassoLayoutTool(GenericTool):
             return GenericError(
                 f"Failed to generate layout image: {str(e)}",
             )
-        
+
         return GenericResult(
             output=f"Generated layout image path: {result} . Width: {res.width}, Height: {res.height}.",
             images={"path": result},

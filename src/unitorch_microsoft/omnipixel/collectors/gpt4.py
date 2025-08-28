@@ -72,9 +72,9 @@ def text_generate(
         images = [row[col] for col in image_cols] if image_cols is not None else None
         result = get_gpt4_response(
             prompt=prompt,
-            images=[Image.open(image) for image in images]
-            if images is not None
-            else None,
+            images=(
+                [Image.open(image) for image in images] if images is not None else None
+            ),
         )
         if result != "":
             writer.write(
@@ -146,9 +146,11 @@ def image_generate(
         try:
             result = get_gpt_image_response(
                 prompt=prompt,
-                images=[Image.open(image) for image in images]
-                if images is not None
-                else None,
+                images=(
+                    [Image.open(image) for image in images]
+                    if images is not None
+                    else None
+                ),
                 size=size,
             )
             if isinstance(result, Image.Image):

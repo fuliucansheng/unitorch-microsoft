@@ -12,6 +12,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 
+
 def load_image(image: str, http_url: str) -> Union[np.ndarray, None]:
     try:
         if http_url:
@@ -26,19 +27,31 @@ def load_image(image: str, http_url: str) -> Union[np.ndarray, None]:
         return None
 
 
-def process_batch(session, batch_images: List[np.ndarray]) -> List[Tuple[str, str, str, str, float, str, str, str]]:
+def process_batch(
+    session, batch_images: List[np.ndarray]
+) -> List[Tuple[str, str, str, str, float, str, str, str]]:
     results = []
 
     race_tags = ["Black", "Asian", "Latino/Hispanic", "Middle Eastern", "White"]
     gender_tags = ["Female", "Male"]
     age_bracket_tags = [
-        "0-2 years old", "3-9 years old", "10-19 years old", "20-29 years old",
-        "30-39 years old", "40-49 years old", "50-59 years old", "60-69 years old",
-        "more than 70 years old"
+        "0-2 years old",
+        "3-9 years old",
+        "10-19 years old",
+        "20-29 years old",
+        "30-39 years old",
+        "40-49 years old",
+        "50-59 years old",
+        "60-69 years old",
+        "more than 70 years old",
     ]
 
-    pipeline_opt = (isf.HF_ENABLE_QUALITY | isf.HF_ENABLE_MASK_DETECT |
-                    isf.HF_ENABLE_LIVENESS | isf.HF_ENABLE_FACE_ATTRIBUTE)
+    pipeline_opt = (
+        isf.HF_ENABLE_QUALITY
+        | isf.HF_ENABLE_MASK_DETECT
+        | isf.HF_ENABLE_LIVENESS
+        | isf.HF_ENABLE_FACE_ATTRIBUTE
+    )
 
     for img in batch_images:
         h, w = img.shape[:2]
@@ -71,14 +84,16 @@ def process_batch(session, batch_images: List[np.ndarray]) -> List[Tuple[str, st
         race = race_tags[max_ext.race]
         age_bracket = age_bracket_tags[max_ext.age_bracket]
 
-        results.append((
-            "|".join(box_strs),
-            "{},{},{},{}".format(*max_box),
-            round(max_area_ratio, 6),
-            gender,
-            race,
-            age_bracket
-        ))
+        results.append(
+            (
+                "|".join(box_strs),
+                "{},{},{},{}".format(*max_box),
+                round(max_area_ratio, 6),
+                gender,
+                race,
+                age_bracket,
+            )
+        )
 
     return results
 
@@ -102,10 +117,15 @@ def infer_inspireface_batch(
     assert image_col in df.columns, f"{image_col} not found in input file"
 
     # 初始化 InspireFace
-    opt = (isf.HF_ENABLE_FACE_RECOGNITION | isf.HF_ENABLE_QUALITY | 
-       isf.HF_ENABLE_MASK_DETECT | isf.HF_ENABLE_LIVENESS | 
-       isf.HF_ENABLE_INTERACTION | isf.HF_ENABLE_FACE_ATTRIBUTE | 
-       isf.HF_ENABLE_FACE_EMOTION)
+    opt = (
+        isf.HF_ENABLE_FACE_RECOGNITION
+        | isf.HF_ENABLE_QUALITY
+        | isf.HF_ENABLE_MASK_DETECT
+        | isf.HF_ENABLE_LIVENESS
+        | isf.HF_ENABLE_INTERACTION
+        | isf.HF_ENABLE_FACE_ATTRIBUTE
+        | isf.HF_ENABLE_FACE_EMOTION
+    )
     session = isf.InspireFaceSession(opt, isf.HF_DETECT_MODE_ALWAYS_DETECT)
 
     results = []
@@ -131,7 +151,6 @@ def infer_inspireface_batch(
         if (idx + 1) % 100 == 0:
             print(f"Processed {idx + 1}/{len(df)}")
 
-
     df["face_boxes"] = [r[0] for r in results]
     df["max_face_box"] = [r[1] for r in results]
     df["max_area_ratio"] = [r[2] for r in results]
@@ -139,10 +158,9 @@ def infer_inspireface_batch(
     df["max_race"] = [r[4] for r in results]
     df["max_age_bracket"] = [r[5] for r in results]
 
-
-
     df.to_csv(output_file, sep="\t", index=False, quoting=3, header=False)
     print(f"[Done] Saved results to: {output_file}")
+
 
 if __name__ == "__main__":
     fire.Fire(infer_inspireface_batch)

@@ -14,8 +14,8 @@ class GPTModel:
     def ask(
         self,
         messages: list,
-        # model: Optional[str] = "gpt-4.1",
-        model: Optional[str] = "gpt-5",
+        model: Optional[str] = "gpt-4.1",
+        # model: Optional[str] = "gpt-5",
         temperature: Optional[float] = 0.0,
         top_p: Optional[float] = 1.0,
         # max_tokens: Optional[int] = 32768,

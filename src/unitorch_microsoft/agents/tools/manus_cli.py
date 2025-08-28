@@ -2023,7 +2023,8 @@ class ManusAgent(GenericAgent):
 
         while self.current_step <= self.max_steps and self.state != AgentState.IDLE:
             resp = self.gpt.ask_tools(
-                messages=[self.memory.to_dict_list()] + [self._action_message.to_dict()],
+                messages=[self.memory.to_dict_list()]
+                + [self._action_message.to_dict()],
                 tools=self.available_tools.to_params(),
                 tool_choice=ToolChoice.REQUIRED,
             )

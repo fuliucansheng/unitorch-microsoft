@@ -639,10 +639,8 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         for col in self.image_cols + self.video_cols:
             sample[col] = save_url(sample[col])
 
-        url = (
-            lambda x: x
-            if x.startswith("http")
-            else self.http_url.format(os.path.abspath(x))
+        url = lambda x: (
+            x if x.startswith("http") else self.http_url.format(os.path.abspath(x))
         )
         for col in self.url_cols:
             sample[col] = url(sample[col])
@@ -652,10 +650,8 @@ class SegmentationLabelingWebUI(SimpleWebUI):
         return sample
 
     def process_results(self, results):
-        url = (
-            lambda x: x
-            if x.startswith("http")
-            else self.http_url.format(os.path.abspath(x))
+        url = lambda x: (
+            x if x.startswith("http") else self.http_url.format(os.path.abspath(x))
         )
 
         for col in set(self.zip_cols):
@@ -668,9 +664,11 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             )
         for col in set(self.video_cols):
             results[col] = results[col].map(
-                lambda x: x
-                if x.startswith("http")
-                else self.http_url.format(os.path.abspath(x))
+                lambda x: (
+                    x
+                    if x.startswith("http")
+                    else self.http_url.format(os.path.abspath(x))
+                )
             )
             results[col] = results[col].map(
                 lambda x: f'<video src="{x}" style="min-width: {self.min_video_width}; max-width: {self.max_video_width}; min-height: {self.min_video_height}; max-height: {self.max_video_height}; overflow: hidden;" preload="none" controls>'

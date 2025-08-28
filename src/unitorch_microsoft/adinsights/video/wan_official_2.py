@@ -15,7 +15,7 @@ import numpy as np
 import torch.nn as nn
 from safetensors import safe_open
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 import random
 
@@ -29,7 +29,14 @@ from wan.distributed.util import init_distributed_group
 from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
 from wan.utils.utils import save_video, str2bool
 
-from unitorch_microsoft.adinsights.video.wan_official import readimg, load_z3_model, get_model_list, load_model, check_state_dict
+from unitorch_microsoft.adinsights.video.wan_official import (
+    readimg,
+    load_z3_model,
+    get_model_list,
+    load_model,
+    check_state_dict,
+)
+
 
 def build_lora_names(key, lora_down_key, lora_up_key, is_native_weight):
     base = "diffusion_model." if is_native_weight else ""
@@ -38,66 +45,76 @@ def build_lora_names(key, lora_down_key, lora_up_key, is_native_weight):
     lora_alpha = base + key.replace(".weight", ".alpha")
     return lora_down, lora_up, lora_alpha
 
+
 def load_and_merge_lora_weight(
     model: nn.Module,
     lora_state_dict: dict,
-    lora_down_key: str=".lora_down.weight",
-    lora_up_key: str=".lora_up.weight"):
+    lora_down_key: str = ".lora_down.weight",
+    lora_up_key: str = ".lora_up.weight",
+):
     is_native_weight = any("diffusion_model." in key for key in lora_state_dict)
     update_key = []
     for key, value in model.named_parameters():
         lora_down_name, lora_up_name, lora_alpha_name = build_lora_names(
             key, lora_down_key, lora_up_key, is_native_weight
         )
-        #print(f"Processing {key}, lora_down: {lora_down_name}, lora_up: {lora_up_name}, lora_alpha: {lora_alpha_name}")
+        # print(f"Processing {key}, lora_down: {lora_down_name}, lora_up: {lora_up_name}, lora_alpha: {lora_alpha_name}")
         if lora_down_name in lora_state_dict:
             lora_down = lora_state_dict[lora_down_name]
             lora_up = lora_state_dict[lora_up_name]
             lora_alpha = float(lora_state_dict[lora_alpha_name])
             rank = lora_down.shape[0]
             scaling_factor = lora_alpha / rank
-            #assert lora_up.dtype == torch.float32
-            #assert lora_down.dtype == torch.float32
+            # assert lora_up.dtype == torch.float32
+            # assert lora_down.dtype == torch.float32
             delta_W = scaling_factor * torch.matmul(lora_up, lora_down)
             value.data = value.data + delta_W
-            #print(f"Updated {key} with lora down: {lora_down_name}, lora up: {lora_up_name}, lora alpha: {lora_alpha_name}")
+            # print(f"Updated {key} with lora down: {lora_down_name}, lora up: {lora_up_name}, lora alpha: {lora_alpha_name}")
             update_key.append(lora_down_name)
             update_key.append(lora_up_name)
             update_key.append(lora_alpha_name)
-    
-    #check if all lora keys are used
+
+    # check if all lora keys are used
     non_used = 0
     for key in lora_state_dict.keys():
         if key not in update_key:
             print(f"Warning: {key} is not used in the model.")
             non_used += 1
-    print(f"Total {len(lora_state_dict)} lora keys, {len(update_key)} used, {non_used} not used.")
+    print(
+        f"Total {len(lora_state_dict)} lora keys, {len(update_key)} used, {non_used} not used."
+    )
 
     return model
 
 
 def load_and_merge_lora_weight_from_safetensors_wan22(
     model: nn.Module,
-    lora_weight_path:str,
-    lora_down_key:str=".lora_down.weight",
-    lora_up_key:str=".lora_up.weight"):
+    lora_weight_path: str,
+    lora_down_key: str = ".lora_down.weight",
+    lora_up_key: str = ".lora_up.weight",
+):
     lora_state_dict = {}
     with safe_open(lora_weight_path, framework="pt", device="cpu") as f:
         for key in f.keys():
             lora_state_dict[key] = f.get_tensor(key)
-    #print(f"check lora_state_dit ")
-    #for key, value in lora_state_dict.items():
+    # print(f"check lora_state_dit ")
+    # for key, value in lora_state_dict.items():
     #    print(f"lora_state_dict {key} {value.shape} {value.dtype}")
-    #print(f"============end========== len(lora_state_dict): {len(lora_state_dict)}")
-    model = load_and_merge_lora_weight(model, lora_state_dict, lora_down_key, lora_up_key)
+    # print(f"============end========== len(lora_state_dict): {len(lora_state_dict)}")
+    model = load_and_merge_lora_weight(
+        model, lora_state_dict, lora_down_key, lora_up_key
+    )
     return model
+
 
 def load_and_merge_lora_weight_from_safetensors_wan21(
     model: nn.Module,
-    lora_weight_path:str,
-    lora_down_key:str=".lora_down.weight",
-    lora_up_key:str=".lora_up.weight"):
+    lora_weight_path: str,
+    lora_down_key: str = ".lora_down.weight",
+    lora_up_key: str = ".lora_up.weight",
+):
     from unitorch_microsoft.adinsights.video.lora_rapper import WanLoraWrapper
+
     lora_rapper = WanLoraWrapper(model)
     lora_name = lora_rapper.load_lora(lora_weight_path)
     strength = 1.0
@@ -105,13 +122,15 @@ def load_and_merge_lora_weight_from_safetensors_wan21(
     print(f"Loaded LoRA: {lora_name} with strength: {strength}")
     return model
 
+
 def load_and_merge_lora_weight_from_safetensors(
     model: nn.Module,
-    lora_weight_path:str,
-    lora_version:str,
-    lora_down_key:str=".lora_down.weight",
-    lora_up_key:str=".lora_up.weight"):
-    if lora_version == '2.1':
+    lora_weight_path: str,
+    lora_version: str,
+    lora_down_key: str = ".lora_down.weight",
+    lora_up_key: str = ".lora_up.weight",
+):
+    if lora_version == "2.1":
         model = load_and_merge_lora_weight_from_safetensors_wan21(
             model, lora_weight_path, lora_down_key, lora_up_key
         )
@@ -120,6 +139,7 @@ def load_and_merge_lora_weight_from_safetensors(
             model, lora_weight_path, lora_down_key, lora_up_key
         )
     return model
+
 
 def _validate_args(args):
     # Basic check
@@ -140,13 +160,15 @@ def _validate_args(args):
     if args.frame_num is None:
         args.frame_num = cfg.frame_num
 
-    args.base_seed = args.base_seed if args.base_seed >= 0 else random.randint(
-        0, sys.maxsize)
+    args.base_seed = (
+        args.base_seed if args.base_seed >= 0 else random.randint(0, sys.maxsize)
+    )
     # Size check
-    assert args.size in SUPPORTED_SIZES[
-        args.
-        task], f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
+    assert (
+        args.size in SUPPORTED_SIZES[args.task]
+    ), f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
     print(f"Check arguments: {args}")
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -157,122 +179,138 @@ def _parse_args():
         type=str,
         default="i2v-A14B",
         choices=list(WAN_CONFIGS.keys()),
-        help="The task to run.")
+        help="The task to run.",
+    )
     parser.add_argument(
         "--size",
         type=str,
         default="1280*720",
         choices=list(SIZE_CONFIGS.keys()),
-        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image."
+        help="The area (width*height) of the generated video. For the I2V task, the aspect ratio of the output video will follow that of the input image.",
     )
     parser.add_argument(
         "--frame_num",
         type=int,
         default=None,
-        help="How many frames of video are generated. The number should be 4n+1"
+        help="How many frames of video are generated. The number should be 4n+1",
     )
     parser.add_argument(
         "--ckpt_dir",
         type=str,
         default=None,
-        help="The path to the checkpoint directory.")
+        help="The path to the checkpoint directory.",
+    )
     parser.add_argument(
         "--offload_model",
         type=str2bool,
         default=None,
-        help="Whether to offload the model to CPU after each model forward, reducing GPU memory usage."
+        help="Whether to offload the model to CPU after each model forward, reducing GPU memory usage.",
     )
     parser.add_argument(
         "--ulysses_size",
         type=int,
         default=1,
-        help="The size of the ulysses parallelism in DiT.")
+        help="The size of the ulysses parallelism in DiT.",
+    )
     parser.add_argument(
         "--t5_fsdp",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for T5.")
+        help="Whether to use FSDP for T5.",
+    )
     parser.add_argument(
         "--t5_cpu",
         action="store_true",
         default=False,
-        help="Whether to place T5 model on CPU.")
+        help="Whether to place T5 model on CPU.",
+    )
     parser.add_argument(
         "--dit_fsdp",
         action="store_true",
         default=False,
-        help="Whether to use FSDP for DiT.")
+        help="Whether to use FSDP for DiT.",
+    )
     parser.add_argument(
         "--save_file",
         type=str,
         default=None,
-        help="The file to save the generated video to.")
+        help="The file to save the generated video to.",
+    )
     parser.add_argument(
         "--prompt",
         type=str,
         default=None,
-        help="The prompt to generate the video from.")
+        help="The prompt to generate the video from.",
+    )
     parser.add_argument(
         "--use_prompt_extend",
         action="store_true",
         default=False,
-        help="Whether to use prompt extend.")
+        help="Whether to use prompt extend.",
+    )
     parser.add_argument(
         "--prompt_extend_method",
         type=str,
         default="local_qwen",
         choices=["dashscope", "local_qwen"],
-        help="The prompt extend method to use.")
+        help="The prompt extend method to use.",
+    )
     parser.add_argument(
         "--prompt_extend_model",
         type=str,
         default=None,
-        help="The prompt extend model to use.")
+        help="The prompt extend model to use.",
+    )
     parser.add_argument(
         "--prompt_extend_target_lang",
         type=str,
         default="zh",
         choices=["zh", "en"],
-        help="The target language of prompt extend.")
+        help="The target language of prompt extend.",
+    )
     parser.add_argument(
         "--base_seed",
         type=int,
         default=43,
-        help="The seed to use for generating the video.")
+        help="The seed to use for generating the video.",
+    )
     parser.add_argument(
-        "--image",
-        type=str,
-        default=None,
-        help="The image to generate the video from.")
+        "--image", type=str, default=None, help="The image to generate the video from."
+    )
     parser.add_argument(
         "--sample_solver",
         type=str,
-        default='unipc',
-        choices=['unipc', 'dpm++', 'euler'],
-        help="The solver used to sample.")
+        default="unipc",
+        choices=["unipc", "dpm++", "euler"],
+        help="The solver used to sample.",
+    )
     parser.add_argument(
-        "--sample_steps", type=int, default=None, help="The sampling steps.")
+        "--sample_steps", type=int, default=None, help="The sampling steps."
+    )
     parser.add_argument(
         "--sample_shift",
         type=float,
         default=None,
-        help="Sampling shift factor for flow matching schedulers.")
+        help="Sampling shift factor for flow matching schedulers.",
+    )
     parser.add_argument(
         "--sample_guide_scale",
-        type=lambda s: tuple(map(float, s.split(','))),
+        type=lambda s: tuple(map(float, s.split(","))),
         default=None,
-        help="Classifier free guidance scale. Provide as comma-separated values, e.g., '7.5,8.0'."
+        help="Classifier free guidance scale. Provide as comma-separated values, e.g., '7.5,8.0'.",
     )
     parser.add_argument(
         "--convert_model_dtype",
         action="store_true",
         default=False,
-        help="Whether to convert model paramerters dtype.")
+        help="Whether to convert model paramerters dtype.",
+    )
     parser.add_argument(
         "--param_dtype",
         type=str,
-        default='bf16', #torch.float8_e4m3fn #trch.bfloat16
-        help="The data type to convert model parameters to.")
+        default="bf16",  # torch.float8_e4m3fn #trch.bfloat16
+        help="The data type to convert model parameters to.",
+    )
     parser.add_argument(
         "--data_file", type=str, default=None, help="Path to the input data file."
     )
@@ -297,7 +335,7 @@ def _parse_args():
     parser.add_argument(
         "--camera_col",
         type=str,
-        default='camera',
+        default="camera",
         help="Name of the column containing camera information.",
     )
     parser.add_argument(
@@ -340,19 +378,19 @@ def _parse_args():
     parser.add_argument(
         "--lora_name_lownoise",
         type=str,
-        default='low_noise_model.safetensors',
+        default="low_noise_model.safetensors",
         help="point to the lora path of low noise",
     )
     parser.add_argument(
         "--lora_name_highnoise",
         type=str,
-        default='high_noise_model.safetensors',
+        default="high_noise_model.safetensors",
         help="point to the lora path of high noise",
     )
     parser.add_argument(
         "--lora_version",
         type=str,
-        default='2.1',
+        default="2.1",
         help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
     )
     parser.add_argument(
@@ -374,19 +412,23 @@ def _parse_args():
 
     return args
 
+
 param_dtype_map = {
-    'bf16': torch.bfloat16,
+    "bf16": torch.bfloat16,
     #'fp16': torch.float16,
     #'fp32': torch.float32,
     #'fp8': torch.float8_e4m3fn
 }
+
 
 def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
     rank = int(os.getenv("RANK", 0))
     world_size = int(os.getenv("WORLD_SIZE", 1))
     local_rank = int(os.getenv("LOCAL_RANK", 0))
     device = local_rank
-    print(f"generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
+    print(
+        f"generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}"
+    )
     print(f"Process video gen for {start_frame}")
     image = readimg(start_frame, args.cache_dir, args.size)
     if image == None:
@@ -400,10 +442,10 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
                 prompt,
                 image=image,
                 tar_lang=args.prompt_extend_target_lang,
-                seed=args.base_seed)
+                seed=args.base_seed,
+            )
             if prompt_output.status == False:
-                logging.info(
-                    f"Extending prompt failed: {prompt_output.message}")
+                logging.info(f"Extending prompt failed: {prompt_output.message}")
                 logging.info("Falling back to original prompt.")
             else:
                 prompt = prompt_output.prompt
@@ -443,7 +485,7 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
                 offload_model=args.offload_model,
             )
         name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
-        name = os.path.join(args.cache_dir, name)    
+        name = os.path.join(args.cache_dir, name)
 
         if rank == 0:
             save_video(
@@ -456,11 +498,14 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
             )
         del video
         torch.cuda.synchronize()
-        print(f"finish generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
+        print(
+            f"finish generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}"
+        )
         return name
     except Exception as e:
         print(e)
         return None
+
 
 def _init_logging(rank):
     # logging
@@ -469,9 +514,11 @@ def _init_logging(rank):
         logging.basicConfig(
             level=logging.INFO,
             format="[%(asctime)s] %(levelname)s: %(message)s",
-            handlers=[logging.StreamHandler(stream=sys.stdout)])
+            handlers=[logging.StreamHandler(stream=sys.stdout)],
+        )
     else:
         logging.basicConfig(level=logging.ERROR)
+
 
 def prepare_pipeline(args):
     try:
@@ -480,21 +527,22 @@ def prepare_pipeline(args):
         world_size = int(os.getenv("WORLD_SIZE", 1))
         local_rank = int(os.getenv("LOCAL_RANK", 0))
         device = local_rank
-        print(f"prepare PL rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
+        print(
+            f"prepare PL rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}"
+        )
 
         _init_logging(rank)
 
         if args.offload_model is None:
             args.offload_model = False if world_size > 1 else True
             logging.info(
-                f"offload_model is not specified, set to {args.offload_model}.")
+                f"offload_model is not specified, set to {args.offload_model}."
+            )
         if world_size > 1:
             torch.cuda.set_device(local_rank)
             dist.init_process_group(
-                backend="nccl",
-                init_method="env://",
-                rank=rank,
-                world_size=world_size)
+                backend="nccl", init_method="env://", rank=rank, world_size=world_size
+            )
         else:
             assert not (
                 args.t5_fsdp or args.dit_fsdp
@@ -504,7 +552,9 @@ def prepare_pipeline(args):
             ), f"sequence parallel are not supported in non-distributed environments."
 
         if args.ulysses_size > 1:
-            assert args.ulysses_size == world_size, f"The number of ulysses_size should be equal to the world size."
+            assert (
+                args.ulysses_size == world_size
+            ), f"The number of ulysses_size should be equal to the world size."
             init_distributed_group()
 
         if args.use_prompt_extend:
@@ -512,22 +562,27 @@ def prepare_pipeline(args):
                 prompt_expander = DashScopePromptExpander(
                     model_name=args.prompt_extend_model,
                     task=args.task,
-                    is_vl=args.image is not None)
+                    is_vl=args.image is not None,
+                )
             elif args.prompt_extend_method == "local_qwen":
                 prompt_expander = QwenPromptExpander(
                     model_name=args.prompt_extend_model,
                     task=args.task,
                     is_vl=args.image is not None,
-                    device=rank)
+                    device=rank,
+                )
             else:
                 raise NotImplementedError(
-                    f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
+                    f"Unsupport prompt_extend_method: {args.prompt_extend_method}"
+                )
         else:
             prompt_expander = None
-        
+
         cfg = WAN_CONFIGS[args.task]
         if args.ulysses_size > 1:
-            assert cfg.num_heads % args.ulysses_size == 0, f"`{cfg.num_heads=}` cannot be divided evenly by `{args.ulysses_size=}`."
+            assert (
+                cfg.num_heads % args.ulysses_size == 0
+            ), f"`{cfg.num_heads=}` cannot be divided evenly by `{args.ulysses_size=}`."
         if args.param_dtype in param_dtype_map:
             cfg.param_dtype = param_dtype_map[args.param_dtype]
         print(f"Generation job args: {args}")
@@ -570,12 +625,16 @@ def prepare_pipeline(args):
                                 f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
                             )
                 state_dict = (
-                    state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+                    state_dict["state_dict"]
+                    if "state_dict" in state_dict
+                    else state_dict
                 )
 
                 check_state_dict(wan_pipe.model.state_dict(), state_dict)
                 m, u = wan_pipe.model.load_state_dict(state_dict, strict=False)
-                print(f"loading transformer weight for ti2v5B missing keys: {len(m)}, unexpected keys: {len(u)}")
+                print(
+                    f"loading transformer weight for ti2v5B missing keys: {len(m)}, unexpected keys: {len(u)}"
+                )
         else:
             print("Prepare WanI2V pipeline.")
             wan_pipe = wan.WanI2V(
@@ -589,7 +648,7 @@ def prepare_pipeline(args):
                 t5_cpu=args.t5_cpu,
                 convert_model_dtype=False,
             )
-            
+
             if args.transformer_folder is not None:
                 state_dict = {}
                 if not args.z3_flag_disable:
@@ -607,13 +666,19 @@ def prepare_pipeline(args):
                                 f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
                             )
                 state_dict = (
-                    state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+                    state_dict["state_dict"]
+                    if "state_dict" in state_dict
+                    else state_dict
                 )
 
                 check_state_dict(wan_pipe.low_noise_model.state_dict(), state_dict)
-                m, u = wan_pipe.low_noise_model.load_state_dict(state_dict, strict=False)
-                print(f"I2V14B low noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}")
-        
+                m, u = wan_pipe.low_noise_model.load_state_dict(
+                    state_dict, strict=False
+                )
+                print(
+                    f"I2V14B low noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
+                )
+
             if args.transformer_folder_highnoise is not None:
                 state_dict = {}
                 if not args.z3_flag_disable:
@@ -631,20 +696,34 @@ def prepare_pipeline(args):
                                 f"Loaded {len(state_dict)} parameters from {args.transformer_folder_highnoise}"
                             )
                 state_dict = (
-                    state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+                    state_dict["state_dict"]
+                    if "state_dict" in state_dict
+                    else state_dict
                 )
 
                 check_state_dict(wan_pipe.high_noise_model.state_dict(), state_dict)
-                m, u = wan_pipe.high_noise_model.load_state_dict(state_dict, strict=False)
-                print(f"I2V14B high noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}")
+                m, u = wan_pipe.high_noise_model.load_state_dict(
+                    state_dict, strict=False
+                )
+                print(
+                    f"I2V14B high noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
+                )
             if args.lora_folder is not None:
-                low_noise_lora_path = os.path.join(args.lora_folder, args.lora_name_lownoise)
-                high_noise_lora_path = os.path.join(args.lora_folder, args.lora_name_highnoise)
+                low_noise_lora_path = os.path.join(
+                    args.lora_folder, args.lora_name_lownoise
+                )
+                high_noise_lora_path = os.path.join(
+                    args.lora_folder, args.lora_name_highnoise
+                )
                 wan_pipe.low_noise_model = load_and_merge_lora_weight_from_safetensors(
-                    wan_pipe.low_noise_model, low_noise_lora_path, args.lora_version,
+                    wan_pipe.low_noise_model,
+                    low_noise_lora_path,
+                    args.lora_version,
                 )
                 wan_pipe.high_noise_model = load_and_merge_lora_weight_from_safetensors(
-                    wan_pipe.high_noise_model, high_noise_lora_path, args.lora_version,
+                    wan_pipe.high_noise_model,
+                    high_noise_lora_path,
+                    args.lora_version,
                 )
                 print(f"Loaded lora weights from {args.lora_folder}")
             if args.convert_model_dtype and not args.dit_fsdp:
@@ -739,12 +818,13 @@ def image2video(args):
         print("Prepare pipeline error")
         return None
 
-
     rank = int(os.getenv("RANK", 0))
     world_size = int(os.getenv("WORLD_SIZE", 1))
     local_rank = int(os.getenv("LOCAL_RANK", 0))
     device = local_rank
-    print(f"Start generation {rank}, world_size {world_size}, local_rank {local_rank}, device {device}")
+    print(
+        f"Start generation {rank}, world_size {world_size}, local_rank {local_rank}, device {device}"
+    )
     cnt = 0
     for _, row in data.iterrows():
         _prompt = row[args.prompt_col] if not pd.isna(row[args.prompt_col]) else ""
@@ -763,12 +843,12 @@ def image2video(args):
                 else ""
             )
         _camera = ""
-        if args.enable_cm_adaln and args.camera_col is not None and args.camera_col in data.columns:
-            _camera = (
-                row[args.camera_col]
-                if not pd.isna(row[args.camera_col])
-                else ""
-            )
+        if (
+            args.enable_cm_adaln
+            and args.camera_col is not None
+            and args.camera_col in data.columns
+        ):
+            _camera = row[args.camera_col] if not pd.isna(row[args.camera_col]) else ""
         video = generation(pipe, prompt_expander, _start_frame, _prompt, _camera, args)
         if video != None and rank == 0:
             record = {
@@ -788,9 +868,10 @@ def image2video(args):
     tsv_file = f"{args.cache_dir}/output.tsv"
     try:
         if rank == 0:
-            with open(output_file, "r") as fin, open(
-                tsv_file, "w", encoding="utf-8"
-            ) as fout:
+            with (
+                open(output_file, "r") as fin,
+                open(tsv_file, "w", encoding="utf-8") as fout,
+            ):
                 # Read all json lines
                 rows = [json.loads(line) for line in fin]
                 if rows:
@@ -804,7 +885,6 @@ def image2video(args):
             print(f"Converted {output_file} to {tsv_file}")
     except Exception as e:
         print(f"Error converting jsonl to tsv: {e}")
-    
 
     torch.cuda.synchronize()
     if dist.is_initialized():
@@ -812,7 +892,6 @@ def image2video(args):
         dist.destroy_process_group()
 
     print("Finished.")
-
 
 
 if __name__ == "__main__":

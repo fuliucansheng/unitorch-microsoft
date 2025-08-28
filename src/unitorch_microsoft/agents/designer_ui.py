@@ -40,6 +40,7 @@ from unitorch_microsoft.agents.components.picasso import (
     PicassoLayoutTool,
 )
 from unitorch_microsoft.agents.utils.chatgpt import GPTModel
+
 # from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.utils.utils_ui import (
     format_tool_for_logs,
