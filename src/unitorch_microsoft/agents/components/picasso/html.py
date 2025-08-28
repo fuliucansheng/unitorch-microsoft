@@ -13,7 +13,6 @@ from PIL import Image
 from typing import Optional, Any
 from pydantic import BaseModel, Field
 from playwright.async_api import async_playwright
-from sympy import Ge
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.chatgpt.recraft import (
     get_remove_background_image as get_recraft_remove_background_image,
@@ -27,24 +26,25 @@ from unitorch_microsoft.agents.components.picasso import get_picasso_temp_dir
 
 tailwind_file = cached_path("agents/components/picasso/tailwind-browser.js")
 
-_http_file_process = subprocess.Popen(
-    ["python3", "-m", "http.server", "49876"],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    cwd="/",
-)
-
 _browser = None
 _playwright = None
+_http_file_process = None
 
 async def init_browser():
-    global _browser, _playwright
+    global _browser, _playwright, _http_file_process
     if _browser is None:
         _playwright = await async_playwright().start()
         _browser = await _playwright.chromium.launch(headless=True)
         print("Browser initialized successfully.")
     else:
         print("Browser already initialized.")
+    if _http_file_process is None:
+        _http_file_process = subprocess.Popen(
+            ["python3", "-m", "http.server", "49876"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd="/",
+        )
     return _browser
 
 async def html_to_image(html: str, viewport=(1920, 1080), use_tailwind_template=True) -> Image.Image:

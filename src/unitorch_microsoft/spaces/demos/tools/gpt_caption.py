@@ -17,7 +17,10 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.papyrus import get_gpt5_response
+from unitorch_microsoft.chatgpt.papyrus import (
+    get_gpt4_response,
+    get_gpt5_response,
+)
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -125,7 +128,7 @@ class GPT4WebUI(SimpleWebUI):
         return self._status
 
     def generate(self, prompt, *images):
-        result = get_gpt5_response(
+        result = get_gpt4_response(
             prompt,
             images=images,
         )

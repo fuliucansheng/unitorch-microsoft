@@ -236,7 +236,7 @@ class ManusAgent(GenericAgent):
     state: AgentState = AgentState.IDLE
     gpt: Any = GPTModel()
     current_step: int = 1
-    max_steps: int = 80
+    max_steps: int = 500
 
     def __init__(self, system_prompt, action_prompt, preview_prompt):
         super().__init__()

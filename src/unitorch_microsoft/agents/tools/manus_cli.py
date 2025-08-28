@@ -1877,7 +1877,7 @@ You are operating in an agent loop, iteratively completing tasks through these s
 3. Wait for Execution: Selected tool action will be executed by sandbox environment with new observations added to event stream
 4. Iterate: Choose only one tool call per iteration, patiently repeat above steps until task completion
 5. Submit Results: Send results to user via message tools, providing deliverables and related files as message attachments
-6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks
+6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks. use `terminate` to enter idle state if current task is completed.
 
 You can use the following tools to complete tasks:
 1. `ask_human`: Request additional input.
@@ -1997,7 +1997,7 @@ class ManusAgent(GenericAgent):
     state: AgentState = AgentState.IDLE
     gpt: Any = GPTModel()
     current_step: int = 1
-    max_steps: int = 80
+    max_steps: int = 500
 
     def __init__(self, system_prompt, action_prompt):
         super().__init__()
@@ -2025,7 +2025,7 @@ class ManusAgent(GenericAgent):
             resp = self.gpt.ask_tools(
                 messages=[self.memory.to_dict_list()] + [self._action_message.to_dict()],
                 tools=self.available_tools.to_params(),
-                tool_choice=ToolChoice.AUTO,
+                tool_choice=ToolChoice.REQUIRED,
             )
             self.tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
             self.content = resp.content

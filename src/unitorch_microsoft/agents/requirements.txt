@@ -1,0 +1,13 @@
+frontmatter
+playwright
+beautifulsoup4
+browser_use
+googlesearch
+tenacity
+fastapi>=0.112.2
+h11>=0.14.0
+httpcore>=1.0.5
+starlette>=0.38.2
+uvicorn>=0.30.6
+gradio==5.34.2
+gradio_client==1.10.3

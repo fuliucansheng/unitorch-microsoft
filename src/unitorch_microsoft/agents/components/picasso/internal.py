@@ -360,7 +360,7 @@ class PicassoInternalTool(GenericTool):
                     result = None
                 if result is None:
                     image, mask = processing_outpainting(Image.open(image), ratio)
-                    caption = get_gpt5_response(
+                    caption = get_gpt4_response(
                         "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
                         images=[image],
                     )
@@ -418,7 +418,7 @@ class PicassoInternalTool(GenericTool):
                 #         "Image with transparent background is not supported for padding action."
                 #     )
 
-                caption = get_gpt5_response(
+                caption = get_gpt4_response(
                     "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
                     images=[image],
                 )

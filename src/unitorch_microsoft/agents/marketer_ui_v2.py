@@ -80,7 +80,7 @@ You are operating in an agent loop, iteratively completing tasks through these s
 3. Wait for Execution: Selected tool action will be executed by sandbox environment with new observations added to event stream
 4. Iterate: Choose only one tool call per iteration, patiently repeat above steps until task completion
 5. Submit Results: Send results to user via message tools, providing deliverables and related files as message attachments
-6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks
+6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks. use `terminate` to enter idle state if current task is completed.
 
 You can use the following tools to complete tasks:
 1. `ask_human`: Request additional input or suggest temporary manual browser control. (message tools)
@@ -155,7 +155,7 @@ You are operating in an agent loop, iteratively completing tasks through these s
 3. Wait for Execution: Selected tool action will be executed by sandbox environment with new observations added to event stream
 4. Iterate: Choose only one tool call per iteration, patiently repeat above steps until task completion
 5. Submit Results: Send results to user via message tools, providing deliverables and related files as message attachments
-6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks
+6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks. use `terminate` to enter idle state if current task is completed.
 
 You can use the following tools to complete tasks:
 1. `ask_human`: Request additional input or suggest temporary manual browser control. (message tools)
@@ -298,7 +298,7 @@ You are operating in an agent loop, iteratively completing tasks through these s
 3. Wait for Execution: Selected tool action will be executed by sandbox environment with new observations added to event stream
 4. Iterate: Choose only one tool call per iteration, patiently repeat above steps until task completion
 5. Submit Results: Send results to user via message tools, providing deliverables and related files as message attachments
-6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks
+6. Enter Standby: Enter idle state when all tasks are completed or user explicitly requests to stop, and wait for new tasks. use `terminate` to enter idle state if current task is completed.
 
 You can use the following tools to complete tasks:
 1. `ask_human`: Request additional input or suggest temporary manual browser control to the user. (message tools)
@@ -385,20 +385,21 @@ During task execution, you must follow these rules:
         * Avoid overlap, clutter, emptiness, overflow, or truncation.
         * Color palette must be harmonious and consistent with the theme; avoid harsh tones.
         * Place content in the visual focal area. If minimal content, enlarge fonts slightly and center the card.
-        * For multiple cards, ensure a clear arrangement, alignment, and proportionate sizing with minimal unused white space.
+        * For multiple cards, ensure a clear arrangement, alignment, and proportionate sizing with minimal unused white space. No overlapping or cluttering of cards.
         * All elements must be fully visible within the page boundaries with proper size. Adjust font sizes, card/image/video dimensions, spacing, and positioning to maintain balance.
 </picasso_rules>
 
 <designer_rules>
 - Use `bash` or `python` to get the padding pixel numbers. Print results to logs. Never calculate mentally.
 - Use `check_image_tool` to analyze the input & generated image based on the provided prompt first.
+- Don't care about the minor issues like small typography refinements, minor spacing/padding adjustments, subtle color/opacity/shadow tweaks, fine alignment tuning that does not significantly affect visual balance.
 - If a product image is provided, check the main product whether it's cropped and whether it's in a front view.
     * If the main product is not cropped and is in a front view, remove the background and overlay it on the design background.
     * Otherwise, place it in a container/card in design without padding/border. Padding the product image with `picasso_internal_tool` first if a better ratio is needed.
     * Don't fill the whole container/card with the product image (80% at most). Keep some space around the product image to make it look better.
 - If a logo image is provided, remove its background unless the logo is intentionally designed within a solid color shape.
     * Keep the logo image in a proper size in the design. Don't make it too small or too large.
-    * Don't edit the logo image in any way except removing the background.
+    * Don't change the logo image in any way except removing the background.
 - Don't edit the image in-place, always create a new file after processing the image.
 - Don't design the image in a resolution more than 2048x2048. Resize the image (don't change the ratio) and save it to a new file when the image is larger than this resolution.
 - Use `review_image_tool` to check the designed image and get feedbacks from a professional visual designer.
@@ -442,28 +443,45 @@ Be concise in your reasoning, check the current step and then select one appropr
 
 DESIGNER_REVIEW_PROMPT = """
 You are a professional visual designer and experienced design critic.
-Evaluate the final designed image only from a visual perspective, ignoring content-related issues and minor cosmetic adjustments.
+Evaluate the final designed image purely from a visual design perspective, ignoring content-related issues and minor cosmetic adjustments.
 
-Ignore:
+Ignore
+
+Do not flag or comment on:
 1. Small typography refinements (e.g., avoiding single-word orphans, slight font-size tweaks).
 2. Minor spacing/padding adjustments (e.g., moving elements by a few pixels).
 3. Subtle color, opacity, or shadow tweaks.
 4. Fine alignment tuning that does not significantly affect visual balance.
 
-Focus Only On:
-1. Serious composition or layout flaws — elements overlapping, cut-off, misaligned, or overall elements not horizontally/vertically centered in a way that disrupts the design.
-2. Poor visual hierarchy making the design confusing or hard to read.
-3. Product image (if any) being distorted, obscured, cropped, sized inappropriately, obscured by other elements, or poorly integrated into the composition.
-4. Product (if any) size issues — too large or too small for the layout, overpowering or underemphasizing key content, or not maintaining recommended scale:
-    * Desktop: ideally occupies ~35–45% of hero width, max-width min(40vw, 560px), height proportionate to width (generally ~35–50% of hero height), with at least 24–32px gutter from edges.
-    * Tablet/Mobile: image max-width 55–65vw, height proportionate to maintain natural aspect ratio, stacked above/below text with CTA visible above the fold.
-5. Color/contrast issues that genuinely harm readability or brand alignment.
-6. Major spacing or alignment issues that break the overall harmony - e.g., CTA buttons aligned with text blocks, logos anchored to a consistent grid or safe margin, and key elements positioned to maintain cohesive visual flow.
+Focus Only On
 
-Feedback Rules:
-* Provide only clear, actionable suggestions for high-priority fixes that significantly improve visual quality.
-* Do not mention small optimizations or “nice-to-have” changes unless the user explicitly requests them.
-* If there are no major issues, reply exactly with "The design looks good, no further improvements needed".
+Identify high-priority, visually impactful flaws in:
+1. Serious Composition or Layout Flaws
+* Elements overlapping, cut-off, overflowing the container, or visually unbalanced.
+* Overall elements not horizontally/vertically centered in a way that disrupts the design.
+2. Visual Hierarchy & Readability
+* Poor arrangement of elements that makes the design confusing or difficult to read.
+* Important content (headlines, CTAs) not visually prioritized or being overshadowed.
+3. Product Image Issues (if applicable)
+* Distorted, stretched, or squashed proportions.
+* Cropped in a way that removes essential product details.
+* Sized inappropriately for the layout.
+* Poorly integrated into the composition (e.g., unnatural placement, clashing background).
+* Size Guidelines:
+    * Desktop – ideally 35–45% of hero width, max-width min(40vw, 560px), height proportionate (~35–50% of hero height), with at least 24–32px gutter from edges.
+    * Tablet/Mobile – max-width 55–65vw, maintain natural aspect ratio, stacked above/below text, CTA visible above the fold.
+4 Color / Contrast Problems
+    * Choices that genuinely harm readability, accessibility, or brand cohesion.
+5 Major Spacing & Alignment Problems
+* CTA buttons not aligned with text blocks or too far from related content (e.g., “Shop Now” button placed far from main message, making it feel disconnected).
+* Headline, subtext, and logo misaligned, creating visual imbalance.
+* Logos, CTAs, or key elements not anchored to a consistent grid or safe margins.
+* Inconsistent spacing between grouped elements that disrupts visual flow.
+
+Feedback Rules
+* Provide only clear, actionable suggestions for fixing high-impact issues.
+* Do not include “nice-to-have” or small optimization tips unless explicitly requested.
+* If no major issues are found, respond exactly with: The design looks good, no further improvements needed
 """
 
 PREVIEW_PROMPT = """
@@ -578,10 +596,7 @@ Parameters:
         """Execute the tool to check the image."""
         if image is None or not os.path.exists(image):
             raise ValueError("image is required and must exist.")
-        content = ""
-        # if self.last_comment:
-        #     content = f"The last review comment is: {self.last_comment}. Please check if the issues are resolved in the new image."
-        content += f"Please review the image {image} and give feedback from a professional visual designer perspective."
+        content = f"Please review the image {image} and give feedback from a professional visual designer perspective."
         msg = Message.assistant_message(
             content=content,
             images=[{"path": image, "width": None, "height": None, "priority": "high"}],
@@ -590,7 +605,7 @@ Parameters:
             messages=[self.system_message, self.user_message]
             + [msg]
         )
-        resp = self.gpt.ask(messages=new_memory.to_dict_list(), model="gpt-5-vision-shortco-2025-08-07-Batch")
+        resp = self.gpt.ask(messages=new_memory.to_dict_list())
         if not resp.content:
             raise ValueError("No content returned from GPT-4 model.")
         return GenericResult(
@@ -661,7 +676,7 @@ class DesignerAgent(GenericAgent):
         resp = self.gpt.ask_tools(
             messages=memory.to_dict_list() + [self._action_message.to_dict()],
             tools=self.available_tools.to_params(),
-            tool_choice=ToolChoice.AUTO,
+            tool_choice=ToolChoice.REQUIRED,
         )
         tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
         content = resp.content
@@ -772,7 +787,7 @@ class MarketerAgent(GenericAgent):
         resp = self.gpt.ask_tools(
             messages=memory.to_dict_list() + [self._action_message.to_dict()],
             tools=self.available_tools.to_params(),
-            tool_choice=ToolChoice.AUTO,
+            tool_choice=ToolChoice.REQUIRED,
         )
         tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
         content = resp.content
@@ -880,7 +895,7 @@ class CoordinatorAgent(GenericAgent):
         resp = self.gpt.ask_tools(
             messages=memory.to_dict_list() + [self._action_message.to_dict()],
             tools=self.available_tools.to_params(),
-            tool_choice=ToolChoice.AUTO,
+            tool_choice=ToolChoice.REQUIRED,
         )
         tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
         content = resp.content
@@ -951,7 +966,7 @@ class MarketerV2(GenericAgent):
     state: AgentState = AgentState.IDLE
     gpt: Any = GPTModel()
     current_step: int = 1
-    max_steps: int = 80
+    max_steps: int = 500
 
     def __init__(
         self,
