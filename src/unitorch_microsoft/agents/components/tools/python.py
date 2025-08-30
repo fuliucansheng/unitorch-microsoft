@@ -5,7 +5,6 @@ import io
 import sys
 import subprocess
 from typing import Any, Dict, Optional
-from numpy import std
 from unitorch_microsoft.agents.components import (
     GenericTool,
     GenericResult,

@@ -8,8 +8,6 @@ import json
 import asyncio
 import time
 import base64
-from turtle import width
-from numpy import isin
 import requests
 import tempfile
 from PIL import Image

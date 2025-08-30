@@ -115,36 +115,41 @@ Parameters:
         if command == "check_image":
             if prompt is None:
                 raise ValueError("prompt is required for check_image command.")
-            resp = self.gpt.ask_tools(
-                messages=Memory(
-                    messages=[
-                        Message.system_message(
-                            content="You are a image analysis AI to finish user's task. Choose only one tool call for action."
-                        ),
-                        Message.user_message(
-                            content=prompt,
-                            images=[
-                                {
-                                    "path": image,
-                                    "width": None,
-                                    "height": None,
-                                    "priority": "high",
-                                }
-                            ],
-                        ),
-                    ]
-                ).to_dict_list(),
-                tools=self.available_tools.to_params(),
-                tool_choice=ToolChoice.REQUIRED,
-            )
-            tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
-            if len(tool_calls) != 1:
-                print("Check Image Tool calls:", tool_calls)
-                raise ValueError(
-                    "The tool call should only return one tool call, but got multiple."
+
+            result = None
+            for _ in range(3):
+                resp = self.gpt.ask_tools(
+                    messages=Memory(
+                        messages=[
+                            Message.system_message(
+                                content="You are a image analysis AI to finish user's task. Choose only one tool call for action."
+                            ),
+                            Message.user_message(
+                                content=prompt,
+                                images=[
+                                    {
+                                        "path": image,
+                                        "width": None,
+                                        "height": None,
+                                        "priority": "high",
+                                    }
+                                ],
+                            ),
+                        ]
+                    ).to_dict_list(),
+                    tools=self.available_tools.to_params(),
+                    tool_choice=ToolChoice.REQUIRED,
                 )
-            args = json.loads(tool_calls[0].function.arguments)
-            result = CheckedResult(**args)
+                tool_calls = [ToolCall(**tc) for tc in resp.tool_calls]
+                if len(tool_calls) == 1:
+                    args = json.loads(tool_calls[0].function.arguments)
+                    result = CheckedResult(**args)
+                    break
+                print("Check Image Tool calls:", tool_calls)
+
+            if result is None:
+                raise ValueError("Failed to get the checked result.")
+
             im = Image.open(result.image)
             return GenericResult(
                 output=f"Checked image {result.image} with prompt: {prompt}. Width: {im.width}, Height: {im.height}. Checked result: {result.feedback if result.feedback else 'No feedback provided'}.",

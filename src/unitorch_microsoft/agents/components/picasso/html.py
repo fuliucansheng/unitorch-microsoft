@@ -4,10 +4,12 @@
 import glob
 import os
 import io
+import re
 import json
 import logging
 import tempfile
 import subprocess
+from datetime import datetime
 from urllib import response
 import requests
 from PIL import Image
@@ -15,6 +17,10 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 from playwright.async_api import async_playwright
 from unitorch_microsoft import cached_path
+from unitorch_microsoft.chatgpt.papyrus import (
+    get_gpt4_response,
+    get_gpt5_response,
+)
 from unitorch_microsoft.chatgpt.recraft import (
     get_remove_background_image as get_recraft_remove_background_image,
 )
@@ -176,6 +182,7 @@ Design the image with Tailwind CSS, including text, images, and styles. Follow t
     * Place content in the visual focal area. If minimal content, enlarge fonts slightly and center the card.
     * For multiple cards, ensure a clear arrangement, alignment, and proportionate sizing with minimal unused white space. No overlapping or cluttering of cards.
     * All elements must be fully visible within the page boundaries with proper size. Adjust font sizes, card/image/video dimensions, spacing, and positioning to maintain balance.
+    * Don't show grid lines or borders even it's opcaity is low.
 
 When checking the previous designed image, consider:
 1. Is the overall composition visually appealing and professionally executed?
@@ -186,7 +193,8 @@ When checking the previous designed image, consider:
 6. What specific, actionable improvements can enhance the visual outcome?
 7. Is the product image preserved and integrated effectively into the design if a product is provided?
 8. Does the image meet the user's requirements and expectations?
-9. Does the image has any issues from the visual design perspective to be improved?
+9. Does the image have wired artifacts, lines, or visual noise?
+10. Does the image has any issues from the visual design perspective to be improved?
 
 If flaws are identified, refine it or create a new one right now. Please focus on the high-priority issues that can significantly enhance the design quality.
 If the overall looks prefect, use the `terminate` tool to end the process.
@@ -223,10 +231,10 @@ class PicassoHtmlTool(GenericTool):
             },
             "auto_refine_steps": {
                 "type": "integer",
-                "description": "The maximum number of steps to automatically refine the html design. Default is 20.",
-                "default": 20,
+                "description": "The maximum number of steps to automatically refine the html design. Default is 10. If you don't want to refine, set it to 0.",
+                "default": 10,
                 "minimum": 0,
-                "maximum": 30,
+                "maximum": 20,
             },
             "viewport": {
                 "type": "array",
@@ -262,17 +270,24 @@ class PicassoHtmlTool(GenericTool):
             result.save(temp_file.name)
             result = temp_file.name
 
+            refined_html = raw_html
             designed_html, designed_image = raw_html, result
             system_message = Message.system_message(content=_HTML_SYSTEM_PROMPT)
+            current_date = datetime.now().strftime("%Y-%m-%d")
             user_message = Message.user_message(
-                content="""
+                content=f"""
 refine the previous design or create a new one if it's not perfect. 
 
-* Don't change the assets content in the html code including title, images, videos. 
+* Don't change the assets content in the html code including title, images, videos. Background image could be changed to fit the designed canvas size.
 * Don't change the viewport size.
 * You can optimize the size, color, size, layout, and add more assets to make it look better.
+* Today is {current_date}, please don't use any outdated elements in the design.
+* Don't add any new links or qrcodes in the design because they may not be accessible.
+* Ensure that assets do not visually overlap with important background elements, so those key background elements remain clear and unobstructed.
 """,
             )
+            histories = [result]
+            logging.info(f"Designed image: {result}")
             for _ in range(auto_refine_steps):
                 assistant_message = Message.assistant_message(
                     content=f"""
@@ -320,7 +335,27 @@ You need to check if the designed image meets the requirements. If not, refine t
                 )
                 designed_image.save(temp_file.name)
                 designed_html, designed_image = raw_html, temp_file.name
-                result = designed_image
+                ans = get_gpt4_response(
+                    """
+You are an unbiased visual evaluator. Compare Image1 (the first image) and Image2 (the second image) purely from a user’s visual experience perspective.
+
+* Consider clarity, composition, visual appeal, and overall user-friendliness.
+* Ignore minor cosmetic details that do not significantly affect the user’s perception.
+* Select only the image that would be more visually appealing and engaging to a general audience.
+
+Output Format:
+Respond only with:
+<ans>image1</ans> or <ans>image2</ans>""",
+                    images=[result, designed_image],
+                )
+                check_result = re.search(r"<ans>(.*?)</ans>", ans, re.IGNORECASE)
+                check_result = (
+                    check_result.group(1).strip().lower() if check_result else None
+                )
+                if check_result == "image2":
+                    result = designed_image
+                    refined_html = designed_html
+                histories.append(designed_image)
                 logging.info(f"Designed image: {designed_image}")
 
         if result is None:
@@ -339,9 +374,11 @@ You need to check if the designed image meets the requirements. If not, refine t
             output=f"Generated image path: {result} . Width: {res.width}, Height: {res.height}.",
             images={"path": result},
             meta={
+                "refined_html": refined_html,
                 "_width": res.width,
                 "_height": res.height,
                 "_image": result,
+                "_histories": histories,
             },
         )
 

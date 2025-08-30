@@ -42,6 +42,12 @@ def format_tool_for_preview(tool_call: ToolCall, result: GenericResult) -> str:
         or tool_call.function.name == "picasso_layout_tool"
     ):
         res += f"- **Image {result.meta.get('_width', 'N/A')}x{result.meta.get('_height', 'N/A')}:**\n\n![📷 Image](/gradio_api/file={urllib.parse.quote(result.meta.get('_image', 'N/A'))})\n"
+        histories = result.meta.get("_histories", [])
+        if len(histories) > 0:
+            res += "\n**🖼 Design Histories:**\n"
+            for i, history in enumerate(histories):
+                res += f"\n{i+1}. ![📷 History {i+1}](/gradio_api/file={urllib.parse.quote(history)})\n"
+
     else:
         res += f"**📤 Results:**\n\n```txt\n{result.output if result.output else 'No output'}\n```"
     return res
