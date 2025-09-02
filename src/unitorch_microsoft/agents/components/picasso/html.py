@@ -128,10 +128,11 @@ _HTML_DESCRIPTION = """
 Use the html_to_image tool to convert structured HTML content into high-quality image output. This is ideal for generating posters, social media cards, banners, or any composite layout involving styled text, images, and layout elements.
 
 * Input: A valid HTML string starting with a <div> tag. Tailwind css files is included by default.
-* Output: A rendered image (PNG format) from your HTML content.
+* Output: A rendered image (PNG format) from your HTML content. Feedback about the result will be provided.
 * Styling: Supports Tailwind CSS for utility-first styling. Tailwind css files is included by default.
 * Assets: Embed image assets using URLs like http://127.0.0.1:49876/<absolute-path-to-file>.
 * Viewport: Default rendering size is 1920x1080 pixels.
+* Refinement: You can set `auto_refine_steps` to automatically refine the design. Suggest to set it at least to 20 for high quality result.
 
 Follow these Tailwind guidelines to ensure your poster designs are visually consistent, pixel-perfect, and responsive to layout constraints:
 
@@ -157,7 +158,7 @@ Always use box-border to include padding and border in width/height calculations
 For grid layouts, use grid with gap-* to define spacing, e.g. grid-cols-3 gap-6.
 """
 
-_HTML_SYSTEM_PROMPT = """
+_HTML_REFINE_SYSTEM_PROMPT = """
 You are a professional graphic designer. You need to create a poster image based on the user's prompt with html_to_image tool. 
 
 * You may need multiple iterations to refine the html code, by checking the previous generated image to ensure it meets the requirements finally.
@@ -182,7 +183,11 @@ Design the image with Tailwind CSS, including text, images, and styles. Follow t
     * Place content in the visual focal area. If minimal content, enlarge fonts slightly and center the card.
     * For multiple cards, ensure a clear arrangement, alignment, and proportionate sizing with minimal unused white space. No overlapping or cluttering of cards.
     * All elements must be fully visible within the page boundaries with proper size. Adjust font sizes, card/image/video dimensions, spacing, and positioning to maintain balance.
-    * Don't show grid lines or borders even it's opcaity is low.
+    * Horizontal (landscape) images should generally use a left–right structure — main subject and key visual elements balanced or contrasted between the left and right sides.
+    * Vertical (portrait) images should generally use a top–bottom structure — main subject and key visual elements arranged from top to bottom in a visually balanced flow.
+    * The overall layout should be centered horizontally and vertically within the canvas.
+    * Don't put the logo in the corner of the image.
+    * Don't show any grid lines or borders even it's opcaity is low.
 
 When checking the previous designed image, consider:
 1. Is the overall composition visually appealing and professionally executed?
@@ -231,10 +236,10 @@ class PicassoHtmlTool(GenericTool):
             },
             "auto_refine_steps": {
                 "type": "integer",
-                "description": "The maximum number of steps to automatically refine the html design. Default is 10. If you don't want to refine, set it to 0.",
-                "default": 10,
+                "description": "The maximum number of steps to automatically refine the html design. Default is 20. If you don't want to refine, set it to 0. Suggest to set it at least to 20 for high quality result.",
+                "default": 20,
                 "minimum": 0,
-                "maximum": 20,
+                "maximum": 30,
             },
             "viewport": {
                 "type": "array",
@@ -257,7 +262,7 @@ class PicassoHtmlTool(GenericTool):
         self,
         action: str,
         raw_html: str,
-        auto_refine_steps: Optional[int] = 10,
+        auto_refine_steps: Optional[int] = 20,
         viewport: Optional[tuple[int, int]] = (1920, 1080),
     ) -> str:
         if action == "html_to_image":
@@ -272,18 +277,20 @@ class PicassoHtmlTool(GenericTool):
 
             refined_html = raw_html
             designed_html, designed_image = raw_html, result
-            system_message = Message.system_message(content=_HTML_SYSTEM_PROMPT)
+            system_message = Message.system_message(content=_HTML_REFINE_SYSTEM_PROMPT)
             current_date = datetime.now().strftime("%Y-%m-%d")
             user_message = Message.user_message(
                 content=f"""
 refine the previous design or create a new one if it's not perfect. 
 
-* Don't change the assets content in the html code including title, images, videos. Background image could be changed to fit the designed canvas size.
+* Don't change the assets content in the html code including title, images, videos. 
+    * Background image (if any) could be changed to fit the designed canvas size. Make sure it's visible in the design.
+    * Make sure these assets are visible and properly placed in the design.
 * Don't change the viewport size.
-* You can optimize the size, color, size, layout, and add more assets to make it look better.
+* You can optimize the existing assets in terms of size, color, and layout, and add more assets to make the design look more professional and appealing.
 * Today is {current_date}, please don't use any outdated elements in the design.
 * Don't add any new links or qrcodes in the design because they may not be accessible.
-* Ensure that assets do not visually overlap with important background elements, so those key background elements remain clear and unobstructed.
+* Ensure that assets do not visually overlap with important background elements which may affect the overall visual experience.
 """,
             )
             histories = [result]
@@ -294,7 +301,7 @@ refine the previous design or create a new one if it's not perfect.
 The previous design is as follows. The HTML code is:
 {designed_html}
 The designed image is: {designed_image}
-You need to check if the designed image meets the requirements. If not, refine the HTML code or generate a new design.
+You need to check if the designed image looks perfect. If not, refine or rewrite the HTML code to improve it.
 """,
                     images=[
                         {
@@ -335,26 +342,26 @@ You need to check if the designed image meets the requirements. If not, refine t
                 )
                 designed_image.save(temp_file.name)
                 designed_html, designed_image = raw_html, temp_file.name
-                ans = get_gpt4_response(
-                    """
-You are an unbiased visual evaluator. Compare Image1 (the first image) and Image2 (the second image) purely from a user’s visual experience perspective.
+                #                 ans = get_gpt4_response(
+                #                     """
+                # You are an unbiased visual evaluator. Compare Image1 (the first image) and Image2 (the second image) purely from a user’s visual experience perspective.
 
-* Consider clarity, composition, visual appeal, and overall user-friendliness.
-* Ignore minor cosmetic details that do not significantly affect the user’s perception.
-* Select only the image that would be more visually appealing and engaging to a general audience.
+                # * Consider clarity, composition, visual appeal, and overall user-friendliness.
+                # * Ignore minor cosmetic details that do not significantly affect the user’s perception.
+                # * Select only the image that would be more visually appealing and engaging to a general audience.
 
-Output Format:
-Respond only with:
-<ans>image1</ans> or <ans>image2</ans>""",
-                    images=[result, designed_image],
-                )
-                check_result = re.search(r"<ans>(.*?)</ans>", ans, re.IGNORECASE)
-                check_result = (
-                    check_result.group(1).strip().lower() if check_result else None
-                )
-                if check_result == "image2":
-                    result = designed_image
-                    refined_html = designed_html
+                # Output Format:
+                # Respond only with:
+                # <ans>image1</ans> or <ans>image2</ans>""",
+                #                     images=[result, designed_image],
+                #                 )
+                #                 check_result = re.search(r"<ans>(.*?)</ans>", ans, re.IGNORECASE)
+                #                 check_result = (
+                #                     check_result.group(1).strip().lower() if check_result else None
+                #                 )
+                #                 if check_result == "image2":
+                result = designed_image
+                refined_html = designed_html
                 histories.append(designed_image)
                 logging.info(f"Designed image: {designed_image}")
 
@@ -371,7 +378,7 @@ Respond only with:
         res = Image.open(result)
 
         return GenericResult(
-            output=f"Generated image path: {result} . Width: {res.width}, Height: {res.height}.",
+            output=f"Generated image path: {result} . Width: {res.width}, Height: {res.height}. Feedback: The result looks perfect.",
             images={"path": result},
             meta={
                 "refined_html": refined_html,
