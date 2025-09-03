@@ -430,7 +430,7 @@ class BadCropProcessor(SiglipProcessor):
                 raise ValueError("rois must be provided for CampaignCrop")
             rois = process(rois)
             image = self._processing_campaign_crop(image, rois, ratio)
-        outputs = super().image_classification(image=image)
+        outputs = super().image_classification(image=image.convert("RGB"))
         if ratio is not None and image.height > 0:
             _ratio = image.width / image.height
             is_valid = torch.tensor(

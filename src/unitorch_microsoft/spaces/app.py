@@ -4,6 +4,7 @@
 import os
 import json
 import re
+import fire
 import random
 import logging
 import requests
@@ -134,6 +135,8 @@ async def ReverseMiddleware(request: Request, call_next):
 
     return await call_next(request)
 
+def cli_main(host: str="0.0.0.0", port: int=7654):
+    uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7654)
+    fire.Fire(cli_main)

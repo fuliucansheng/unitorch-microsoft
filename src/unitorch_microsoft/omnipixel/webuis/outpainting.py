@@ -91,6 +91,9 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         input_ratio = create_element(
             "slider", "Ratio", default=1.9, min_value=0.1, max_value=10.0, step=0.01
         )
+        longest_size = create_element(
+            "slider", "Longest Size", default=1024, min_value=512, max_value=2048, step=8
+        )
         guidance_scale = create_element(
             "slider", "Guidance Scale", min_value=0, max_value=50, step=0.1, default=7.5
         )
@@ -148,7 +151,7 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         )
         left_generation = create_tab(
             create_row(image, input_image, mask_image),
-            create_row(input_ratio),
+            create_row(input_ratio, longest_size),
             create_row(scheduler, steps),
             create_row(guidance_scale, strength),
             create_row(seed),
@@ -213,12 +216,12 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         )
         image.change(
             self.process,
-            inputs=[image, input_ratio],
+            inputs=[image, input_ratio, longest_size],
             outputs=[input_image, mask_image],
         )
         input_ratio.change(
             self.process,
-            inputs=[image, input_ratio],
+            inputs=[image, input_ratio, longest_size],
             outputs=[input_image, mask_image],
         )
         iface.load(
@@ -252,12 +255,12 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         self._status = "Stopped" if self._pipe is None else "Running"
         return self._status
 
-    def process(self, image, ratio):
+    def process(self, image, ratio, longest_size=1024):
         if image is None:
             return None, None
         width, height = image.size
 
-        longest_side = 1024
+        longest_side = longest_size
         shortest_side = (
             int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
         )
