@@ -497,7 +497,7 @@ class BASNetProcessor:
             x2 = min(x + w, mw - 1)
             y1 = max(0, y)
             y2 = min(y + h, mh - 1)
-            return f"{x1},{y1},{x2},{y2}"
+            return f"{x1},{y1},{x2-x1+1},{y2-y1+1}"
 
         def image_to_base64(image):
             import base64
