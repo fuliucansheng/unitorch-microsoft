@@ -491,7 +491,7 @@ class BASNetProcessor:
         def process_roi(mask):
             mask = np.array(mask)
             mask1, mask2 = mask, (mask >= 0.1).astype("uint8")
-            mw, mh = mask1.shape[:2]
+            mh, mw = mask1.shape[:2]
             x, y, w, h = cv2.boundingRect(mask2)
             x1 = max(0, x)
             x2 = min(x + w, mw - 1)
