@@ -86,6 +86,36 @@ def load_and_merge_lora_weight(
 
     return model
 
+def merge_state_dicts(state_dict1, state_dict2, alpha):
+    if len(state_dict1) == 0 or len(state_dict2) == 0:
+        if len(state_dict1) == 0:
+            return state_dict2
+        else:
+            return state_dict1
+    merged_state_dict = {}
+    common_keys = 0
+    unique_keys_1 = 0
+    unique_keys_2 = 0
+    for key in state_dict1.keys():
+        if key in state_dict2:
+            merged_state_dict[key] = (
+                alpha * state_dict1[key] + (1 - alpha) * state_dict2[key]
+            )
+            common_keys += 1
+        else:
+            merged_state_dict[key] = state_dict1[key]
+            unique_keys_1 += 1
+    for key in state_dict2.keys():
+        if key not in state_dict1:
+            merged_state_dict[key] = state_dict2[key]
+            unique_keys_2 += 1
+    print(
+        f"Total {len(state_dict1)} keys in state_dict1, {len(state_dict2)} keys in state_dict2, "
+        f"{common_keys} common keys, {unique_keys_1} unique keys in state_dict1, "
+        f"{unique_keys_2} unique keys in state_dict2."
+    )
+    return merged_state_dict
+
 
 def load_and_merge_lora_weight_from_safetensors_wan22(
     model: nn.Module,
@@ -370,6 +400,24 @@ def _parse_args():
         help="point to the FTed ckpt folder for high noise model",
     )
     parser.add_argument(
+        "--transformer_folder_2",
+        type=str,
+        default=None,
+        help="point to the FTed ckpt folder",
+    )
+    parser.add_argument(
+        "--transformer_folder_highnoise_2",
+        type=str,
+        default=None,
+        help="point to the FTed ckpt folder for high noise model",
+    )
+    parser.add_argument(
+        "--merge_weight_alpha",
+        type=float,
+        default=0.5,
+        help="Weighting factor for merging models",
+    )
+    parser.add_argument(
         "--lora_folder",
         type=str,
         default=None,
@@ -649,61 +697,105 @@ def prepare_pipeline(args):
                 convert_model_dtype=False,
             )
 
+            state_dict_1 = {}
+            state_dict_2 = {}
             if args.transformer_folder is not None:
-                state_dict = {}
                 if not args.z3_flag_disable:
-                    state_dict = load_z3_model(args.transformer_folder)
+                    state_dict_1 = load_z3_model(args.transformer_folder)
                 else:
                     if os.path.isdir(args.transformer_folder):
                         model_files = get_model_list(args.transformer_folder)
                         for model_file in model_files:
-                            state_dict.update(load_model(model_file))
-                        print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                            state_dict_1.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict_1)} parameters from {model_files}")
                     else:
                         if os.path.exists(args.transformer_folder):
-                            state_dict = load_model(args.transformer_folder)
+                            state_dict_1 = load_model(args.transformer_folder)
                             print(
-                                f"Loaded {len(state_dict)} parameters from {args.transformer_folder}"
+                                f"Loaded {len(state_dict_1)} parameters from {args.transformer_folder}"
                             )
-                state_dict = (
-                    state_dict["state_dict"]
-                    if "state_dict" in state_dict
-                    else state_dict
+                state_dict_1 = (
+                    state_dict_1["state_dict"]
+                    if "state_dict" in state_dict_1
+                    else state_dict_1
                 )
-
-                check_state_dict(wan_pipe.low_noise_model.state_dict(), state_dict)
+                print(f"finish load from transformer_folder {args.transformer_folder}")
+            if args.transformer_folder_2 is not None:
+                if not args.z3_flag_disable:
+                    state_dict_2 = load_z3_model(args.transformer_folder_2)
+                else:
+                    if os.path.isdir(args.transformer_folder_2):
+                        model_files = get_model_list(args.transformer_folder_2)
+                        for model_file in model_files:
+                            state_dict_2.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict_2)} parameters from {model_files}")
+                    else:
+                        if os.path.exists(args.transformer_folder_2):
+                            state_dict_2 = load_model(args.transformer_folder_2)
+                            print(
+                                f"Loaded {len(state_dict_2)} parameters from {args.transformer_folder_2}"
+                            )
+                state_dict_2 = (
+                    state_dict_2["state_dict"]
+                    if "state_dict" in state_dict_2
+                    else state_dict_2
+                )
+                print(f"finish load from transformer_folder_2 {args.transformer_folder_2}")
+            merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, args.merge_weight_alpha)
+            if len(merged_state_dict) > 0:
                 m, u = wan_pipe.low_noise_model.load_state_dict(
-                    state_dict, strict=False
+                    merged_state_dict, strict=False
                 )
                 print(
                     f"I2V14B low noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
                 )
-
+            
+            state_dict_1 = {}
+            state_dict_2 = {}
             if args.transformer_folder_highnoise is not None:
-                state_dict = {}
                 if not args.z3_flag_disable:
-                    state_dict = load_z3_model(args.transformer_folder_highnoise)
+                    state_dict_1 = load_z3_model(args.transformer_folder_highnoise)
                 else:
                     if os.path.isdir(args.transformer_folder_highnoise):
                         model_files = get_model_list(args.transformer_folder_highnoise)
                         for model_file in model_files:
-                            state_dict.update(load_model(model_file))
-                        print(f"Loaded {len(state_dict)} parameters from {model_files}")
+                            state_dict_1.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict_1)} parameters from {model_files}")
                     else:
                         if os.path.exists(args.transformer_folder_highnoise):
-                            state_dict = load_model(args.transformer_folder_highnoise)
+                            state_dict_1 = load_model(args.transformer_folder_highnoise)
                             print(
-                                f"Loaded {len(state_dict)} parameters from {args.transformer_folder_highnoise}"
+                                f"Loaded {len(state_dict_1)} parameters from {args.transformer_folder_highnoise}"
                             )
-                state_dict = (
-                    state_dict["state_dict"]
-                    if "state_dict" in state_dict
-                    else state_dict
+                state_dict_1 = (
+                    state_dict_1["state_dict"]
+                    if "state_dict" in state_dict_1
+                    else state_dict_1
                 )
-
-                check_state_dict(wan_pipe.high_noise_model.state_dict(), state_dict)
+            if args.transformer_folder_highnoise_2 is not None:
+                if not args.z3_flag_disable:
+                    state_dict_2 = load_z3_model(args.transformer_folder_highnoise_2)
+                else:
+                    if os.path.isdir(args.transformer_folder_highnoise_2):
+                        model_files = get_model_list(args.transformer_folder_highnoise_2)
+                        for model_file in model_files:
+                            state_dict_2.update(load_model(model_file))
+                        print(f"Loaded {len(state_dict_2)} parameters from {model_files}")
+                    else:
+                        if os.path.exists(args.transformer_folder_highnoise_2):
+                            state_dict_2 = load_model(args.transformer_folder_highnoise_2)
+                            print(
+                                f"Loaded {len(state_dict_2)} parameters from {args.transformer_folder_highnoise_2}"
+                            )
+                state_dict_2 = (
+                    state_dict_2["state_dict"]
+                    if "state_dict" in state_dict_2
+                    else state_dict_2
+                )
+            merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, args.merge_weight_alpha)
+            if len(merged_state_dict) > 0:
                 m, u = wan_pipe.high_noise_model.load_state_dict(
-                    state_dict, strict=False
+                    merged_state_dict, strict=False
                 )
                 print(
                     f"I2V14B high noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
