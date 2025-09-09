@@ -42,16 +42,6 @@ def get_unitorch_home():
 
 logger = logging.getLogger()
 
-# faiss
-_faiss_available = importlib.util.find_spec("faiss") is not None
-if _faiss_available:
-    logging.debug(f"Successfully imported faiss")
-
-
-def is_faiss_available():
-    return _faiss_available
-
-
 # openai
 _openai_available = importlib.util.find_spec("openai") is not None
 try:

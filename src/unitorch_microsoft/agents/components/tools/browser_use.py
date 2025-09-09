@@ -140,7 +140,7 @@ class BrowserUseTool(GenericTool):
 
     async def setup(self):
         self.browser = BrowserUseBrowser(
-            executable_path="/usr/bin/google-chrome",
+            # executable_path="/usr/bin/google-chrome",
             browser_profile=BrowserUseProfile(viewport={"width": 1920, "height": 1080}),
         )
         self.context = await self.browser.new_context()

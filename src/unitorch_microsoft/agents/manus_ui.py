@@ -234,7 +234,7 @@ class ManusAgent(GenericAgent):
     tool_calls: List[ToolCall] = Field(default_factory=list)
     memory: Memory = Field(default_factory=Memory)
     state: AgentState = AgentState.IDLE
-    gpt: Any = GPTModel()
+    gpt: Any = GPTModel(use_gpt5=False)
     current_step: int = 1
     max_steps: int = 500
 

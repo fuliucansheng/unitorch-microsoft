@@ -12,16 +12,20 @@ from unitorch_microsoft.chatgpt.papyrus import (
 
 
 class GPTModel:
+    def __init__(self, use_gpt5: bool = True):
+        self.use_gpt5 = use_gpt5
+
     def ask(
         self,
         messages: list,
-        model: Optional[str] = "gpt-5-2025-08-07-Eval",
-        # model: Optional[str] = "gpt-41-2025-04-14-Eval",
+        model: Optional[str] = "gpt-41-2025-04-14-Eval",
         temperature: Optional[float] = 0.0,
         top_p: Optional[float] = 1.0,
-        max_tokens: Optional[int] = 16384,
-        # max_tokens: Optional[int] = 32768,
+        max_tokens: Optional[int] = 32768,
     ) -> GenericOutputs:
+        if self.use_gpt5:
+            model = "gpt-5-2025-08-07-Eval"
+            max_tokens = 16384
         headers = {
             "Authorization": "Bearer " + get_access_token(),
             "Content-Type": "application/json",
@@ -64,13 +68,14 @@ class GPTModel:
         messages: list,
         tools: List[dict],
         tool_choice: Optional[str] = "auto",
-        model: Optional[str] = "gpt-5-2025-08-07-Eval",
-        # model: Optional[str] = "gpt-41-2025-04-14-Eval",
+        model: Optional[str] = "gpt-41-2025-04-14-Eval",
         temperature: Optional[float] = 0.0,
         top_p: Optional[float] = 1.0,
-        max_tokens: Optional[int] = 16384,
-        # max_tokens: Optional[int] = 32768,
+        max_tokens: Optional[int] = 32768,
     ):
+        if self.use_gpt5:
+            model = "gpt-5-2025-08-07-Eval"
+            max_tokens = 16384
         headers = {
             "Authorization": "Bearer " + get_access_token(),
             "Content-Type": "application/json",
