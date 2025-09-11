@@ -92,7 +92,12 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
             "slider", "Ratio", default=1.9, min_value=0.1, max_value=10.0, step=0.01
         )
         longest_size = create_element(
-            "slider", "Longest Size", default=1024, min_value=512, max_value=2048, step=8
+            "slider",
+            "Longest Size",
+            default=1024,
+            min_value=512,
+            max_value=2048,
+            step=8,
         )
         guidance_scale = create_element(
             "slider", "Guidance Scale", min_value=0, max_value=50, step=0.1, default=7.5

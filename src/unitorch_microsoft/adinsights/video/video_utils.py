@@ -731,14 +731,14 @@ def read_video_size(
     end = time.time()
     print(f"latency: {end-start} samples: {total_rows}")
 
+
 def MergeCkpts(ckpt_1, ckpt_2, alpha, output):
     from unitorch_microsoft.adinsights.video.wan_official import (
         get_model_list,
-        load_model
+        load_model,
     )
-    from unitorch_microsoft.adinsights.video.wan_official_2 import (
-        merge_state_dicts
-    )
+    from unitorch_microsoft.adinsights.video.wan_official_2 import merge_state_dicts
+
     def read_state(ckpt):
         try:
             state_dict = {}
@@ -750,13 +750,9 @@ def MergeCkpts(ckpt_1, ckpt_2, alpha, output):
             else:
                 if os.path.exists(ckpt):
                     state_dict = load_model(ckpt)
-                    print(
-                        f"Loaded {len(state_dict)} parameters from {ckpt}"
-                    )
+                    print(f"Loaded {len(state_dict)} parameters from {ckpt}")
             state_dict = (
-                state_dict["state_dict"]
-                if "state_dict" in state_dict
-                else state_dict
+                state_dict["state_dict"] if "state_dict" in state_dict else state_dict
             )
             for key, value in state_dict.items():
                 print(f"Info state_dict from {ckpt} {key} {value.shape} {value.dtype}")
@@ -765,7 +761,7 @@ def MergeCkpts(ckpt_1, ckpt_2, alpha, output):
         except Exception as e:
             print(f"Error loading model from {ckpt}: {e}")
             return {}
-    
+
     state_dict_1 = read_state(ckpt_1)
     check_key = None
     check_value = None
@@ -777,39 +773,59 @@ def MergeCkpts(ckpt_1, ckpt_2, alpha, output):
 
     state_dict_2 = read_state(ckpt_2)
     if check_key is not None and check_value is not None and check_key in state_dict_2:
-        assert state_dict_2[check_key].shape == check_value.shape, f"Error: shape of {check_key} in {ckpt_2} is {state_dict_2[check_key].shape}, not match with {check_value.shape} in {ckpt_1}"
-        #check value equals or not
+        assert (
+            state_dict_2[check_key].shape == check_value.shape
+        ), f"Error: shape of {check_key} in {ckpt_2} is {state_dict_2[check_key].shape}, not match with {check_value.shape} in {ckpt_1}"
+        # check value equals or not
         if not torch.all(state_dict_2[check_key] == check_value):
             print(f"Info: value of {check_key} in {ckpt_2} is not equal to {ckpt_1}")
-        
 
-    def save_state(state_dict, output_dir, max_shard_size="5GB", safe_serialization=False):
+    def save_state(
+        state_dict, output_dir, max_shard_size="5GB", safe_serialization=False
+    ):
         os.makedirs(output_dir, exist_ok=True)
         if safe_serialization:
             try:
                 from safetensors.torch import save_file
             except ImportError:
-                print('If you want to use `safe_serialization`, please `pip install safetensors`')
+                print(
+                    "If you want to use `safe_serialization`, please `pip install safetensors`"
+                )
                 raise
         try:
             from huggingface_hub import split_torch_state_dict_into_shards
         except ImportError:
-            print('If you want to use `max_shard_size`, please `pip install huggingface_hub`')
+            print(
+                "If you want to use `max_shard_size`, please `pip install huggingface_hub`"
+            )
             raise
-        weights_name = "model.safetensors" if safe_serialization else "pytorch_model.bin"
+        weights_name = (
+            "model.safetensors" if safe_serialization else "pytorch_model.bin"
+        )
         if max_shard_size is not None:
-            filename_pattern = weights_name.replace(".bin", "{suffix}.bin").replace(".safetensors", "{suffix}.safetensors")
-            state_dict_split = split_torch_state_dict_into_shards(state_dict,
-                                                                filename_pattern=filename_pattern,
-                                                                max_shard_size=max_shard_size)
+            filename_pattern = weights_name.replace(".bin", "{suffix}.bin").replace(
+                ".safetensors", "{suffix}.safetensors"
+            )
+            state_dict_split = split_torch_state_dict_into_shards(
+                state_dict,
+                filename_pattern=filename_pattern,
+                max_shard_size=max_shard_size,
+            )
         else:
             from collections import namedtuple
-            StateDictSplit = namedtuple("StateDictSplit", ["is_sharded", "filename_to_tensors"])
-            state_dict_split = StateDictSplit(is_sharded=False,
-                                            filename_to_tensors={weights_name: list(state_dict.keys())})
+
+            StateDictSplit = namedtuple(
+                "StateDictSplit", ["is_sharded", "filename_to_tensors"]
+            )
+            state_dict_split = StateDictSplit(
+                is_sharded=False,
+                filename_to_tensors={weights_name: list(state_dict.keys())},
+            )
         # Save the model
         filename_to_tensors = state_dict_split.filename_to_tensors.items()
-        for shard_file, tensors in tqdm(filename_to_tensors, desc="Saving checkpoint shards"):
+        for shard_file, tensors in tqdm(
+            filename_to_tensors, desc="Saving checkpoint shards"
+        ):
             shard = {tensor: state_dict[tensor].contiguous() for tensor in tensors}
             output_path = os.path.join(output_dir, shard_file)
             if safe_serialization:
@@ -823,24 +839,39 @@ def MergeCkpts(ckpt_1, ckpt_2, alpha, output):
                 "metadata": state_dict_split.metadata,
                 "weight_map": state_dict_split.tensor_to_filename,
             }
-            save_index_file = "model.safetensors.index.json" if safe_serialization else "pytorch_model.bin.index.json"
+            save_index_file = (
+                "model.safetensors.index.json"
+                if safe_serialization
+                else "pytorch_model.bin.index.json"
+            )
             save_index_file = os.path.join(output_dir, save_index_file)
             with open(save_index_file, "w", encoding="utf-8") as f:
                 content = json.dumps(index, indent=2, sort_keys=True) + "\n"
                 f.write(content)
 
     merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, alpha)
-    if check_key is not None and check_value is not None and check_key in merged_state_dict:
-        assert merged_state_dict[check_key].shape == check_value.shape, f"Error: shape of {check_key} in merged ckpt is {merged_state_dict[check_key].shape}, not match with {check_value.shape} in {ckpt_1}"
-        #check value equals or not
+    if (
+        check_key is not None
+        and check_value is not None
+        and check_key in merged_state_dict
+    ):
+        assert (
+            merged_state_dict[check_key].shape == check_value.shape
+        ), f"Error: shape of {check_key} in merged ckpt is {merged_state_dict[check_key].shape}, not match with {check_value.shape} in {ckpt_1}"
+        # check value equals or not
         if not torch.all(merged_state_dict[check_key] == check_value):
-            print(f"Info: value of {check_key} in merged ckpt is not equal to value in {ckpt_1}")
-    
+            print(
+                f"Info: value of {check_key} in merged ckpt is not equal to value in {ckpt_1}"
+            )
+
     if len(merged_state_dict) > 0:
-        save_state(merged_state_dict, output, max_shard_size="5GB", safe_serialization=False)
+        save_state(
+            merged_state_dict, output, max_shard_size="5GB", safe_serialization=False
+        )
         print(f"Saved merged checkpoint to {output}")
     else:
         print("No parameters to save in merged checkpoint.")
+
 
 if __name__ == "__main__":
     fire.Fire()

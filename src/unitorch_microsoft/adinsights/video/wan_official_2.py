@@ -86,6 +86,7 @@ def load_and_merge_lora_weight(
 
     return model
 
+
 def merge_state_dicts(state_dict1, state_dict2, alpha):
     if len(state_dict1) == 0 or len(state_dict2) == 0:
         if len(state_dict1) == 0:
@@ -707,7 +708,9 @@ def prepare_pipeline(args):
                         model_files = get_model_list(args.transformer_folder)
                         for model_file in model_files:
                             state_dict_1.update(load_model(model_file))
-                        print(f"Loaded {len(state_dict_1)} parameters from {model_files}")
+                        print(
+                            f"Loaded {len(state_dict_1)} parameters from {model_files}"
+                        )
                     else:
                         if os.path.exists(args.transformer_folder):
                             state_dict_1 = load_model(args.transformer_folder)
@@ -728,7 +731,9 @@ def prepare_pipeline(args):
                         model_files = get_model_list(args.transformer_folder_2)
                         for model_file in model_files:
                             state_dict_2.update(load_model(model_file))
-                        print(f"Loaded {len(state_dict_2)} parameters from {model_files}")
+                        print(
+                            f"Loaded {len(state_dict_2)} parameters from {model_files}"
+                        )
                     else:
                         if os.path.exists(args.transformer_folder_2):
                             state_dict_2 = load_model(args.transformer_folder_2)
@@ -740,8 +745,12 @@ def prepare_pipeline(args):
                     if "state_dict" in state_dict_2
                     else state_dict_2
                 )
-                print(f"finish load from transformer_folder_2 {args.transformer_folder_2}")
-            merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, args.merge_weight_alpha)
+                print(
+                    f"finish load from transformer_folder_2 {args.transformer_folder_2}"
+                )
+            merged_state_dict = merge_state_dicts(
+                state_dict_1, state_dict_2, args.merge_weight_alpha
+            )
             if len(merged_state_dict) > 0:
                 m, u = wan_pipe.low_noise_model.load_state_dict(
                     merged_state_dict, strict=False
@@ -749,7 +758,7 @@ def prepare_pipeline(args):
                 print(
                     f"I2V14B low noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
                 )
-            
+
             state_dict_1 = {}
             state_dict_2 = {}
             if args.transformer_folder_highnoise is not None:
@@ -760,7 +769,9 @@ def prepare_pipeline(args):
                         model_files = get_model_list(args.transformer_folder_highnoise)
                         for model_file in model_files:
                             state_dict_1.update(load_model(model_file))
-                        print(f"Loaded {len(state_dict_1)} parameters from {model_files}")
+                        print(
+                            f"Loaded {len(state_dict_1)} parameters from {model_files}"
+                        )
                     else:
                         if os.path.exists(args.transformer_folder_highnoise):
                             state_dict_1 = load_model(args.transformer_folder_highnoise)
@@ -777,13 +788,19 @@ def prepare_pipeline(args):
                     state_dict_2 = load_z3_model(args.transformer_folder_highnoise_2)
                 else:
                     if os.path.isdir(args.transformer_folder_highnoise_2):
-                        model_files = get_model_list(args.transformer_folder_highnoise_2)
+                        model_files = get_model_list(
+                            args.transformer_folder_highnoise_2
+                        )
                         for model_file in model_files:
                             state_dict_2.update(load_model(model_file))
-                        print(f"Loaded {len(state_dict_2)} parameters from {model_files}")
+                        print(
+                            f"Loaded {len(state_dict_2)} parameters from {model_files}"
+                        )
                     else:
                         if os.path.exists(args.transformer_folder_highnoise_2):
-                            state_dict_2 = load_model(args.transformer_folder_highnoise_2)
+                            state_dict_2 = load_model(
+                                args.transformer_folder_highnoise_2
+                            )
                             print(
                                 f"Loaded {len(state_dict_2)} parameters from {args.transformer_folder_highnoise_2}"
                             )
@@ -792,7 +809,9 @@ def prepare_pipeline(args):
                     if "state_dict" in state_dict_2
                     else state_dict_2
                 )
-            merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, args.merge_weight_alpha)
+            merged_state_dict = merge_state_dicts(
+                state_dict_1, state_dict_2, args.merge_weight_alpha
+            )
             if len(merged_state_dict) > 0:
                 m, u = wan_pipe.high_noise_model.load_state_dict(
                     merged_state_dict, strict=False
