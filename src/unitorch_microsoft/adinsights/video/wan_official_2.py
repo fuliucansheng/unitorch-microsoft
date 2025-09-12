@@ -22,6 +22,7 @@ import random
 import torch
 import torch.distributed as dist
 from PIL import Image
+import time
 
 import wan
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
@@ -38,11 +39,11 @@ from unitorch_microsoft.adinsights.video.wan_official import (
 )
 
 
-def build_lora_names(key, lora_down_key, lora_up_key, is_native_weight):
+def build_lora_names(key, lora_down_key, lora_up_key, is_native_weight, basename):
     base = "diffusion_model." if is_native_weight else ""
-    lora_down = base + key.replace(".weight", lora_down_key)
-    lora_up = base + key.replace(".weight", lora_up_key)
-    lora_alpha = base + key.replace(".weight", ".alpha")
+    lora_down = base + key.replace(basename, lora_down_key)
+    lora_up = base + key.replace(basename, lora_up_key)
+    lora_alpha = base + key.replace(basename, ".alpha")
     return lora_down, lora_up, lora_alpha
 
 
@@ -51,41 +52,61 @@ def load_and_merge_lora_weight(
     lora_state_dict: dict,
     lora_down_key: str = ".lora_down.weight",
     lora_up_key: str = ".lora_up.weight",
+    basename: str = ".weight", #basename need to replace
+    lora_alpha: float = 32,
+    lora_weight: float = 1.0
 ):
     is_native_weight = any("diffusion_model." in key for key in lora_state_dict)
     update_key = []
     for key, value in model.named_parameters():
+        if basename not in key:
+            continue
         lora_down_name, lora_up_name, lora_alpha_name = build_lora_names(
-            key, lora_down_key, lora_up_key, is_native_weight
+            key, lora_down_key, lora_up_key, is_native_weight, basename
         )
-        # print(f"Processing {key}, lora_down: {lora_down_name}, lora_up: {lora_up_name}, lora_alpha: {lora_alpha_name}")
+        print(f"Processing {key}, lora_down: {lora_down_name}, lora_up: {lora_up_name}, lora_alpha: {lora_alpha_name}")
         if lora_down_name in lora_state_dict:
             lora_down = lora_state_dict[lora_down_name]
             lora_up = lora_state_dict[lora_up_name]
-            lora_alpha = float(lora_state_dict[lora_alpha_name])
-            rank = lora_down.shape[0]
-            scaling_factor = lora_alpha / rank
+            if lora_alpha_name in lora_state_dict:
+                print(lora_alpha_name)
+                print(lora_state_dict[lora_alpha_name])
+                lora_alpha = float(lora_state_dict[lora_alpha_name])
+            else:
+                lora_alpha = lora_alpha          
             # assert lora_up.dtype == torch.float32
             # assert lora_down.dtype == torch.float32
-            delta_W = scaling_factor * torch.matmul(lora_up, lora_down)
+            is_flip = False
+            if value.shape[0] ==  lora_up.shape[1]:
+                is_flip = True
+                rank = lora_up.shape[0]
+            else:
+                assert value.shape[0] ==  lora_up.shape[0], f"shape not match {value.shape} {lora_up.shape} {lora_down.shape}"
+                rank = lora_up.shape[1]
+            scaling_factor = lora_alpha / rank
+            print(f"lora_alpha: {lora_alpha}, rank: {rank}, scaling_factor: {scaling_factor}, is_flip: {is_flip}")
+            if not is_flip:
+                delta_W = lora_weight*scaling_factor * torch.matmul(lora_up, lora_down) #old: lora_up/lora_down
+            else:
+                delta_W = lora_weight*scaling_factor * torch.matmul(lora_down, lora_up) #old: lora_up/lora_down
             value.data = value.data + delta_W
             # print(f"Updated {key} with lora down: {lora_down_name}, lora up: {lora_up_name}, lora alpha: {lora_alpha_name}")
             update_key.append(lora_down_name)
             update_key.append(lora_up_name)
             update_key.append(lora_alpha_name)
+            print(f"Updated {key} with LoRA.")
 
     # check if all lora keys are used
     non_used = 0
     for key in lora_state_dict.keys():
         if key not in update_key:
-            print(f"Warning: {key} is not used in the model.")
+            #print(f"Warning: {key} is not used in the model.")
             non_used += 1
     print(
         f"Total {len(lora_state_dict)} lora keys, {len(update_key)} used, {non_used} not used."
     )
 
     return model
-
 
 def merge_state_dicts(state_dict1, state_dict2, alpha):
     if len(state_dict1) == 0 or len(state_dict2) == 0:
@@ -123,17 +144,35 @@ def load_and_merge_lora_weight_from_safetensors_wan22(
     lora_weight_path: str,
     lora_down_key: str = ".lora_down.weight",
     lora_up_key: str = ".lora_up.weight",
+    basename: str = ".weight",
+    lora_alpha: float = 32,
+    lora_weight: float = 1.0
 ):
     lora_state_dict = {}
+    
+    '''
     with safe_open(lora_weight_path, framework="pt", device="cpu") as f:
         for key in f.keys():
             lora_state_dict[key] = f.get_tensor(key)
-    # print(f"check lora_state_dit ")
-    # for key, value in lora_state_dict.items():
-    #    print(f"lora_state_dict {key} {value.shape} {value.dtype}")
-    # print(f"============end========== len(lora_state_dict): {len(lora_state_dict)}")
+    '''
+    if os.path.isdir(lora_weight_path):
+        model_files = get_model_list(lora_weight_path)
+        for model_file in model_files:
+            lora_state_dict.update(load_model(model_file))
+        print(f"Loaded {len(lora_state_dict)} parameters from {model_files}")
+    else:
+        if os.path.exists(lora_weight_path):
+            lora_state_dict = load_model(lora_weight_path)
+            print(f"Loaded {len(lora_state_dict)} parameters from {lora_weight_path}")
+
+    '''
+    print(f"check lora_state_dict ")
+    for key, value in lora_state_dict.items():
+        print(f"lora_state_dict {key} {value.shape} {value.dtype}")
+    print(f"============end========== len(lora_state_dict): {len(lora_state_dict)}")
+    '''
     model = load_and_merge_lora_weight(
-        model, lora_state_dict, lora_down_key, lora_up_key
+        model, lora_state_dict, lora_down_key, lora_up_key, basename, lora_alpha, lora_weight
     )
     return model
 
@@ -143,6 +182,9 @@ def load_and_merge_lora_weight_from_safetensors_wan21(
     lora_weight_path: str,
     lora_down_key: str = ".lora_down.weight",
     lora_up_key: str = ".lora_up.weight",
+    basename: str = ".weight",
+    lora_alpha: float = 32,
+    lora_weight: float = 1.0
 ):
     from unitorch_microsoft.adinsights.video.lora_rapper import WanLoraWrapper
 
@@ -160,14 +202,17 @@ def load_and_merge_lora_weight_from_safetensors(
     lora_version: str,
     lora_down_key: str = ".lora_down.weight",
     lora_up_key: str = ".lora_up.weight",
+    basename: str = ".weight",
+    lora_alpha: float = 32,
+    lora_weight: float = 1.0
 ):
     if lora_version == "2.1":
         model = load_and_merge_lora_weight_from_safetensors_wan21(
-            model, lora_weight_path, lora_down_key, lora_up_key
+            model, lora_weight_path, lora_down_key, lora_up_key, basename, lora_alpha, lora_weight
         )
     else:
         model = load_and_merge_lora_weight_from_safetensors_wan22(
-            model, lora_weight_path, lora_down_key, lora_up_key
+            model, lora_weight_path, lora_down_key, lora_up_key, basename, lora_alpha, lora_weight
         )
     return model
 
@@ -419,10 +464,10 @@ def _parse_args():
         help="Weighting factor for merging models",
     )
     parser.add_argument(
-        "--lora_folder",
-        type=str,
-        default=None,
-        help="point to the lora folder",
+        "--enable_lora",
+        action="store_true",
+        default=False,
+        help="Whether to use prompt extend.",
     )
     parser.add_argument(
         "--lora_name_lownoise",
@@ -439,7 +484,37 @@ def _parse_args():
     parser.add_argument(
         "--lora_version",
         type=str,
-        default="2.1",
+        default="2.2",
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
+    parser.add_argument(
+        "--lora_up_key",
+        type=str,
+        default=".lora_up.weight",
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
+    parser.add_argument(
+        "--lora_down_key",
+        type=str,
+        default=".lora_down.weight",
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
+    parser.add_argument(
+        "--basename",
+        type=str,
+        default=".weight",
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
+    parser.add_argument(
+        "--lora_alpha",
+        type=float,
+        default=32,
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
+    parser.add_argument(
+        "--lora_weight",
+        type=float,
+        default=1.0,
         help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
     )
     parser.add_argument(
@@ -697,6 +772,9 @@ def prepare_pipeline(args):
                 t5_cpu=args.t5_cpu,
                 convert_model_dtype=False,
             )
+            print("create WanI2V pipeline.")
+            time.sleep(2)
+            os.system("nvidia-smi")
 
             state_dict_1 = {}
             state_dict_2 = {}
@@ -708,9 +786,7 @@ def prepare_pipeline(args):
                         model_files = get_model_list(args.transformer_folder)
                         for model_file in model_files:
                             state_dict_1.update(load_model(model_file))
-                        print(
-                            f"Loaded {len(state_dict_1)} parameters from {model_files}"
-                        )
+                        print(f"Loaded {len(state_dict_1)} parameters from {model_files}")
                     else:
                         if os.path.exists(args.transformer_folder):
                             state_dict_1 = load_model(args.transformer_folder)
@@ -723,6 +799,11 @@ def prepare_pipeline(args):
                     else state_dict_1
                 )
                 print(f"finish load from transformer_folder {args.transformer_folder}")
+                for key, value in state_dict_1.items():
+                    print(f"state_dict_1 {key} {value.shape} {value.dtype}")
+                    break
+                time.sleep(2)
+                os.system("nvidia-smi")
             if args.transformer_folder_2 is not None:
                 if not args.z3_flag_disable:
                     state_dict_2 = load_z3_model(args.transformer_folder_2)
@@ -731,9 +812,7 @@ def prepare_pipeline(args):
                         model_files = get_model_list(args.transformer_folder_2)
                         for model_file in model_files:
                             state_dict_2.update(load_model(model_file))
-                        print(
-                            f"Loaded {len(state_dict_2)} parameters from {model_files}"
-                        )
+                        print(f"Loaded {len(state_dict_2)} parameters from {model_files}")
                     else:
                         if os.path.exists(args.transformer_folder_2):
                             state_dict_2 = load_model(args.transformer_folder_2)
@@ -745,12 +824,13 @@ def prepare_pipeline(args):
                     if "state_dict" in state_dict_2
                     else state_dict_2
                 )
-                print(
-                    f"finish load from transformer_folder_2 {args.transformer_folder_2}"
-                )
-            merged_state_dict = merge_state_dicts(
-                state_dict_1, state_dict_2, args.merge_weight_alpha
-            )
+                print(f"finish load from transformer_folder_2 {args.transformer_folder_2}")
+                for key, value in state_dict_2.items():
+                    print(f"state_dict_2 {key} {value.shape} {value.dtype}")
+                    break
+                time.sleep(2)
+                os.system("nvidia-smi")
+            merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, args.merge_weight_alpha)
             if len(merged_state_dict) > 0:
                 m, u = wan_pipe.low_noise_model.load_state_dict(
                     merged_state_dict, strict=False
@@ -758,7 +838,7 @@ def prepare_pipeline(args):
                 print(
                     f"I2V14B low noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
                 )
-
+            
             state_dict_1 = {}
             state_dict_2 = {}
             if args.transformer_folder_highnoise is not None:
@@ -769,9 +849,7 @@ def prepare_pipeline(args):
                         model_files = get_model_list(args.transformer_folder_highnoise)
                         for model_file in model_files:
                             state_dict_1.update(load_model(model_file))
-                        print(
-                            f"Loaded {len(state_dict_1)} parameters from {model_files}"
-                        )
+                        print(f"Loaded {len(state_dict_1)} parameters from {model_files}")
                     else:
                         if os.path.exists(args.transformer_folder_highnoise):
                             state_dict_1 = load_model(args.transformer_folder_highnoise)
@@ -783,24 +861,23 @@ def prepare_pipeline(args):
                     if "state_dict" in state_dict_1
                     else state_dict_1
                 )
+                for key, value in state_dict_1.items():
+                    print(f"state_dict_3 {key} {value.shape} {value.dtype}")
+                    break
+                time.sleep(2)
+                os.system("nvidia-smi")
             if args.transformer_folder_highnoise_2 is not None:
                 if not args.z3_flag_disable:
                     state_dict_2 = load_z3_model(args.transformer_folder_highnoise_2)
                 else:
                     if os.path.isdir(args.transformer_folder_highnoise_2):
-                        model_files = get_model_list(
-                            args.transformer_folder_highnoise_2
-                        )
+                        model_files = get_model_list(args.transformer_folder_highnoise_2)
                         for model_file in model_files:
                             state_dict_2.update(load_model(model_file))
-                        print(
-                            f"Loaded {len(state_dict_2)} parameters from {model_files}"
-                        )
+                        print(f"Loaded {len(state_dict_2)} parameters from {model_files}")
                     else:
                         if os.path.exists(args.transformer_folder_highnoise_2):
-                            state_dict_2 = load_model(
-                                args.transformer_folder_highnoise_2
-                            )
+                            state_dict_2 = load_model(args.transformer_folder_highnoise_2)
                             print(
                                 f"Loaded {len(state_dict_2)} parameters from {args.transformer_folder_highnoise_2}"
                             )
@@ -809,9 +886,12 @@ def prepare_pipeline(args):
                     if "state_dict" in state_dict_2
                     else state_dict_2
                 )
-            merged_state_dict = merge_state_dicts(
-                state_dict_1, state_dict_2, args.merge_weight_alpha
-            )
+                for key, value in state_dict_2.items():
+                    print(f"state_dict_4 {key} {value.shape} {value.dtype}")
+                    break
+                time.sleep(2)
+                os.system("nvidia-smi")
+            merged_state_dict = merge_state_dicts(state_dict_1, state_dict_2, args.merge_weight_alpha)
             if len(merged_state_dict) > 0:
                 m, u = wan_pipe.high_noise_model.load_state_dict(
                     merged_state_dict, strict=False
@@ -819,24 +899,35 @@ def prepare_pipeline(args):
                 print(
                     f"I2V14B high noise model update transformer ckpt, missing keys: {len(m)}, unexpected keys: {len(u)}"
                 )
-            if args.lora_folder is not None:
-                low_noise_lora_path = os.path.join(
-                    args.lora_folder, args.lora_name_lownoise
-                )
-                high_noise_lora_path = os.path.join(
-                    args.lora_folder, args.lora_name_highnoise
-                )
-                wan_pipe.low_noise_model = load_and_merge_lora_weight_from_safetensors(
-                    wan_pipe.low_noise_model,
-                    low_noise_lora_path,
-                    args.lora_version,
-                )
-                wan_pipe.high_noise_model = load_and_merge_lora_weight_from_safetensors(
-                    wan_pipe.high_noise_model,
-                    high_noise_lora_path,
-                    args.lora_version,
-                )
-                print(f"Loaded lora weights from {args.lora_folder}")
+            if args.enable_lora is True:
+                low_noise_lora_path = args.lora_name_lownoise
+                high_noise_lora_path = args.lora_name_highnoise
+                if os.path.exists(low_noise_lora_path):
+                    wan_pipe.low_noise_model = load_and_merge_lora_weight_from_safetensors(
+                        wan_pipe.low_noise_model,
+                        low_noise_lora_path,
+                        args.lora_version,
+                        args.lora_down_key,
+                        args.lora_up_key,
+                        args.basename,
+                        args.lora_alpha,
+                        args.lora_weight
+                    )
+                    print(f"Loaded low noise LoRA from {low_noise_lora_path}")
+                if os.path.exists(high_noise_lora_path):
+                    print(f"Loaded high noise LoRA from {high_noise_lora_path}")
+                    wan_pipe.high_noise_model = load_and_merge_lora_weight_from_safetensors(
+                        wan_pipe.high_noise_model,
+                        high_noise_lora_path,
+                        args.lora_version,
+                        args.lora_down_key,
+                        args.lora_up_key,
+                        args.basename,
+                        args.lora_alpha,
+                        args.lora_weight
+                    )
+                    print(f"Loaded low noise LoRA from {low_noise_lora_path}")
+                
             if args.convert_model_dtype and not args.dit_fsdp:
                 wan_pipe.high_noise_model.to(dtype=cfg.param_dtype)
                 wan_pipe.low_noise_model.to(dtype=cfg.param_dtype)
