@@ -192,7 +192,7 @@ def get_api_response(api, taskid):
 
 
 def get_api_response_fromfile(filepath):
-    api = "https://api.klingai.com/v1/videos/image2video"
+    api = "https://api-singapore.klingai.com/v1/videos/image2video"
     with open("temp_get_result.tsv", "w") as fw:
         with open(filepath, "r") as fp:
             for line in fp.readlines():
@@ -246,7 +246,7 @@ def get_account_cost():
         "content-type": "application/json",
     }
     response = requests.get(
-        "https://api.klingai.com/account/costs",
+        "https://api-singapore.klingai.com/account/costs",
         params={
             "start_time": 1740128400000,
             "end_time": 1740301200000,
@@ -338,7 +338,7 @@ def text2image(
             }
             try:
                 response = send_request_retry(
-                    api_key, "https://api.klingai.com/v1/images/generations", param
+                    api_key, "https://api-singapore.klingai.com/v1/images/generations", param
                 )
                 print(response)
                 Q.put((response["data"]["task_id"], _prompt, _neg_prompt, _index_id))
@@ -357,7 +357,7 @@ def text2image(
                 continue
             try:
                 response = requests.get(
-                    "https://api.klingai.com/v1/images/generations/" + trackid,
+                    "https://api-singapore.klingai.com/v1/images/generations/" + trackid,
                     headers={
                         "authorization": "Bearer " + api_key,
                     },
@@ -471,7 +471,7 @@ def text2video(
             }
             try:
                 response = send_request_retry(
-                    api_key, "https://api.klingai.com/v1/videos/text2video", params
+                    api_key, "https://api-singapore.klingai.com/v1/videos/text2video", params
                 )
                 print(response)
                 Q.put((response["data"]["task_id"], _prompt, _neg_prompt, _index_id))
@@ -490,7 +490,7 @@ def text2video(
                 continue
             try:
                 response = requests.get(
-                    "https://api.klingai.com/v1/videos/text2video/" + trackid,
+                    "https://api-singapore.klingai.com/v1/videos/text2video/" + trackid,
                     headers={
                         "authorization": "Bearer " + api_key,
                     },
@@ -660,7 +660,7 @@ def image2video(
             print(f"debug api param {params}")
             try:
                 response = send_request_retry(
-                    api_key, "https://api.klingai.com/v1/videos/image2video", params
+                    api_key, "https://api-singapore.klingai.com/v1/videos/image2video", params
                 )
                 # print(response)
                 Q.put(
@@ -709,7 +709,7 @@ def image2video(
                 continue
             try:
                 response = requests.get(
-                    "https://api.klingai.com/v1/videos/image2video/" + trackid,
+                    "https://api-singapore.klingai.com/v1/videos/image2video/" + trackid,
                     headers={
                         "authorization": "Bearer " + api_key,
                     },
