@@ -139,7 +139,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
                 [col in self.dataset.columns for col in self.text_cols]
             ), f"text_cols {self.text_cols} not found in dataset"
         else:
-            self.text_cols = []
+            self.text_cols = self.group_text_cols
 
         if self.image_cols is not None:
             if isinstance(self.image_cols, str):

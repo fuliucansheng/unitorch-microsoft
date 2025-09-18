@@ -33,16 +33,19 @@ detection = ["unitorch[detection]"]
 quantization = ["unitorch[quantization]"]
 megatron = ["unitorch[megatron]"]
 docs = ["unitorch[docs]"]
-others = [
-    "unitorch[others]",
-    "azure-storage-blob", 
+agents = [
     "frontmatter",
     "playwright",
     "beautifulsoup4",
     "browser_use<=0.5.11",
     "googlesearch-python",
     "tenacity",
+  ]
+others = [
+    "unitorch[others]",
+    "azure-storage-blob", 
     "google-genai",
+    "diffusers>=0.35.0",
     "markupsafe==2.0.1",  # avoid jinja2 issue
     "fastapi>=0.112.2", 
     "h11>=0.14.0", 
@@ -52,7 +55,7 @@ others = [
     "gradio==5.34.2", 
     "gradio_client==1.10.3",
   ]
-all = ["unitorch_microsoft[deepspeed,diffusers,detection,quantization,megatron,docs,others]"]
+all = ["unitorch_microsoft[deepspeed,diffusers,detection,quantization,megatron,docs,agents,others]"]
 
 [project.scripts]
 unitorch-train = "unitorch_microsoft.consoles.train:cli_main"

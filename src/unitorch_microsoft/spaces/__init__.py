@@ -13,6 +13,9 @@ if not os.path.exists(config_path):
 spaces_settings = CoreConfigureParser(config_path)
 
 fastapi_endpoint = spaces_settings.getdefault("core/cli", "fastapi_endpoint", None)
+custom_environ = spaces_settings.getdefault("core/cli", "environ", {})
+for k, v in custom_environ.items():
+    os.environ[k] = v
 
 from unitorch_microsoft.spaces.utils import (
     create_element,
