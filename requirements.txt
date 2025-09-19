@@ -1,5 +1,5 @@
 sqlparse
-wandb
+wandb<0.22.0
 decord
 pillow-avif-plugin
 multiprocess<=0.70.14
