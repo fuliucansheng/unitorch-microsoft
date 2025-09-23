@@ -18,13 +18,33 @@ import random
 import sys
 
 
-def readimg(imagefile, cache_dir, max_area_str, return_bytes=True):
+def readimg(imagefile, cache_dir, max_area_str, startend_frame_is_video=False, return_bytes=True):
     try:
-        if imagefile.startswith(("http://", "https://")):
-            response = requests.get(imagefile)
-            image = Image.open(BytesIO(response.content)).convert("RGB")
+        if startend_frame_is_video:
+            from unitorch_microsoft.adinsights.video.video_utils import VideoProcessor
+            print(f"Reading video frames from {imagefile}")
+            processor = VideoProcessor(
+                sample_strategy="fix",
+                sample_frame_num=1,
+            )
+            frame = processor._read(imagefile, middle_offset=2.5)[0]
+            if np.all(np.array(frame) == [255, 255, 255]):
+                print(f"read video frame error {imagefile}")
+                return None
+            else:
+                print(f"read video frame success {imagefile} {type(frame)} {np.array(frame).shape}")
+            image = frame.convert("RGB")
+            #save image for debug
+            #name = hashlib.md5(imagefile.encode()).hexdigest() + "_debug.jpg"
+            #name = os.path.join(cache_dir, name)
+            #image.save(name)
         else:
-            image = Image.open(imagefile).convert("RGB")
+            print(f"Reading image from {imagefile}")
+            if imagefile.startswith(("http://", "https://")):
+                response = requests.get(imagefile)
+                image = Image.open(BytesIO(response.content)).convert("RGB")
+            else:
+                image = Image.open(imagefile).convert("RGB")
 
         h, w = max_area_str.split("*")
         max_area = int(h) * int(w)
@@ -307,6 +327,12 @@ def _parse_args():
         help="Name of the column containing the end frame image.",
     )
     parser.add_argument(
+        "--startend_frame_is_video",
+        action="store_true",
+        default=False,
+        help="Whether the start and end frames are videos.",
+    )
+    parser.add_argument(
         "--neg_prompt_col",
         type=str,
         default=None,
@@ -344,7 +370,7 @@ def generation(pipe, start_frame, prompt, camera, args):
 
     print(f"Process video gen for {start_frame}")
     image = readimg(
-        start_frame, args.cache_dir, get_smaller_size(args.resize_max_area, args.size)
+        start_frame, args.cache_dir, get_smaller_size(args.resize_max_area, args.size), args.startend_frame_is_video
     )
     if image == None:
         return None

@@ -274,6 +274,7 @@ class VideoProcessor(ImageProcessor):
         sample_rate=None,
         sample_factor=None,
         video_type=None,
+        middle_offset=None,
     ):
         """
         Reads and processes an image.
@@ -308,6 +309,15 @@ class VideoProcessor(ImageProcessor):
         # print(
         #    f"sample_strategy: {sample_strategy} sample_rate: {sample_rate} sample_frame_num: {sample_frame_num} sample_factor: {sample_factor} start_frame: {start_frame}"
         # )
+        def fix_param_samplerate(sample_strategy, sample_rate, middle_offset_in_duration, fps, video_len):
+            if sample_strategy == "fix" and sample_rate == None and middle_offset_in_duration != None:
+                frame_offset = middle_offset_in_duration * fps
+                middle_frame = video_len // 2
+                start_frame = max(0, int(middle_frame - frame_offset))
+                sample_rate = [min(1.0, max(0.0, float(start_frame) / float(video_len)))]
+                print(f"fix sample_rate: {sample_rate} for video_len: {video_len} fps: {fps} middle_offset_in_duration: {middle_offset_in_duration}")
+            return sample_rate
+
 
         try:
             # print(f"process video {video}")
@@ -319,7 +329,7 @@ class VideoProcessor(ImageProcessor):
                 sample_kwags = {
                     "fps": meta_info["fps"],
                     "sample_factor": sample_factor,
-                    "sample_rate": sample_rate,
+                    "sample_rate": fix_param_samplerate(sample_strategy, sample_rate, middle_offset, meta_info["fps"], meta_info["video_len"]),
                     "start_frame": start_frame,
                 }
                 samples = sample_frames(

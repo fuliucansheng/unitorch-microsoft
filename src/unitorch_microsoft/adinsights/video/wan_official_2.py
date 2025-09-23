@@ -421,6 +421,12 @@ def _parse_args():
         help="Name of the column containing the start frame image.",
     )
     parser.add_argument(
+        "--startend_frame_is_video",
+        action="store_true",
+        default=False,
+        help="Whether the start and end frames are videos.",
+    )
+    parser.add_argument(
         "--end_frame_col",
         type=str,
         default=None,
@@ -554,7 +560,7 @@ def generation(pipe, prompt_expander, start_frame, prompt, camera, args):
         f"generation rank {rank}, world_size {world_size}, local_rank {local_rank}, device {device}"
     )
     print(f"Process video gen for {start_frame}")
-    image = readimg(start_frame, args.cache_dir, args.size)
+    image = readimg(start_frame, args.cache_dir, args.size, args.startend_frame_is_video)
     if image == None:
         return None
     print("finish read img")
