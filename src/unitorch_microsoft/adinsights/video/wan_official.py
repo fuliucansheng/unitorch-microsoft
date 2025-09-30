@@ -315,6 +315,12 @@ def _parse_args():
         help="Name of the column containing camera information.",
     )
     parser.add_argument(
+        "--savename_col",
+        type=str,
+        default=None,
+        help="Name of the column containing save names.",
+    )
+    parser.add_argument(
         "--start_frame_col",
         type=str,
         default=None,
@@ -357,6 +363,18 @@ def _parse_args():
         default=False,
         help="Enable CM-ADALN",
     )
+    parser.add_argument(
+        "--save_to_azure",
+        action="store_true",
+        default=False,
+        help="Upload video to Azure",
+    )
+    parser.add_argument(
+        "--save_azure_folder",
+        type=str,
+        default="/datablob/video_dpo/",
+        help="point to the FTed ckpt folder, contains both low noise lora and high noise lora",
+    )
 
     args = parser.parse_args()
 
@@ -365,7 +383,7 @@ def _parse_args():
     return args
 
 
-def generation(pipe, start_frame, prompt, camera, args):
+def generation(pipe, start_frame, prompt, camera, savename, args):
     from wan.utils.utils import cache_image, cache_video, str2bool
 
     print(f"Process video gen for {start_frame}")
@@ -403,9 +421,16 @@ def generation(pipe, start_frame, prompt, camera, args):
                 seed=args.base_seed,
                 offload_model=args.offload_model,
             )
-
-        name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
-        name = os.path.join(args.cache_dir, name)
+        if savename != "":
+            name = savename
+        else:
+            name = hashlib.md5(start_frame.encode()).hexdigest() + f"_.mp4"
+        if args.save_to_azure and args.save_azure_folder != "":
+            if not os.path.exists(args.save_azure_folder):
+                os.makedirs(args.save_azure_folder, exist_ok=True)
+            name = os.path.join(args.save_azure_folder, name)
+        else:
+            name = os.path.join(args.cache_dir, name)
         cache_video(
             tensor=video[None],
             save_file=name,
@@ -624,7 +649,9 @@ def image2video(args):
         ]
         print(f"Need to handle {len(data)} files")
 
-    writer = open(output_file, "a+")
+    writer = open(output_file, "a+", encoding="utf-8")
+    tsv_file = f"{args.cache_dir}/output.tsv"
+    tsv_writer = open(tsv_file, "a+", encoding="utf-8")
 
     assert (
         args.prompt_col in data.columns
@@ -662,41 +689,37 @@ def image2video(args):
             and args.camera_col in data.columns
         ):
             _camera = row[args.camera_col] if not pd.isna(row[args.camera_col]) else ""
-        video = generation(pipe, _start_frame, _prompt, _camera, args)
+        _savename = ""
+        if args.savename_col != None:
+            _savename = (
+                row[args.savename_col]
+                if not pd.isna(row[args.savename_col])
+                else ""
+            )
+        video = generation(pipe, _start_frame, _prompt, _camera, _savename, args)
         if video != None:
+            url = video
+            if args.save_to_azure and args.save_azure_folder != "":
+                url = "https://bingadsadinsightpublic.blob.core.windows.net/imgextension/" + video.split("/datablob")[-1]
             record = {
                 "prompt": _prompt,
                 "neg_prompt": _neg_prompt,
                 "index_id": "",
                 "start_frame": _start_frame,
                 "end_frame": "",
-                "url": video,
+                "url": url,
                 "result": video,
             }
             writer.write(json.dumps(record) + "\n")
+            writer.flush()
+            tsv_writer.write(
+                "\t".join(str(record.get(col, "")) for col in record.keys()) + "\n"
+            )
+            tsv_writer.flush()
             cnt += 1
     print(f"Finish video gen for {cnt} videos")
     writer.close()
-    output_file = f"{args.cache_dir}/output.jsonl"
-    tsv_file = f"{args.cache_dir}/output.tsv"
-    try:
-        with (
-            open(output_file, "r") as fin,
-            open(tsv_file, "w", encoding="utf-8") as fout,
-        ):
-            # Read all json lines
-            rows = [json.loads(line) for line in fin]
-            if rows:
-                # Write header
-                header = list(rows[0].keys())
-                # Write rows
-                for row in rows:
-                    fout.write(
-                        "\t".join(str(row.get(col, "")) for col in header) + "\n"
-                    )
-        print(f"Converted {output_file} to {tsv_file}")
-    except Exception as e:
-        print(f"Error converting jsonl to tsv: {e}")
+    tsv_writer.close()
 
 
 if __name__ == "__main__":
