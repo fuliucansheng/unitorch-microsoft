@@ -143,7 +143,7 @@
 .ut-ms-card-item {
   border-radius: 20px;
   text-decoration: none;
-  min-width: max(15vw, 160px, 20%) !important;
+  /* min-width: max(15vw, 160px, 20%) !important; */
   padding: 1.25em;
   min-height: 12em;
   line-height: 1.25em;

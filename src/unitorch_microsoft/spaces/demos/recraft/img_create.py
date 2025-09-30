@@ -20,6 +20,14 @@ from unitorch.cli import CoreConfigureParser
 
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
+from unitorch_microsoft.chatgpt.recraft import (
+    supported_image_sizes,
+    get_image as get_recraft_image,
+    get_inpainting_image as get_recraft_inpainting_image,
+    get_change_background_image as get_recraft_change_background_image,
+    get_resolution_image as get_recraft_resolution_image,
+    get_remove_background_image as get_recraft_remove_background_image,
+)
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -35,48 +43,12 @@ from unitorch_microsoft.spaces import (
 )
 from unitorch_microsoft.scripts.tools.report_items import reported_item
 
-try:
-    from openai import OpenAI
-except ImportError:
-    raise ImportError(
-        "Please install the openai package by running `pip install openai`"
-    )
-
-supported_image_sizes = [
-    (1024, 1024),
-    (1365, 1024),
-    (1024, 1365),
-    (1536, 1024),
-    (1024, 1536),
-    (1820, 1024),
-    (1024, 1820),
-    (1024, 2048),
-    (2048, 1024),
-    (1434, 1024),
-    (1024, 1434),
-    (1024, 1280),
-    (1280, 1024),
-    (1024, 1707),
-    (1707, 1024),
-]
-
-supported_image_styles = [
-    "realistic_image",
-    "digital_illustration",
-    "vector_illustration",
-    "icon",
-    "logo_raster",
-]
-
 
 class CreateImgWebUI(SimpleWebUI):
     _title = "Recraft Image Generation"
     _description = "This is a demo for text to image generation using Recraft. You can input a prompt, and the model will generate an image based on the prompt."
 
     def __init__(self, config: CoreConfigureParser):
-        self.token = config.getdefault("microsoft/spaces/recraft", "token", None)
-        if self.token is None:
-            raise ValueError("Please provide a valid Recraft API key.")
         self._status = getattr(self, "_status", "Stopped")
         # create elements
         toper_menus = create_toper_menus()
@@ -152,35 +124,19 @@ class CreateImgWebUI(SimpleWebUI):
         super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
-        self.client = OpenAI(
-            base_url="https://external.api.recraft.ai/v1",
-            api_key=self.token,
-        )
         self._status = "Running"
         return self._status
 
     def stop(self):
-        del self.client
-        gc.collect()
-        torch.cuda.empty_cache()
         self._status = "Stopped"
         return self._status
 
     def generate(self, prompt, width, height):
-        if width != 1024 and height != 1024:
-            gr.Warning(
-                "Please note that the width or height must have one value as 1024."
-            )
-            return None
-        response = self.client.images.generate(
-            prompt=prompt,
-            style="realistic_image",
-            size=f"{width}x{height}",
+        result = get_recraft_image(
+            prompt,
+            width=width,
+            height=height,
         )
-        url = response.data[0].url
-        doc = requests.get(url)
-        result = Image.open(io.BytesIO(doc.content))
-
         reported_item(
             record={
                 "prompt": prompt,

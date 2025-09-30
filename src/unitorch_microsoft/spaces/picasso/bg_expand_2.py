@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 import os
-import cv2
 import math
+import cv2
 import gc
 import json
 import requests
@@ -20,13 +20,6 @@ from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
-from unitorch_microsoft.chatgpt.recraft import (
-    get_image as get_recraft_image,
-    get_inpainting_image as get_recraft_inpainting_image,
-    get_change_background_image as get_recraft_change_background_image,
-    get_resolution_image as get_recraft_resolution_image,
-    get_remove_background_image as get_recraft_remove_background_image,
-)
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -43,19 +36,22 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class ExpandBGWebUI(SimpleWebUI):
-    _title = "Expand Background"
-    _description = "This is a demo for expanding the background of images using Recraft. You can input an image and a ratio, and the model will generate a new image with the specified background expanded."
+class ExpandBG2WebUI(SimpleWebUI):
+    _title = "Expand Background 2"
+    _description = "This is a demo for expanding the background of images using FLUX. You can input an image and a ratio, and the model will generate a new image with the specified background expanded."
 
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
+
+        config.set_default_section("microsoft/spaces/picasso/expand_bg")
+        self._flux_endpoint = config.getoption("flux_endpoint", None)
 
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>✨ {self._title} </div>",
+            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
             interactive=False,
         )
         description = create_element(
@@ -74,9 +70,7 @@ class ExpandBGWebUI(SimpleWebUI):
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image", lines=5)
 
-        left = create_column(
-            input_image, input_ratio, generate
-        )
+        left = create_column(input_image, input_ratio, generate)
         right = create_column(output_image)
 
         iface = create_blocks(
@@ -124,10 +118,30 @@ class ExpandBGWebUI(SimpleWebUI):
         super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
+        if self._status == "Running":
+            return self._status
+        requests.post(
+            self._flux_endpoint + "/start",
+            timeout=1200,
+            params={
+                "pretrained_name": "stable-flux-dev-fill",
+            },
+            data=json.dumps(
+                {
+                    "pretrained_lora_names": "stable-flux-lora-ms-dev-fill-simple",
+                    "pretrained_lora_weights": 0.2,
+                    "pretrained_lora_alphas": 32,
+                }
+            ),
+            headers={"Content-type": "application/json"},
+        )
         self._status = "Running"
         return self._status
 
     def stop(self):
+        if self._status == "Stopped":
+            return self._status
+        requests.get(self._flux_endpoint + "/stop", timeout=1200).raise_for_status()
         self._status = "Stopped"
         return self._status
 
@@ -174,12 +188,12 @@ class ExpandBGWebUI(SimpleWebUI):
         return new_image, mask
 
     def generate(self, image, ratio):
-        prompt = get_gpt4_response(
+        caption = get_gpt4_response(
             "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
             images=[image],
         )
-        pad_ratio = 0.4
 
+        pad_ratio = 0.4
         ratio2 = ratio
         _ratio = image.size[0] / image.size[1]
         if ratio > (1 + pad_ratio) * _ratio:
@@ -188,10 +202,26 @@ class ExpandBGWebUI(SimpleWebUI):
             ratio = _ratio / (1 + pad_ratio)
 
         new_image, new_mask = self.process(image, ratio)
-        result = get_recraft_inpainting_image(
-            prompt,
-            new_image,
-            new_mask,
+        image_np = np.array(new_image.convert("RGB"))
+        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
+        latent_image = Image.fromarray(inpainted_image)
+        result = call_fastapi(
+            self._flux_endpoint + "/generate",
+            images={
+                "image": latent_image,
+                "mask_image": new_mask,
+            },
+            params={
+                "text": "no text, no watermark, no logos, no people. " + caption,
+                "guidance_scale": 30,
+                "strength": 0.95,
+                "num_timesteps": 50,
+                "seed": 42,
+            },
+            resp_type="image",
         )
         raw_width, raw_height = image.size
         if raw_width / raw_height > ratio:
@@ -208,10 +238,26 @@ class ExpandBGWebUI(SimpleWebUI):
 
         ratio = ratio2
         new_image, new_mask = self.process(result, ratio)
-        result = get_recraft_inpainting_image(
-            prompt,
-            new_image,
-            new_mask,
+        image_np = np.array(new_image.convert("RGB"))
+        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
+
+        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
+        latent_image = Image.fromarray(inpainted_image)
+        result = call_fastapi(
+            self._flux_endpoint + "/generate",
+            images={
+                "image": latent_image,
+                "mask_image": new_mask,
+            },
+            params={
+                "text": "no text, no watermark, no logos, no people. " + caption,
+                "guidance_scale": 30,
+                "strength": 0.95,
+                "num_timesteps": 50,
+                "seed": 42,
+            },
+            resp_type="image",
         )
         raw_width, raw_height = image.size
         if raw_width / raw_height > ratio:
