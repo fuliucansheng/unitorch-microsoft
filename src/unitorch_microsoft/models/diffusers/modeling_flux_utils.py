@@ -71,9 +71,6 @@ class GenericStableFluxModel(GenericModel, QuantizationMixin, PeftWeightLoaderMi
         controlnet_configs_path: Union[str, List[str]] = None,
         inpainting_controlnet_config_path: Union[str] = None,
         quant_config_path: Optional[str] = None,
-        image_size: Optional[int] = None,
-        in_channels: Optional[int] = None,
-        out_channels: Optional[int] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
         freeze_vae_encoder: Optional[bool] = True,
@@ -89,12 +86,6 @@ class GenericStableFluxModel(GenericModel, QuantizationMixin, PeftWeightLoaderMi
         self.snr_gamma = snr_gamma
 
         config_dict = json.load(open(config_path))
-        if image_size is not None:
-            config_dict.update({"sample_size": image_size})
-        if in_channels is not None:
-            config_dict.update({"in_channels": in_channels})
-        if out_channels is not None:
-            config_dict.update({"out_channels": out_channels})
         self.transformer = FluxTransformer2DModel.from_config(config_dict).to(
             torch.float16
         )

@@ -338,7 +338,9 @@ def text2image(
             }
             try:
                 response = send_request_retry(
-                    api_key, "https://api-singapore.klingai.com/v1/images/generations", param
+                    api_key,
+                    "https://api-singapore.klingai.com/v1/images/generations",
+                    param,
                 )
                 print(response)
                 Q.put((response["data"]["task_id"], _prompt, _neg_prompt, _index_id))
@@ -357,7 +359,8 @@ def text2image(
                 continue
             try:
                 response = requests.get(
-                    "https://api-singapore.klingai.com/v1/images/generations/" + trackid,
+                    "https://api-singapore.klingai.com/v1/images/generations/"
+                    + trackid,
                     headers={
                         "authorization": "Bearer " + api_key,
                     },
@@ -471,7 +474,9 @@ def text2video(
             }
             try:
                 response = send_request_retry(
-                    api_key, "https://api-singapore.klingai.com/v1/videos/text2video", params
+                    api_key,
+                    "https://api-singapore.klingai.com/v1/videos/text2video",
+                    params,
                 )
                 print(response)
                 Q.put((response["data"]["task_id"], _prompt, _neg_prompt, _index_id))
@@ -660,7 +665,9 @@ def image2video(
             print(f"debug api param {params}")
             try:
                 response = send_request_retry(
-                    api_key, "https://api-singapore.klingai.com/v1/videos/image2video", params
+                    api_key,
+                    "https://api-singapore.klingai.com/v1/videos/image2video",
+                    params,
                 )
                 # print(response)
                 Q.put(
@@ -709,7 +716,8 @@ def image2video(
                 continue
             try:
                 response = requests.get(
-                    "https://api-singapore.klingai.com/v1/videos/image2video/" + trackid,
+                    "https://api-singapore.klingai.com/v1/videos/image2video/"
+                    + trackid,
                     headers={
                         "authorization": "Bearer " + api_key,
                     },

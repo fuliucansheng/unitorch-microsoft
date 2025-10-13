@@ -74,9 +74,7 @@ class ExpandBGWebUI(SimpleWebUI):
         generate = create_element("button", "Generate")
         output_image = create_element("image", "Output Image", lines=5)
 
-        left = create_column(
-            input_image, input_ratio, generate
-        )
+        left = create_column(input_image, input_ratio, generate)
         right = create_column(output_image)
 
         iface = create_blocks(

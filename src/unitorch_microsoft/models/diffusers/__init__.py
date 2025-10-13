@@ -40,6 +40,26 @@ pretrained_ms_stable_infos = {
             }
         },
     },
+    "stable-flux-schnell-ms-fill-e2e-1": {
+        **__hf_hub_stable_flux_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
+        **__hf_hub_vae_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
+        **{
+            "transformer": {
+                "config": "omnipixel/experiments/stable-flux-schnell-fill-config.json",
+                "weight": "/data/decu/pytorch_model_latest.transformer.merge.bin",
+            }
+        },
+    },
+    "stable-flux-schnell-ms-fill-e2e-2": {
+        **__hf_hub_stable_flux_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
+        **__hf_hub_vae_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
+        **{
+            "transformer": {
+                "config": "omnipixel/experiments/stable-flux-schnell-fill-config.json",
+                "weight": "/data/decu/pytorch_model_latest.transformer.merge2.bin",
+            }
+        },
+    },
 }
 
 pretrained_ms_stable_extensions_infos = {

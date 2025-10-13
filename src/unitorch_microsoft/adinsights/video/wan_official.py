@@ -18,10 +18,13 @@ import random
 import sys
 
 
-def readimg(imagefile, cache_dir, max_area_str, startend_frame_is_video=False, return_bytes=True):
+def readimg(
+    imagefile, cache_dir, max_area_str, startend_frame_is_video=False, return_bytes=True
+):
     try:
         if startend_frame_is_video:
             from unitorch_microsoft.adinsights.video.video_utils import VideoProcessor
+
             print(f"Reading video frames from {imagefile}")
             processor = VideoProcessor(
                 sample_strategy="fix",
@@ -32,12 +35,14 @@ def readimg(imagefile, cache_dir, max_area_str, startend_frame_is_video=False, r
                 print(f"read video frame error {imagefile}")
                 return None
             else:
-                print(f"read video frame success {imagefile} {type(frame)} {np.array(frame).shape}")
+                print(
+                    f"read video frame success {imagefile} {type(frame)} {np.array(frame).shape}"
+                )
             image = frame.convert("RGB")
-            #save image for debug
-            #name = hashlib.md5(imagefile.encode()).hexdigest() + "_debug.jpg"
-            #name = os.path.join(cache_dir, name)
-            #image.save(name)
+            # save image for debug
+            # name = hashlib.md5(imagefile.encode()).hexdigest() + "_debug.jpg"
+            # name = os.path.join(cache_dir, name)
+            # image.save(name)
         else:
             print(f"Reading image from {imagefile}")
             if imagefile.startswith(("http://", "https://")):
@@ -388,7 +393,10 @@ def generation(pipe, start_frame, prompt, camera, savename, args):
 
     print(f"Process video gen for {start_frame}")
     image = readimg(
-        start_frame, args.cache_dir, get_smaller_size(args.resize_max_area, args.size), args.startend_frame_is_video
+        start_frame,
+        args.cache_dir,
+        get_smaller_size(args.resize_max_area, args.size),
+        args.startend_frame_is_video,
     )
     if image == None:
         return None
@@ -692,15 +700,16 @@ def image2video(args):
         _savename = ""
         if args.savename_col != None:
             _savename = (
-                row[args.savename_col]
-                if not pd.isna(row[args.savename_col])
-                else ""
+                row[args.savename_col] if not pd.isna(row[args.savename_col]) else ""
             )
         video = generation(pipe, _start_frame, _prompt, _camera, _savename, args)
         if video != None:
             url = video
             if args.save_to_azure and args.save_azure_folder != "":
-                url = "https://bingadsadinsightpublic.blob.core.windows.net/imgextension/" + video.split("/datablob")[-1]
+                url = (
+                    "https://bingadsadinsightpublic.blob.core.windows.net/imgextension/"
+                    + video.split("/datablob")[-1]
+                )
             record = {
                 "prompt": _prompt,
                 "neg_prompt": _neg_prompt,

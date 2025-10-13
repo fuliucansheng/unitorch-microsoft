@@ -229,6 +229,11 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
             inputs=[image, input_ratio, longest_size],
             outputs=[input_image, mask_image],
         )
+        longest_size.change(
+            self.process,
+            inputs=[image, input_ratio, longest_size],
+            outputs=[input_image, mask_image],
+        )
         iface.load(
             fn=lambda: [gr.update(value=self._name), gr.update(value=self._status)],
             outputs=[name, status],
@@ -266,6 +271,7 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         width, height = image.size
 
         longest_side = longest_size
+        shortest_size = longest_size // 2
         shortest_side = (
             int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
         )
@@ -278,10 +284,10 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         scale = min(size[0] / width, size[1] / height)
         if scale > 1:
             size = (int(size[0] // scale), int(size[1] // scale))
-        if size[0] < 512:
-            size = (512, int(size[1] * 512 / size[0]))
-        if size[1] < 512:
-            size = (int(size[0] * 512 / size[1]), 512)
+        if size[0] < shortest_size:
+            size = (shortest_size, int(size[1] * shortest_size / size[0]))
+        if size[1] < shortest_size:
+            size = (int(size[0] * shortest_size / size[1]), shortest_size)
 
         size = (size[0] // 8 * 8, size[1] // 8 * 8)
 

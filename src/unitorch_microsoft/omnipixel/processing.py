@@ -378,13 +378,22 @@ class OmnipixelProcessor:
         self,
         image: Union[Image.Image, str],
         ratio: Optional[float] = 1.91,
+        max_longest_size: Optional[int] = 2048,
+        max_pad_ratio: Optional[float] = 0.4,
     ):
         if isinstance(image, str):
             image = Image.open(image).convert("RGB")
 
         width, height = image.size
 
-        longest_side = 1024
+        if max_pad_ratio > 0:
+            _ratio = image.size[0] / image.size[1]
+            if ratio > (1 + max_pad_ratio) * _ratio:
+                ratio = (1 + max_pad_ratio) * _ratio
+            if ratio < _ratio / (1 + max_pad_ratio):
+                ratio = _ratio / (1 + max_pad_ratio)
+
+        longest_side = max_longest_size
         shortest_side = (
             int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
         )
