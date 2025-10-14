@@ -454,6 +454,7 @@ def outpainting(
     padding_max_ratio: Optional[float] = 0.4,
     ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
     http_url: str = "http://0.0.0.0:11230/?file={0}",
+    pretrained_weight_folder: Optional[str] = None,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -508,6 +509,7 @@ def outpainting(
     pipe = StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
         config=CoreConfigureParser(),
         pretrained_name=pretrained_name,
+        pretrained_weight_folder=pretrained_weight_folder,
         pretrained_lora_names=[lora_name] if lora_name is not None else None,
         pretrained_lora_weights=[lora_weight] if lora_weight is not None else None,
         pretrained_lora_alphas=[lora_alpha] if lora_alpha is not None else None,
