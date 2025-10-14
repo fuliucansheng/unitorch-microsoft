@@ -482,11 +482,19 @@ def outpainting(
     output_file = f"{cache_dir}/output.txt"
 
     if os.path.exists(output_file):
-        uniques = []
-        with open(output_file, "r") as f:
-            for line in f:
-                row = json.loads(line)
-                uniques.append(row["prompt"] + " - " + row["image"])
+        uniques = pd.read_csv(
+            output_file,
+            names=[prompt_col, image_col, "ratio", "result"],
+            sep="\t",
+            quoting=3,
+            header=None,
+        )
+        uniques = set(
+            uniques.apply(
+                lambda x: x[prompt_col] + " - " + x[image_col],
+                axis=1,
+            ).tolist()
+        )
         data = data[
             ~data.apply(
                 lambda x: (prompt_text if prompt_text is not None else x[prompt_col])
