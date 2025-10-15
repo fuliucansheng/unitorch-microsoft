@@ -1,6 +1,11 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
+"""
+Requires:
+    pip install paddlepaddle-gpu "paddleocr<3.0"
+"""
+
 import os
 import re
 import cv2
@@ -31,7 +36,7 @@ from diffusers.pipelines import (
     FluxFillPipeline,
 )
 
-# from paddleocr import PaddleOCR
+from paddleocr import PaddleOCR
 from unitorch import is_xformers_available
 from unitorch.utils import is_remote_url
 from unitorch.utils import (
@@ -55,6 +60,9 @@ from unitorch.cli.models.diffusers import (
     pretrained_stable_infos,
     pretrained_stable_extensions_infos,
     load_weight,
+)
+from unitorch_microsoft.models.bletchley.pipeline_v3 import (
+    BletchleyForMatchingV2Pipeline as BletchleyV3ForMatchingV2Pipeline,
 )
 import unitorch_microsoft.models.diffusers
 
@@ -154,6 +162,7 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
         pretrained_weight_folder: Optional[str] = None,
         pretrained_weight_path: Optional[str] = None,
         device: Optional[str] = None,
+        enable_cpu_offload: Optional[bool] = False,
         pretrained_lora_names: Optional[Union[str, List[str]]] = None,
         pretrained_lora_weights_path: Optional[Union[str, List[str]]] = None,
         pretrained_lora_weights: Optional[Union[float, List[float]]] = None,
@@ -218,7 +227,7 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
         pad_token = "<|endoftext|>"
         weight_path = pretrained_weight_path
         device = 0 if torch.cuda.is_available() else "cpu"
-        enable_cpu_offload = False
+        enable_cpu_offload = enable_cpu_offload
         enable_xformers = False
 
         state_dict = None
@@ -395,12 +404,12 @@ def pil_to_base64(image: Image.Image, format: str = "PNG") -> str:
     return f"data:image/{format.lower()};base64,{base64_str}"
 
 
-def __out_processing_image(image, ratio):
+def __out_processing_image(image, ratio, max_size=2048):
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
     width, height = image.size
 
-    longest_side = 2048
+    longest_side = max_size
     shortest_side = (
         int(longest_side * ratio) if ratio < 1 else int(longest_side / ratio)
     )
@@ -436,6 +445,16 @@ def __out_processing_image(image, ratio):
     return new_image, mask
 
 
+def get_outpainted_image(im1, im2, ratio):
+    im1, ms = __out_processing_image(im1, float(ratio))
+    ms = ms.resize(im2.size)
+    ms = ImageOps.invert(ms).convert("L")
+    im2 = im2.convert("RGBA")
+    white_layer = Image.new("RGBA", im2.size, (255, 255, 255, 255))
+    im2.paste(white_layer, (0, 0), ms)
+    return im2
+
+
 def outpainting(
     data_file: str,
     cache_dir: str,
@@ -455,6 +474,8 @@ def outpainting(
     ratios: Optional[Union[str, List[float]]] = [0.5, 1.0, 2.0],
     http_url: str = "http://0.0.0.0:11230/?file={0}",
     pretrained_weight_folder: Optional[str] = None,
+    enable_cpu_offload: Optional[bool] = False,
+    enable_filters: Optional[bool] = True,
 ):
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -490,12 +511,8 @@ def outpainting(
             quoting=3,
             header=None,
         )
-        uniques = set(
-            uniques.apply(
-                lambda x: x[prompt_col] + " - " + x[image_col],
-                axis=1,
-            ).tolist()
-        )
+        uniques = set((uniques[prompt_col] + " - " + uniques[image_col]).tolist())
+
         data = data[
             ~data.apply(
                 lambda x: (prompt_text if prompt_text is not None else x[prompt_col])
@@ -514,7 +531,45 @@ def outpainting(
         pretrained_lora_weights=[lora_weight] if lora_weight is not None else None,
         pretrained_lora_alphas=[lora_alpha] if lora_alpha is not None else None,
         device=0 if torch.cuda.is_available() else "cpu",
+        enable_cpu_offload=enable_cpu_offload,
     )
+
+    if enable_filters:
+        filter1 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
+            config=CoreConfigureParser(),
+            config_type="2.5B",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
+            label_dict={
+                "watermark": "watermarked, no watermark signature, brand logo",
+            },
+            act_fn="sigmoid",
+            device=0 if torch.cuda.is_available() else "cpu",
+        )
+        filter2 = PaddleOCR(
+            use_angle_cls=True, lang="ch", use_gpu=torch.cuda.is_available(), show_log=False
+        )
+    else:
+        filter1 = None
+        filter2 = None
+
+    def check_result(im1, im2, ra):
+        if not enable_filters:
+            return True
+        res = get_outpainted_image(im1, im2, ra)
+        pass1 = filter1(res)["watermark"] < 0.9
+        pass2 = True
+        try:
+            outputs = filter2.ocr(np.array(res), det=True, cls=False)
+            if outputs is None or len(outputs) < 1:
+                pass
+            elif outputs[0] is None or len(outputs[0]) < 1:
+                pass
+            else:
+                pass2 = False
+        except:
+            pass
+        return pass1 and pass2
 
     writer = open(output_file, "a+")
 
@@ -566,13 +621,14 @@ def outpainting(
                 )
 
             if ratio == ratio2:
-                writer.write(
-                    "\t".join(
-                        [prompt, row[image_col], str(ratio), pil_to_base64(result)]
+                if check_result(raw_image, result, ratio2):
+                    writer.write(
+                        "\t".join(
+                            [prompt, row[image_col], str(ratio), pil_to_base64(result)]
+                        )
+                        + "\n"
                     )
-                    + "\n"
-                )
-                writer.flush()
+                    writer.flush()
                 continue
 
             ratio = ratio2
@@ -601,11 +657,15 @@ def outpainting(
                 result = result.resize(
                     (int(raw_height * ratio), raw_height), resample=Image.LANCZOS
                 )
-            writer.write(
-                "\t".join([prompt, row[image_col], str(ratio), pil_to_base64(result)])
-                + "\n"
-            )
-            writer.flush()
+
+            if check_result(raw_image, result, ratio2):
+                writer.write(
+                    "\t".join(
+                        [prompt, row[image_col], str(ratio), pil_to_base64(result)]
+                    )
+                    + "\n"
+                )
+                writer.flush()
 
 
 if __name__ == "__main__":
