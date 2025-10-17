@@ -69,7 +69,7 @@ def infer_yolov12_batch(
     names: Union[str, List[str]],
     image_col: str = "image_path",
     model_path: str = "yolo12n.pt",
-    batch_size: int = 128,
+    batch_size: int = 16,
     http_url: str = "http://0.0.0.0:11230/?file={0}",
 ):
     device = "cuda" if torch.cuda.is_available() else "cpu"
