@@ -278,4 +278,4 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForMatchingV2):
         ).outputs
         if self.act_fn is not None:
             results = self.act_fn(results)
-        return {k: v for k, v in zip(self.label_keys, results[0])}
+        return {k: v.item() for k, v in zip(self.label_keys, results[0])}

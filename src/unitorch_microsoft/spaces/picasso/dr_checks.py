@@ -34,6 +34,7 @@ from unitorch_microsoft.spaces import (
     call_fastapi,
 )
 
+
 class DRChecksWebUI(SimpleWebUI):
     _title = "DR Auto Measurement"
     _description = "This is a demo for DR Auto Measurement. You can upload a fundus image and the output will be the measurements of the optic disc and optic cup."
@@ -60,27 +61,38 @@ class DRChecksWebUI(SimpleWebUI):
         start = create_element("button", "Start", variant="primary")
         stop = create_element("button", "Stop", variant="stop")
         input_image = create_element("image", "Image")
+        option = create_element(
+            "radio", "Option", values=["DR", "Others", "All"], default="DR"
+        )
         generate = create_element("button", "Generate")
         result1 = gr.Label(label="Background Type")
         result2 = gr.Label(label="Image Type")
-        result3 = gr.Label(label="Blurry")
-        result4 = gr.Label(label="Watermark")
-        result5 = gr.Label(label="Bad Cropped")
-        result6 = gr.Label(label="Bad Whitepad")
+        result3 = gr.Label(label="Blurry", show_heading=False)
+        result4 = gr.Label(label="Watermark", show_heading=False)
+        note5 = gr.Markdown(
+            "> **Bad Cropped**: Indicates whether the image is poorly cropped, >=0.45 is considered as bad."
+        )
+        result5 = gr.Label(label="Bad Cropped", show_heading=False)
+        note6 = gr.Markdown(
+            "> **Bad Whitepad**: Indicates whether the image has excessive white padding, >=0.8 is considered as bad."
+        )
+        result6 = gr.Label(label="Bad Whitepad", show_heading=False)
 
-        left = create_column(input_image, generate, scale=1)
+        left = create_column(input_image, option, generate, scale=1)
         right = create_column(
             create_tabs(
                 create_tab(
                     result5,
+                    note5,
                     result6,
-                    name="Quality",
+                    note6,
+                    name="DR",
                 ),
                 create_tab(
                     result1,
-                        result2,
-                        result3,
-                        result4,
+                    result2,
+                    result3,
+                    result4,
                     name="Others",
                 ),
             )
@@ -116,7 +128,7 @@ class DRChecksWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.generate,
-            inputs=[input_image],
+            inputs=[input_image, option],
             outputs=[result1, result2, result3, result4, result5, result6],
             trigger_mode="once",
         )
@@ -138,38 +150,46 @@ class DRChecksWebUI(SimpleWebUI):
         self._status = "Stopped"
         return self._status
 
-    def generate(self, image):
-        results = call_fastapi(
-            self.endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate1",
-            images={
-                "image": image,
-            },
-        )
-        result1 = {k: results[k] for k in ["white", "simple", "complex"]}
-        result2 = {k: results[k] for k in ["poster", "logo", "real"]}
-        result3 = call_fastapi(
-            self.endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate2",
-            images={
-                "image": image,
-            },
-        )
-        result4 = call_fastapi(
-            self.endpoint + "/microsoft/spaces/fastapi/bletchley/v3/generate1",
-            images={
-                "image": image,
-            },
-        )
-        result5 = call_fastapi(
-            self.endpoint + "/microsoft/spaces/fastapi/siglip2/generate1",
-            images={
-                "image": image,
-            },
-        )
-        result6 = call_fastapi(
-            self.endpoint + "/microsoft/spaces/fastapi/siglip2/generate2",
-            images={
-                "image": image,
-            },
-        )
+    def generate(self, image, option):
+
+        if option == "Others" or option == "All":
+            results = call_fastapi(
+                self._endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate1",
+                images={
+                    "image": image,
+                },
+            )
+            result1 = {k: results[k] for k in ["white", "simple", "complex"]}
+            result2 = {k: results[k] for k in ["poster", "logo", "real"]}
+            result3 = call_fastapi(
+                self._endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate2",
+                images={
+                    "image": image,
+                },
+            )
+            result4 = call_fastapi(
+                self._endpoint + "/microsoft/spaces/fastapi/bletchley/v3/generate1",
+                images={
+                    "image": image,
+                },
+            )
+        else:
+            result1, result2, result3, result4 = {}, {}, {}, {}
+
+        if option == "DR" or option == "All":
+            result5 = call_fastapi(
+                self._endpoint + "/microsoft/spaces/fastapi/siglip2/generate1",
+                images={
+                    "image": image,
+                },
+            )
+            result6 = call_fastapi(
+                self._endpoint + "/microsoft/spaces/fastapi/siglip2/generate2",
+                images={
+                    "image": image,
+                },
+            )
+        else:
+            result5, result6 = {}, {}
 
         return result1, result2, result3, result4, result5, result6

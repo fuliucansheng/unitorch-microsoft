@@ -547,7 +547,10 @@ def outpainting(
             device=0 if torch.cuda.is_available() else "cpu",
         )
         filter2 = PaddleOCR(
-            use_angle_cls=True, lang="ch", use_gpu=torch.cuda.is_available(), show_log=False
+            use_angle_cls=True,
+            lang="ch",
+            use_gpu=torch.cuda.is_available(),
+            show_log=False,
         )
     else:
         filter1 = None
