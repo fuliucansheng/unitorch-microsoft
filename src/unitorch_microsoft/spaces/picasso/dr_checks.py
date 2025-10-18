@@ -1,0 +1,175 @@
+# Copyright (c) MICROSOFT.
+# Licensed under the MIT License.
+
+import os
+import cv2
+import gc
+import torch
+import numpy as np
+import gradio as gr
+from PIL import Image, ImageDraw
+
+from torchvision import transforms
+from unitorch import mktempfile
+from unitorch.utils import read_file
+from unitorch.models import GenericOutputs
+from unitorch.cli import CoreConfigureParser
+from unitorch.cli.pipelines.bria import BRIAForSegmentationPipeline
+from unitorch.cli.webuis import SimpleWebUI
+from unitorch_microsoft import cached_path
+from unitorch_microsoft.spaces import (
+    create_element,
+    create_row,
+    create_column,
+    create_tab,
+    create_tabs,
+    create_flex_layout,
+    create_blocks,
+    create_toper_menus,
+    create_footer,
+    create_dashboard_card,
+    create_card,
+    create_dashboard_cards_group,
+    create_cards_group,
+    call_fastapi,
+)
+
+class DRChecksWebUI(SimpleWebUI):
+    _title = "DR Auto Measurement"
+    _description = "This is a demo for DR Auto Measurement. You can upload a fundus image and the output will be the measurements of the optic disc and optic cup."
+
+    def __init__(self, config: CoreConfigureParser):
+        config.set_default_section("microsoft/spaces/picasso/dr_checks")
+        self._endpoint = config.getoption("endpoint", None)
+        self._status = getattr(self, "_status", "Stopped")
+        # create elements
+        toper_menus = create_toper_menus()
+        footer = create_footer()
+        header = create_element(
+            "markdown",
+            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
+            interactive=False,
+        )
+        description = create_element(
+            "markdown",
+            label=self._description,
+            interactive=False,
+        )
+
+        status = create_element("text", "Status", default="Stopped", interactive=False)
+        start = create_element("button", "Start", variant="primary")
+        stop = create_element("button", "Stop", variant="stop")
+        input_image = create_element("image", "Image")
+        generate = create_element("button", "Generate")
+        result1 = gr.Label(label="Background Type")
+        result2 = gr.Label(label="Image Type")
+        result3 = gr.Label(label="Blurry")
+        result4 = gr.Label(label="Watermark")
+        result5 = gr.Label(label="Bad Cropped")
+        result6 = gr.Label(label="Bad Whitepad")
+
+        left = create_column(input_image, generate, scale=1)
+        right = create_column(
+            create_tabs(
+                create_tab(
+                    result5,
+                    result6,
+                    name="Quality",
+                ),
+                create_tab(
+                    result1,
+                        result2,
+                        result3,
+                        result4,
+                    name="Others",
+                ),
+            )
+        )
+
+        iface = create_blocks(
+            toper_menus,
+            create_row(
+                create_column(header, description, scale=1),
+                create_row(status, start, stop),
+            ),
+            create_row(
+                left, right, elem_classes="ut-bg-transparent ut-ms-min-70-height"
+            ),
+            footer,
+        )
+        iface._title = self._title
+        iface._description = self._description
+
+        # create events
+        iface.__enter__()
+
+        start.click(
+            self.start,
+            outputs=[status],
+            trigger_mode="once",
+        )
+        stop.click(
+            self.stop,
+            outputs=[status],
+            trigger_mode="once",
+        )
+
+        generate.click(
+            fn=self.generate,
+            inputs=[input_image],
+            outputs=[result1, result2, result3, result4, result5, result6],
+            trigger_mode="once",
+        )
+
+        iface.load(
+            fn=lambda: self._status,
+            outputs=status,
+        )
+
+        iface.__exit__()
+
+        super().__init__(config, iname=self._title, iface=iface)
+
+    def start(self):
+        self._status = "Running"
+        return self._status
+
+    def stop(self):
+        self._status = "Stopped"
+        return self._status
+
+    def generate(self, image):
+        results = call_fastapi(
+            self.endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate1",
+            images={
+                "image": image,
+            },
+        )
+        result1 = {k: results[k] for k in ["white", "simple", "complex"]}
+        result2 = {k: results[k] for k in ["poster", "logo", "real"]}
+        result3 = call_fastapi(
+            self.endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate2",
+            images={
+                "image": image,
+            },
+        )
+        result4 = call_fastapi(
+            self.endpoint + "/microsoft/spaces/fastapi/bletchley/v3/generate1",
+            images={
+                "image": image,
+            },
+        )
+        result5 = call_fastapi(
+            self.endpoint + "/microsoft/spaces/fastapi/siglip2/generate1",
+            images={
+                "image": image,
+            },
+        )
+        result6 = call_fastapi(
+            self.endpoint + "/microsoft/spaces/fastapi/siglip2/generate2",
+            images={
+                "image": image,
+            },
+        )
+
+        return result1, result2, result3, result4, result5, result6

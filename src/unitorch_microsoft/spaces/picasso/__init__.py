@@ -23,7 +23,7 @@ from unitorch_microsoft.spaces import (
     hashed_link,
 )
 from unitorch_microsoft.spaces.picasso.dashboard import DashboardWebUI
-from unitorch_microsoft.spaces.picasso.img_insights import ImgInsightsWebUI
+from unitorch_microsoft.spaces.picasso.dr_checks import DRChecksWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect_v2 import ROIDetectV2WebUI
 from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
@@ -40,7 +40,7 @@ dashboards = [
 
 # Picasso examples
 examples = [
-    ImgInsightsWebUI,
+    DRChecksWebUI,
     ExpandBGWebUI,
     ExpandBGV2WebUI,
     ROIDetectWebUI,
