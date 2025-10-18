@@ -118,7 +118,7 @@ def get_copilot_token():
         )
 
 
-from unitorch_microsoft.chatgpt.github_copilot.text import (
+from unitorch_microsoft.externals.github_copilot.text import (
     get_response as get_gpt4_response,
     get_tools_response as get_gpt4_tools_response,
     get_chat_response as get_gpt4_chat_response,

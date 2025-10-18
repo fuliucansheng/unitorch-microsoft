@@ -40,7 +40,7 @@ class DashboardWebUI(SimpleWebUI):
         toper_menus = create_toper_menus()
         dashboard_header = create_element(
             "markdown",
-            "# <div style='margin:30px; min-height: 3em; text-align:center; font-weight: 600; font-size: 1.2em; color: darkslategray; display: flex; justify-content: center'>🌐 {self._title} </div>",
+            f"# <div style='margin:30px; min-height: 3em; text-align:center; font-weight: 600; font-size: 1.2em; color: darkslategray; display: flex; justify-content: center'>🌐 {self._title} </div>",
         )
 
         start_date = (pd.Timestamp.now() - pd.DateOffset(months=1)).strftime("%Y-%m-%d")

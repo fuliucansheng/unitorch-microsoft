@@ -17,11 +17,11 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 from playwright.async_api import async_playwright
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.papyrus import (
+from unitorch_microsoft.externals.papyrus import (
     get_gpt4_response,
     get_gpt5_response,
 )
-from unitorch_microsoft.chatgpt.recraft import (
+from unitorch_microsoft.externals.recraft import (
     get_remove_background_image as get_recraft_remove_background_image,
 )
 from unitorch_microsoft.agents.components import (

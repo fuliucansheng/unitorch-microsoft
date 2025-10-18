@@ -17,6 +17,14 @@ custom_environ = spaces_settings.getdefault("core/cli", "environ", {})
 for k, v in custom_environ.items():
     os.environ[k] = v
 
+temp_folder = "/tmp/unitorch_microsoft/spaces"
+os.makedirs(temp_folder, exist_ok=True)
+
+
+def get_temp_folder():
+    return temp_folder
+
+
 from unitorch_microsoft.spaces.utils import (
     create_element,
     create_row,

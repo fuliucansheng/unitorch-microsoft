@@ -28,9 +28,9 @@ from unitorch_microsoft.spaces import (
 from unitorch_microsoft.picasso.video.opencv import zoom_in_effect
 
 
-class ZoomInWebUI(SimpleWebUI):
-    _title = "Zoom In Video"
-    _description = "This is a demo for zooming in video. You can select a region in the video to zoom in, and the output will be a video with the selected region zoomed in."
+class OpenCVZoomInWebUI(SimpleWebUI):
+    _title = "OpenCV Zoom In Video"
+    _description = "This is a demo for zooming in video with opencv. You can select a region in the video to zoom in, and the output will be a video with the selected region zoomed in."
 
     def __init__(self, config: CoreConfigureParser):
         # create elements

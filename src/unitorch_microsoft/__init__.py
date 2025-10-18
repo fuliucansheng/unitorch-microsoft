@@ -101,7 +101,7 @@ if UNITORCH_DEBUG == "ALL":
     import unitorch_microsoft.adinsights
     import unitorch_microsoft.adsplus
     import unitorch_microsoft.aether
-    import unitorch_microsoft.chatgpt
+    import unitorch_microsoft.externals
     import unitorch_microsoft.deepgen
     import unitorch_microsoft.fastapis
     import unitorch_microsoft.interrogators

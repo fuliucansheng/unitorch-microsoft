@@ -3,24 +3,18 @@
 
 import os
 import io
-import cv2
 import gc
+import re
 import base64
-import torch
-import numpy as np
+from openai import api_key
+import requests
+import pandas as pd
 import gradio as gr
-from PIL import Image, ImageDraw
-from torchvision import transforms
-from unitorch import mktempfile
-from unitorch.utils import read_file
-from unitorch.models import GenericOutputs
+from PIL import Image
+from google import genai
 from unitorch.cli import CoreConfigureParser
+from unitorch.cli import register_webui
 from unitorch.cli.webuis import SimpleWebUI
-from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.papyrus import (
-    get_gpt4_response,
-    get_gpt5_response,
-)
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -29,22 +23,22 @@ from unitorch_microsoft.spaces import (
     create_blocks,
     create_toper_menus,
     create_footer,
+    create_tab,
+    create_tabs,
     create_dashboard_card,
     create_card,
     create_dashboard_cards_group,
     create_cards_group,
-    create_tabs,
-    create_tab,
 )
 
 
-class GPT5VisonWebUI(SimpleWebUI):
-    _title = "GPT-5-Vision"
-    _description = "This is a demo for GPT-5-Vision. You can input images and a prompt (images are optional), and GPT-5-Vision will generate a result."
+class NanoBananaWebUI(SimpleWebUI):
+    _title = "Nano Banana Image Generation"
+    _description = "This is a demo for Nano Banana, a model for generating images from text prompts and input images. You can input multiple images and a prompt, and the model will generate an image based on the prompt and the input images."
 
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
-        # create elements
+
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
@@ -61,20 +55,23 @@ class GPT5VisonWebUI(SimpleWebUI):
         status = create_element("text", "Status", default="Stopped", interactive=False)
         start = create_element("button", "Start", variant="primary")
         stop = create_element("button", "Stop", variant="stop")
+
+        prompt = create_element("text", "Prompt", lines=3)
         num_input_images = 5
         input_images = [
             create_element("image", "Image") for _ in range(num_input_images)
         ]
-        input_prompt = create_element("text", "Input Prompt", lines=3)
-        generate = create_element("button", "Generate")
-        output_answer = create_element("text", "Output Answer", lines=5)
-
+        image_brush = create_element("image_editor", "Input Image")
         images = create_tabs(
-            *[create_tab(ele, name=f"Image {i}") for i, ele in enumerate(input_images)]
+            *[create_tab(ele, name=f"Image {i}") for i, ele in enumerate(input_images)],
+            create_tab(image_brush, name="Edit Image"),
         )
-        left = create_column(images, input_prompt, generate)
-        right = create_column(output_answer)
+        output_image = create_element("image", "Output Image")
+        generate = create_element("button", "Generate", variant="primary")
 
+        # layout
+        left = create_column(images, prompt, generate)
+        right = create_column(output_image)
         iface = create_blocks(
             toper_menus,
             create_row(
@@ -89,49 +86,42 @@ class GPT5VisonWebUI(SimpleWebUI):
         iface._title = self._title
         iface._description = self._description
 
-        # create events
         iface.__enter__()
-
-        start.click(
-            self.start,
-            outputs=[status],
-            trigger_mode="once",
-        )
-        stop.click(
-            self.stop,
-            outputs=[status],
-            trigger_mode="once",
-        )
-
+        start.click(self.start, [], [status])
+        stop.click(self.stop, [], [status])
         generate.click(
-            fn=self.generate,
-            inputs=[input_prompt, *input_images],
-            outputs=[output_answer],
-            trigger_mode="once",
+            self.generate,
+            [prompt, image_brush, *input_images],
+            [output_image],
         )
-
-        iface.load(
-            fn=lambda: self._status,
-            outputs=status,
-        )
-
         iface.__exit__()
-
         super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
         self._status = "Running"
+        self.client = genai.Client()
         return self._status
 
     def stop(self):
-        self._status = "Stopped" if self._pipe is None else "Running"
+        self._status = "Stopped"
+        self.client = None
         return self._status
 
-    def generate(self, prompt, *images):
-        result = get_gpt5_response(
-            prompt,
-            images=images,
-            model="gpt-5-vision-shortco-2025-08-07-Batch",
+    def generate(self, prompt, image_brush, *images):
+        if self._status != "Running":
+            self.start()
+        _images = [im for im in images if im is not None]
+        if image_brush.get("composite") is not None:
+            composite = image_brush["composite"]
+            _images = _images + [composite]
+        response = self.client.models.generate_content(
+            model="gemini-2.5-flash-image-preview",
+            contents=_images + [prompt],
         )
-        result = result.replace("\t", " ").replace("\r", " ").replace("\n", " ")
-        return result
+        image_parts = [
+            part.inline_data.data
+            for part in response.candidates[0].content.parts
+            if part.inline_data
+        ]
+        image = Image.open(io.BytesIO(image_parts[0]))
+        return image

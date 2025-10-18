@@ -19,7 +19,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
+from unitorch_microsoft.externals.papyrus import get_gpt4_response
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -36,8 +36,8 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class ExpandBG2WebUI(SimpleWebUI):
-    _title = "Expand Background 2"
+class ExpandBGV2WebUI(SimpleWebUI):
+    _title = "Expand Background V2"
     _description = "This is a demo for expanding the background of images using FLUX. You can input an image and a ratio, and the model will generate a new image with the specified background expanded."
 
     def __init__(self, config: CoreConfigureParser):

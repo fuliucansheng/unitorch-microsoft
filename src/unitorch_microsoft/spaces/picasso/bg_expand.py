@@ -19,8 +19,8 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
-from unitorch_microsoft.chatgpt.recraft import (
+from unitorch_microsoft.externals.papyrus import get_gpt4_response
+from unitorch_microsoft.externals.recraft import (
     get_image as get_recraft_image,
     get_inpainting_image as get_recraft_inpainting_image,
     get_change_background_image as get_recraft_change_background_image,

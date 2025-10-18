@@ -27,7 +27,7 @@ from unitorch_microsoft.spaces.picasso.img_insights import ImgInsightsWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect_v2 import ROIDetectV2WebUI
 from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
-from unitorch_microsoft.spaces.picasso.bg_expand_2 import ExpandBG2WebUI
+from unitorch_microsoft.spaces.picasso.bg_expand_v2 import ExpandBGV2WebUI
 
 # Picasso dashboard
 dashboards = [
@@ -40,9 +40,9 @@ dashboards = [
 
 # Picasso examples
 examples = [
-    ExpandBGWebUI,
-    ExpandBG2WebUI,
     ImgInsightsWebUI,
+    ExpandBGWebUI,
+    ExpandBGV2WebUI,
     ROIDetectWebUI,
     ROIDetectV2WebUI,
 ]

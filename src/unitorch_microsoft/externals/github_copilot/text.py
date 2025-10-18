@@ -7,7 +7,7 @@ import requests
 from PIL import Image
 from typing import Optional, List
 
-from unitorch_microsoft.chatgpt.github_copilot import (
+from unitorch_microsoft.externals.github_copilot import (
     get_access_token,
     get_copilot_token,
 )

@@ -7,7 +7,7 @@ import requests
 from PIL import Image
 from typing import Optional, List
 
-from unitorch_microsoft.chatgpt.papyrus import (
+from unitorch_microsoft.externals.papyrus import (
     get_access_token,
     papyrus_endpoint3,
     reported_item,

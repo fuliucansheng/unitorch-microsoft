@@ -47,10 +47,7 @@ supported_image_styles = [
     "logo_raster",
 ]
 
-token = os.getenv(
-    "RECRAFT_API_KEY",
-    "eRqRodWSJX46TQbL9pWRFKAgETbHd3stecdcMsfkYz7aogjjLhqPTvvsML9ItROn",
-)
+token = os.getenv("RECRAFT_API_KEY", None)
 client = OpenAI(
     base_url="https://external.api.recraft.ai/v1",
     api_key=token,

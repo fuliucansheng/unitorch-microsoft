@@ -9,7 +9,10 @@ import hashlib
 import pandas as pd
 from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from unitorch_microsoft.chatgpt.papyrus import get_gpt_image_response, get_gpt4_response
+from unitorch_microsoft.externals.papyrus import (
+    get_gpt_image_response,
+    get_gpt4_response,
+)
 
 
 def save_image(folder, image):

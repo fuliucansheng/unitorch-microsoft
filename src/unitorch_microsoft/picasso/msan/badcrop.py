@@ -11,7 +11,7 @@ import hashlib
 from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.hub import download_url_to_file
-from unitorch_microsoft.chatgpt.papyrus import get_gpt4_response
+from unitorch_microsoft.externals.papyrus import get_gpt4_response
 
 
 def save_image_from_url(folder, url):

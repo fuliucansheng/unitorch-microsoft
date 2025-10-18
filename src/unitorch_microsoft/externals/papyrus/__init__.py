@@ -55,7 +55,7 @@ def get_access_token():
     return access_token
 
 
-from unitorch_microsoft.chatgpt.papyrus.text import (
+from unitorch_microsoft.externals.papyrus.text import (
     get_response as get_gpt4_response,
     get_tools_response as get_gpt4_tools_response,
     get_chat_response as get_gpt4_chat_response,
@@ -63,6 +63,6 @@ from unitorch_microsoft.chatgpt.papyrus.text import (
     get_gpt5_tools_response,
     get_gpt5_chat_response,
 )
-from unitorch_microsoft.chatgpt.papyrus.image import (
+from unitorch_microsoft.externals.papyrus.image import (
     get_image_response as get_gpt_image_response,
 )
