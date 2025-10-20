@@ -183,6 +183,8 @@ class BletchleyV3FastAPI(GenericFastAPI):
         image_bytes = await image.read()
         image = Image.open(io.BytesIO(image_bytes))
         async with self._lock:
+            if self.status() != "running":
+                self.start()
             results = self._pipe1(image)
 
         return results
