@@ -1,7 +1,9 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
+import logging
 import os
+from unittest import result
 import cv2
 import gc
 import torch
@@ -72,21 +74,27 @@ class FitProbeWebUI(SimpleWebUI):
         step = create_element(
             "slider",
             "Step",
-            default=0.1,
+            default=0.05,
             min_value=0.01,
             max_value=0.99,
             step=0.01,
         )
-        option = create_element(
-            "radio", "Option", values=["Quality Top", "Quality+Click Top"], default="DR"
-        )
+        # option = create_element(
+        #     "radio", "Option", values=["Quality Top", "Click Top", "Quality Filter + Click Top"], default="Quality Top"
+        # )
         generate = create_element("button", "Generate")
-        result = create_element("image", "Result Image")
-
-        left = create_column(
-            input_image, create_row(ratio, step), option, generate, scale=1
+        result1 = create_element("image", "Quality Top Result Image")
+        result2 = create_element("image", "Click Top Result Image")
+        result3 = create_element("image", "Aesthetics Top Result Image")
+        result4 = create_element("image", "Quality Filter + Click Top Result Image")
+        result5 = create_element(
+            "image", "Quality Filter + Aesthetics Top Result Image"
         )
-        right = create_column(result, scale=1)
+
+        left = create_column(input_image, ratio, step, generate, scale=1)
+        right = create_column(
+            create_row(result1, result2, result3), create_row(result4, result5), scale=1
+        )
 
         iface = create_blocks(
             toper_menus,
@@ -118,8 +126,8 @@ class FitProbeWebUI(SimpleWebUI):
 
         generate.click(
             fn=self.generate,
-            inputs=[input_image, ratio, step, option],
-            outputs=[result],
+            inputs=[input_image, ratio, step],
+            outputs=[result1, result2, result3],
             trigger_mode="once",
         )
 
@@ -159,7 +167,16 @@ class FitProbeWebUI(SimpleWebUI):
         )
         return result
 
-    def generate(self, image, ratio, step, option):
+    def get_aesthetics_score(self, image):
+        result = call_fastapi(
+            self._endpoint + "/microsoft/spaces/fastapi/bletchley/v3/generate2",
+            images={
+                "image": image,
+            },
+        )
+        return result["Bad Aesthetics"]
+
+    def generate(self, image, ratio, step):
         w, h = image.size
         if w / h > ratio:
             crop_w, crop_h = int(h * ratio), h
@@ -173,22 +190,32 @@ class FitProbeWebUI(SimpleWebUI):
                 cropped_image = image.crop(box)
                 quality_score = self.get_quality_score(cropped_image)
                 click_score = self.get_click_score(cropped_image)
+                aesthetics_score = self.get_aesthetics_score(cropped_image)
                 all_crops.append(
                     {
                         "image": cropped_image,
                         "box": box,
                         "quality_score": quality_score,
                         "click_score": click_score,
+                        "aesthetics_score": aesthetics_score,
                     }
                 )
         crops = pd.DataFrame(all_crops)
-        if option == "Quality Top":
-            best_crop = crops.loc[crops["quality_score"].idxmin()]
-        if option == "Quality+Click Top":
-            keep_crops = crops[crops["quality_score"] <= 0.45]
-            if len(keep_crops) == 0:
-                best_crop = crops.loc[crops["quality_score"].idxmin()]
-            else:
-                best_crop = keep_crops.loc[keep_crops["click_score"].idxmax()]
-        result_image = image.crop(best_crop["box"])
-        return result_image
+        best_crop1 = crops.loc[crops["quality_score"].idxmin()]
+        best_crop2 = crops.loc[crops["click_score"].idxmax()]
+        best_crop3 = crops.loc[crops["aesthetics_score"].idxmin()]
+        keep_crops = crops[crops["quality_score"] <= 0.45]
+        if len(keep_crops) == 0:
+            logging.warning("All crops have bad quality, select the best quality crop.")
+            gr.Warning("All crops have bad quality, select the best quality crop.")
+            best_crop4 = crops.loc[crops["quality_score"].idxmin()]
+            best_crop5 = crops.loc[crops["quality_score"].idxmin()]
+        else:
+            best_crop4 = keep_crops.loc[keep_crops["click_score"].idxmax()]
+            best_crop5 = keep_crops.loc[keep_crops["aesthetics_score"].idxmin()]
+        result1_image = image.crop(best_crop1["box"])
+        result2_image = image.crop(best_crop2["box"])
+        result3_image = image.crop(best_crop3["box"])
+        result4_image = image.crop(best_crop4["box"])
+        result5_image = image.crop(best_crop5["box"])
+        return result1_image, result2_image, result3_image, result4_image, result5_image

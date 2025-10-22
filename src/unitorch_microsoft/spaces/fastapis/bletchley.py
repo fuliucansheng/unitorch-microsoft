@@ -69,12 +69,12 @@ class BletchleyV1FastAPI(GenericFastAPI):
             pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.8B.bin",
             pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
             label_dict={
-                "complex": "complex background, objects in the background or even no background",
-                "simple": "clean background, no objects in the background",
-                "white": "white background, no objects in the background",
-                "poster": "poster image, composed of multiple objects, logo, text, etc.",
-                "real": "a real image, not a poster or a logo",
-                "logo": "logo image, composed of logo only",
+                "Complex": "complex background, objects in the background or even no background",
+                "Simple": "clean background, no objects in the background",
+                "White": "white background, no objects in the background",
+                "Poster": "poster image, composed of multiple objects, logo, text, etc.",
+                "Real": "a real image, not a poster or a logo",
+                "Logo": "logo image, composed of logo only",
             },
             act_fn="sigmoid",
         )
@@ -84,7 +84,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
             pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.2.5B.bin",
             pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
             label_dict={
-                "blurry": "blurry",
+                "Blurry": "blurry",
             },
             act_fn="sigmoid",
         )
@@ -136,6 +136,7 @@ class BletchleyV3FastAPI(GenericFastAPI):
         self._config = config
         config.set_default_section(f"microsoft/spaces/fastapi/bletchley/v3")
         self._pipe1 = None
+        self._pipe2 = None
         router = config.getoption("router", "/microsoft/spaces/fastapi/bletchley/v3")
         self._router = APIRouter(prefix=router)
         self._router.add_api_route(
@@ -159,7 +160,17 @@ class BletchleyV3FastAPI(GenericFastAPI):
             pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
             pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
             label_dict={
-                "watermark": "watermarked, no watermark signature, brand logo",
+                "Watermark": "watermarked, no watermark signature, brand logo",
+            },
+            act_fn="sigmoid",
+        )
+        self._pipe2 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
+            self._config,
+            config_type="2.5B",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.aesthetics.tad66k.2412.bin",
+            label_dict={
+                "Bad Aesthetics": "draft, disgusting, blurry, disfigured",
             },
             act_fn="sigmoid",
         )
@@ -167,13 +178,14 @@ class BletchleyV3FastAPI(GenericFastAPI):
 
     def stop(self):
         self._pipe1 = None
+        self._pipe2 = None
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         return "stopped"
 
     def status(self):
-        if self._pipe1 is not None:
+        if self._pipe1 is not None and self._pipe2 is not None:
             return "running"
         return "stopped"
 
@@ -187,6 +199,19 @@ class BletchleyV3FastAPI(GenericFastAPI):
             if self.status() != "running":
                 self.start()
             results = self._pipe1(image)
+
+        return results
+
+    async def generate2(
+        self,
+        image: UploadFile,
+    ):
+        image_bytes = await image.read()
+        image = Image.open(io.BytesIO(image_bytes))
+        async with self._lock:
+            if self.status() != "running":
+                self.start()
+            results = self._pipe2(image)
 
         return results
 
