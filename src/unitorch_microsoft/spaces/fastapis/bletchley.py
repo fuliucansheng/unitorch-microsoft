@@ -142,6 +142,9 @@ class BletchleyV3FastAPI(GenericFastAPI):
         self._router.add_api_route(
             "/generate1", self.generate1, methods=["POST"]
         )  # watermark
+        self._router.add_api_route(
+            "/generate2", self.generate2, methods=["POST"]
+        )  # aesthetics
         self._router.add_api_route("/status", self.status, methods=["GET"])
         self._router.add_api_route("/start", self.start, methods=["GET"])
         self._router.add_api_route("/stop", self.stop, methods=["GET"])

@@ -127,7 +127,7 @@ class FitProbeWebUI(SimpleWebUI):
         generate.click(
             fn=self.generate,
             inputs=[input_image, ratio, step],
-            outputs=[result1, result2, result3],
+            outputs=[result1, result2, result3, result4, result5],
             trigger_mode="once",
         )
 
