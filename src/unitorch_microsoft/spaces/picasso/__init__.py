@@ -28,6 +28,7 @@ from unitorch_microsoft.spaces.picasso.roi_detect import ROIDetectWebUI
 from unitorch_microsoft.spaces.picasso.roi_detect_v2 import ROIDetectV2WebUI
 from unitorch_microsoft.spaces.picasso.bg_expand import ExpandBGWebUI
 from unitorch_microsoft.spaces.picasso.bg_expand_v2 import ExpandBGV2WebUI
+from unitorch_microsoft.spaces.picasso.fit_probe import FitProbeWebUI
 
 # Picasso dashboard
 dashboards = [
@@ -45,6 +46,7 @@ examples = [
     ExpandBGV2WebUI,
     ROIDetectWebUI,
     ROIDetectV2WebUI,
+    FitProbeWebUI,
 ]
 
 examples_pages = [_webui(spaces_settings).iface for _webui in examples]
