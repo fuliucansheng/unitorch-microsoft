@@ -1,12 +1,12 @@
 # Copyright (c) MICROSOFT.
 # Licensed under the MIT License.
 
-import logging
 import os
-from unittest import result
 import cv2
 import gc
+import fire
 import torch
+import logging
 import numpy as np
 import gradio as gr
 import pandas as pd
