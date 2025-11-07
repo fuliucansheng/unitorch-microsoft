@@ -55,5 +55,6 @@ def launch(
     torch.save(final_checkpoint, output_checkpoint)
     logging.info(f"Save final checkpoint to {output_checkpoint}")
 
+
 if __name__ == "__main__":
     fire.Fire(launch)

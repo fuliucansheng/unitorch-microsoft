@@ -43,6 +43,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
         config.set_default_section(f"microsoft/spaces/fastapi/bletchley/v1")
         self._pipe1 = None
         self._pipe2 = None
+        self._pipe3 = None
         router = config.getoption("router", "/microsoft/spaces/fastapi/bletchley/v1")
         self._router = APIRouter(prefix=router)
         self._router.add_api_route(
@@ -51,6 +52,9 @@ class BletchleyV1FastAPI(GenericFastAPI):
         self._router.add_api_route(
             "/generate2", self.generate2, methods=["POST"]
         )  # blurry
+        self._router.add_api_route(
+            "/generate3", self.generate3, methods=["POST"]
+        )  # bg type
         self._router.add_api_route("/status", self.status, methods=["GET"])
         self._router.add_api_route("/start", self.start, methods=["GET"])
         self._router.add_api_route("/stop", self.stop, methods=["GET"])
@@ -88,18 +92,35 @@ class BletchleyV1FastAPI(GenericFastAPI):
             },
             act_fn="sigmoid",
         )
+        self._pipe3 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
+            self._config,
+            config_type="0.8B",
+            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.8B.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.bletchley.background.classification.202504.bin",
+            label_dict={
+                "Complex": "A product, poster, or lifestyle image with a complex background that contains many visual elements and textures",
+                "Simple": "objects on a plain or softly blurred background with soft colors or smooth gradients",
+                "White": "objects on a clean white background with no textures, watermarks, logos, or color boundaries",
+            },
+            act_fn="sigmoid",
+        )
         return "running"
 
     def stop(self):
         self._pipe1 = None
         self._pipe2 = None
+        self._pipe3 = None
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         return "stopped"
 
     def status(self):
-        if self._pipe1 is not None and self._pipe2 is not None:
+        if (
+            self._pipe1 is not None
+            and self._pipe2 is not None
+            and self._pipe3 is not None
+        ):
             return "running"
         return "stopped"
 
@@ -126,6 +147,19 @@ class BletchleyV1FastAPI(GenericFastAPI):
             if self.status() != "running":
                 self.start()
             results = self._pipe2(image)
+
+        return results
+
+    async def generate3(
+        self,
+        image: UploadFile,
+    ):
+        image_bytes = await image.read()
+        image = Image.open(io.BytesIO(image_bytes))
+        async with self._lock:
+            if self.status() != "running":
+                self.start()
+            results = self._pipe3(image)
 
         return results
 

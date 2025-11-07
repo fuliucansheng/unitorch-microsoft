@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 from playwright.async_api import async_playwright
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.externals.papyrus import (
-    get_gpt4_response,
     get_gpt5_response,
 )
 from unitorch_microsoft.externals.recraft import (
@@ -342,7 +341,7 @@ You need to check if the designed image looks perfect. If not, refine or rewrite
                 )
                 designed_image.save(temp_file.name)
                 designed_html, designed_image = raw_html, temp_file.name
-                #                 ans = get_gpt4_response(
+                #                 ans = get_gpt5_response(
                 #                     """
                 # You are an unbiased visual evaluator. Compare Image1 (the first image) and Image2 (the second image) purely from a user’s visual experience perspective.
 

@@ -328,7 +328,9 @@ class WanForText2VideoGeneration(GenericWanModel):
                     prefix_keys={"": "transformer."},
                 ),
                 load_weight(
-                    glob.glob(f"{pretrained_weight_folder}/transformer_2/*.safetensors"),
+                    glob.glob(
+                        f"{pretrained_weight_folder}/transformer_2/*.safetensors"
+                    ),
                     prefix_keys={"": "transformer2."},
                 ),
                 load_weight(

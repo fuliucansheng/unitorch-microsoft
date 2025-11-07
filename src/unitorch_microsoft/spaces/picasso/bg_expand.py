@@ -19,7 +19,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.externals.papyrus import get_gpt4_response
+from unitorch_microsoft.externals.papyrus import get_gpt5_response
 from unitorch_microsoft.externals.recraft import (
     get_image as get_recraft_image,
     get_inpainting_image as get_recraft_inpainting_image,
@@ -172,7 +172,7 @@ class ExpandBGWebUI(SimpleWebUI):
         return new_image, mask
 
     def generate(self, image, ratio):
-        prompt = get_gpt4_response(
+        prompt = get_gpt5_response(
             "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
             images=[image],
         )

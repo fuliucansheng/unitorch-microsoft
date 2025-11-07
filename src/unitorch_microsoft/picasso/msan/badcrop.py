@@ -11,7 +11,7 @@ import hashlib
 from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.hub import download_url_to_file
-from unitorch_microsoft.externals.papyrus import get_gpt4_response
+from unitorch_microsoft.externals.papyrus import get_gpt5_response
 
 
 def save_image_from_url(folder, url):
@@ -234,7 +234,7 @@ def gpt(
             image1 = Image.open(row[image1_col])
             image2 = Image.open(row[image2_col])
             prompt_text = prompt.format(adTitle=title)
-            result = get_gpt4_response(
+            result = get_gpt5_response(
                 prompt=prompt_text,
                 images=[image1, image2],
                 model=model,

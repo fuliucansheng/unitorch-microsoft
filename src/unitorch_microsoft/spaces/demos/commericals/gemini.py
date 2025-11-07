@@ -6,7 +6,6 @@ import io
 import gc
 import re
 import base64
-from openai import api_key
 import requests
 import pandas as pd
 import gradio as gr

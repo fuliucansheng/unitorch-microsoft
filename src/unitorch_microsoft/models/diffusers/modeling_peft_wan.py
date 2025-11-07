@@ -199,9 +199,7 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
             input_ids = input_ids.to(cpu_offload_device)
             attention_mask = attention_mask.to(cpu_offload_device)
             negative_input_ids = negative_input_ids.to(cpu_offload_device)
-            negative_attention_mask = negative_attention_mask.to(
-                cpu_offload_device
-            )
+            negative_attention_mask = negative_attention_mask.to(cpu_offload_device)
 
         prompt_embeds = self.text(
             input_ids,
@@ -405,7 +403,9 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
                     prefix_keys={"": "transformer."},
                 ),
                 load_weight(
-                    glob.glob(f"{pretrained_weight_folder}/transformer_2/*.safetensors"),
+                    glob.glob(
+                        f"{pretrained_weight_folder}/transformer_2/*.safetensors"
+                    ),
                     prefix_keys={"": "transformer2."},
                 ),
                 load_weight(
@@ -785,7 +785,9 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
                     prefix_keys={"": "transformer."},
                 ),
                 load_weight(
-                    glob.glob(f"{pretrained_weight_folder}/transformer_2/*.safetensors"),
+                    glob.glob(
+                        f"{pretrained_weight_folder}/transformer_2/*.safetensors"
+                    ),
                     prefix_keys={"": "transformer2."},
                 ),
                 load_weight(

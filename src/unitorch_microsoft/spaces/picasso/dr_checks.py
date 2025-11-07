@@ -74,9 +74,13 @@ class DRChecksWebUI(SimpleWebUI):
         )
         result5 = gr.Label(label="Bad Cropped", show_heading=False)
         note6 = gr.Markdown(
-            "> **Bad Whitepad**: Indicates whether the image has excessive white padding, >=0.8 is considered as bad."
+            "> **Bad Whitepad**: Indicates whether the image has excessive white padding, >=0.15 is considered as bad."
         )
         result6 = gr.Label(label="Bad Whitepad", show_heading=False)
+        note7 = gr.Markdown(
+            "> **Bad Blurrypad**: Indicates whether the image has blurry padding for white background image, >=0.15 is considered as bad."
+        )
+        result7 = gr.Label(label="Bad Blurrypad", show_heading=False)
 
         left = create_column(input_image, option, generate, scale=1)
         right = create_column(
@@ -86,6 +90,8 @@ class DRChecksWebUI(SimpleWebUI):
                     note5,
                     result6,
                     note6,
+                    result7,
+                    note7,
                     name="DR",
                 ),
                 create_tab(
@@ -129,7 +135,7 @@ class DRChecksWebUI(SimpleWebUI):
         generate.click(
             fn=self.generate,
             inputs=[input_image, option],
-            outputs=[result1, result2, result3, result4, result5, result6],
+            outputs=[result1, result2, result3, result4, result5, result6, result7],
             trigger_mode="once",
         )
 
@@ -151,16 +157,21 @@ class DRChecksWebUI(SimpleWebUI):
         return self._status
 
     def generate(self, image, option):
-
+        results = call_fastapi(
+            self._endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate1",
+            images={
+                "image": image,
+            },
+        )
+        result7 = {"White": results["White"]}
+        result2 = {k: results[k] for k in ["Poster", "Logo", "Real"]}
         if option == "Others" or option == "All":
-            results = call_fastapi(
-                self._endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate1",
+            result1 = call_fastapi(
+                self._endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate3",
                 images={
                     "image": image,
                 },
             )
-            result1 = {k: results[k] for k in ["white", "simple", "complex"]}
-            result2 = {k: results[k] for k in ["poster", "logo", "real"]}
             result3 = call_fastapi(
                 self._endpoint + "/microsoft/spaces/fastapi/bletchley/v1/generate2",
                 images={
@@ -174,7 +185,7 @@ class DRChecksWebUI(SimpleWebUI):
                 },
             )
         else:
-            result1, result2, result3, result4 = {}, {}, {}, {}
+            result1, result3, result4 = {}, {}, {}
 
         if option == "DR" or option == "All":
             result5 = call_fastapi(
@@ -192,4 +203,4 @@ class DRChecksWebUI(SimpleWebUI):
         else:
             result5, result6 = {}, {}
 
-        return result1, result2, result3, result4, result5, result6
+        return result1, result2, result3, result4, result5, result6, result7

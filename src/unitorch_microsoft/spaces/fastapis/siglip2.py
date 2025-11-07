@@ -66,7 +66,7 @@ class Siglip2FastAPI(GenericFastAPI):
         self._pipe2 = Siglip2ForMatchingV2Pipeline.from_core_configure(
             self._config,
             pretrained_name="siglip2-so400m-patch14-384",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/siglip/pytorch_model.v2.lora4.whitepad.2509.bin",
+            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/siglip/pytorch_model.v2.lora4.whitepad.2510.v2.bin",
             label_dict={
                 "Bad White Padding": "bad white padding",
             },

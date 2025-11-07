@@ -19,7 +19,7 @@ from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.externals.papyrus import get_gpt4_response
+from unitorch_microsoft.externals.papyrus import get_gpt5_response
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -188,7 +188,7 @@ class ExpandBGV2WebUI(SimpleWebUI):
         return new_image, mask
 
     def generate(self, image, ratio):
-        caption = get_gpt4_response(
+        caption = get_gpt5_response(
             "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
             images=[image],
         )

@@ -11,7 +11,7 @@ from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch_microsoft.externals.papyrus import (
     get_gpt_image_response,
-    get_gpt4_response,
+    get_gpt5_response,
 )
 
 
@@ -73,7 +73,7 @@ def text_generate(
     for _, row in data.iterrows():
         prompt = prompt_text if prompt_text is not None else row[prompt_col]
         images = [row[col] for col in image_cols] if image_cols is not None else None
-        result = get_gpt4_response(
+        result = get_gpt5_response(
             prompt=prompt,
             images=(
                 [Image.open(image) for image in images] if images is not None else None
