@@ -43,7 +43,6 @@ class WanProcessor(HfTextClassificationProcessor):
         self,
         vocab_path: str,
         vae_config_path: Optional[str] = None,
-        image_config_path: Optional[str] = None,
         max_seq_length: Optional[int] = 77,
         position_start_id: Optional[int] = 0,
         video_size: Optional[Tuple[int, int]] = (832, 480),
@@ -97,16 +96,11 @@ class WanProcessor(HfTextClassificationProcessor):
         else:
             self.vae_image_processor = None
 
-        if image_config_path is not None:
-            self.vision_processor = CLIPImageProcessor.from_json_file(image_config_path)
-        else:
-            self.vision_processor = None
-
     @classmethod
     @add_default_section_for_init("microsoft/process/diffusion/wan")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/process/diffusion/wan")
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-i2v-14b")
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.2-i2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         vocab_path = config.getoption("vocab_path", None)
@@ -123,19 +117,9 @@ class WanProcessor(HfTextClassificationProcessor):
         )
         vae_config_path = cached_path(vae_config_path)
 
-        image_config_path = config.getoption("image_config_path", None)
-        image_config_path = pop_value(
-            image_config_path,
-            nested_dict_value(pretrained_infos, "image", "vision_config"),
-            check_none=False,
-        )
-        if image_config_path is not None:
-            image_config_path = cached_path(image_config_path)
-
         return {
             "vocab_path": vocab_path,
             "vae_config_path": vae_config_path,
-            "image_config_path": image_config_path,
         }
 
     def get_video_frames(self, video: Union[cv2.VideoCapture, str]):
@@ -220,16 +204,12 @@ class WanProcessor(HfTextClassificationProcessor):
         )
         image = CenterCrop(size=(self.video_size[1], self.video_size[0]))(image)
 
-        condition_pixel_values = self.vision_processor.preprocess(
-            image, return_tensors="pt"
-        ).pixel_values[0]
         vae_pixel_values = self.vae_image_processor.preprocess(image)[0]
 
         return TensorsInputs(
             pixel_values=outputs.pixel_values,
             input_ids=outputs.input_ids,
             attention_mask=outputs.attention_mask,
-            condition_pixel_values=condition_pixel_values,
             vae_pixel_values=vae_pixel_values,
         )
 
@@ -289,15 +269,10 @@ class WanProcessor(HfTextClassificationProcessor):
             negative_prompt=negative_prompt,
             max_seq_length=max_seq_length,
         )
-        pixel_values = self.vision_processor.preprocess(
-            image, return_tensors="pt"
-        ).pixel_values[0]
-
         return TensorsInputs(
             input_ids=text_outputs.input_ids,
             attention_mask=text_outputs.attention_mask,
             negative_input_ids=text_outputs.negative_input_ids,
             negative_attention_mask=text_outputs.negative_attention_mask,
-            condition_pixel_values=pixel_values,
             vae_pixel_values=vae_pixel_values,
         )

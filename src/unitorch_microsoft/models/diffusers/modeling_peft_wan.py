@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import os
+import glob
 import json
 import torch
 import torch.nn.functional as F
@@ -88,7 +89,7 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
         text_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
-        image_config_path: Optional[str] = None,
+        config2_path: Optional[str] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -117,12 +118,14 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
             torch.bfloat16
         )
 
+        if config2_path is not None:
+            config2_dict = json.load(open(config2_path))
+            self.transformer2 = WanTransformer3DModel.from_config(config2_dict).to(
+                torch.bfloat16
+            )
+
         text_config = UMT5Config.from_json_file(text_config_path)
         self.text = UMT5EncoderModel(text_config).to(torch.bfloat16)
-
-        if image_config_path is not None:
-            image_config = CLIPVisionConfig.from_json_file(image_config_path)
-            self.image = CLIPVisionModel(image_config).to(torch.bfloat16)
 
         vae_config_dict = json.load(open(vae_config_path))
         self.vae = AutoencoderKLWan.from_config(vae_config_dict).to(torch.bfloat16)
@@ -143,12 +146,12 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
         for param in self.text.parameters():
             param.requires_grad = False
 
-        if image_config_path is not None:
-            for param in self.image.parameters():
-                param.requires_grad = False
-
         for param in self.transformer.parameters():
             param.requires_grad = False
+
+        if hasattr(self, "transformer2"):
+            for param in self.transformer2.parameters():
+                param.requires_grad = False
 
         if quant_config_path is not None:
             self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
@@ -168,6 +171,8 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
             self.text.add_adapter(lora_config)
         if enable_transformer_adapter:
             self.transformer.add_adapter(lora_config)
+            if hasattr(self, "transformer2"):
+                self.transformer2.add_adapter(lora_config)
 
     def get_sigmas(self, timesteps, n_dim=4, dtype=torch.float32):
         sigmas = self.scheduler.sigmas.to(device=self.device, dtype=dtype)
@@ -189,13 +194,13 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
         enable_cpu_offload: Optional[bool] = False,
         cpu_offload_device: Optional[str] = "cpu",
     ):
-        if self.enable_cpu_offload:
-            self.text.to(self.cpu_offload_device)
-            input_ids = input_ids.to(self.cpu_offload_device)
-            attention_mask = attention_mask.to(self.cpu_offload_device)
-            negative_input_ids = negative_input_ids.to(self.cpu_offload_device)
+        if enable_cpu_offload:
+            self.text.to(cpu_offload_device)
+            input_ids = input_ids.to(cpu_offload_device)
+            attention_mask = attention_mask.to(cpu_offload_device)
+            negative_input_ids = negative_input_ids.to(cpu_offload_device)
             negative_attention_mask = negative_attention_mask.to(
-                self.cpu_offload_device
+                cpu_offload_device
             )
 
         prompt_embeds = self.text(
@@ -210,7 +215,7 @@ class GenericWanLoraModel(GenericPeftModel, QuantizationMixin):
         negative_prompt_embeds = (
             negative_prompt_embeds * negative_attention_mask.unsqueeze(-1)
         )
-        if self.enable_cpu_offload:
+        if enable_cpu_offload:
             self.text.to("cpu")
         return GenericOutputs(
             prompt_embeds=(
@@ -234,6 +239,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         text_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
+        config2_path: Optional[str] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -258,6 +264,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             text_config_path=text_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -279,6 +286,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             vae=self.vae,
             text_encoder=self.text,
             transformer=self.transformer,
+            transformer_2=getattr(self, "transformer2", None),
             scheduler=self.scheduler,
             tokenizer=None,
         )
@@ -289,7 +297,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
     @add_default_section_for_init("microsoft/model/diffusers/peft/lora/text2video/wan")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/peft/lora/text2video/wan")
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-t2v-1.3b")
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.2-t2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -298,6 +306,15 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             nested_dict_value(pretrained_infos, "transformer", "config"),
         )
         config_path = cached_path(config_path)
+
+        config2_path = config.getoption("config2_path", None)
+        config2_path = pop_value(
+            config2_path,
+            nested_dict_value(pretrained_infos, "transformer2", "config"),
+        )
+
+        if config2_path is not None:
+            config2_path = cached_path(config2_path)
 
         text_config_path = config.getoption("text_config_path", None)
         text_config_path = pop_value(
@@ -324,8 +341,6 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         if quant_config_path is not None:
             quant_config_path = cached_path(quant_config_path)
 
-        in_channels = config.getoption("in_channels", None)
-        out_channels = config.getoption("out_channels", None)
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
         snr_gamma = config.getoption("snr_gamma", 5.0)
@@ -362,6 +377,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
             text_config_path=text_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -383,43 +399,21 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
 
         state_dict = None
         if pretrained_weight_folder is not None:
-            transformer_files = [
-                os.path.join(pretrained_weight_folder, "transformer", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "transformer")
-                )
-                if filename.endswith(".safetensors")
-            ]
-            text_files = [
-                os.path.join(pretrained_weight_folder, "text_encoder", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "text_encoder")
-                )
-                if filename.endswith(".safetensors")
-            ]
-            vae_files = [
-                os.path.join(pretrained_weight_folder, "vae", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "vae")
-                )
-                if filename.endswith(".safetensors")
-            ]
-            print(f"transformer_files: {transformer_files}")
-            print(f"text_files: {text_files}")
-            print(f"vae_files: {vae_files}")
             state_dict = [
                 load_weight(
-                    transformer_files,
+                    glob.glob(f"{pretrained_weight_folder}/transformer/*.safetensors"),
                     prefix_keys={"": "transformer."},
-                    replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
-                    text_files,
+                    glob.glob(f"{pretrained_weight_folder}/transformer_2/*.safetensors"),
+                    prefix_keys={"": "transformer2."},
+                ),
+                load_weight(
+                    glob.glob(f"{pretrained_weight_folder}/text_encoder/*.safetensors"),
                     prefix_keys={"": "text."},
-                    replace_keys=replace_keys if enable_text_adapter else {},
                 ),
                 load_weight(
-                    vae_files,
+                    glob.glob(f"{pretrained_weight_folder}/vae/*.safetensors"),
                     prefix_keys={"": "vae."},
                 ),
             ]
@@ -428,6 +422,11 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),
                     prefix_keys={"": "transformer."},
+                    replace_keys=replace_keys if enable_transformer_adapter else {},
+                ),
+                load_weight(
+                    nested_dict_value(pretrained_infos, "transformer2", "weight"),
+                    prefix_keys={"": "transformer2."},
                     replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
@@ -614,9 +613,9 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         self,
         config_path: str,
         text_config_path: str,
-        image_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
+        config2_path: Optional[str] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -639,9 +638,9 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         super().__init__(
             config_path=config_path,
             text_config_path=text_config_path,
-            image_config_path=image_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -657,12 +656,14 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         )
         if gradient_checkpointing:
             self.transformer.enable_gradient_checkpointing()
+            if hasattr(self, "transformer2"):
+                self.transformer2.enable_gradient_checkpointing()
 
         self.pipeline = WanImageToVideoPipeline(
             vae=self.vae,
             text_encoder=self.text,
-            image_encoder=self.image,
             transformer=self.transformer,
+            transformer_2=getattr(self, "transformer2", None),
             scheduler=self.scheduler,
             tokenizer=None,
             image_processor=None,
@@ -676,7 +677,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         config.set_default_section(
             "microsoft/model/diffusers/peft/lora/image2video/wan"
         )
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-i2v-14b-480p")
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.2-i2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -686,19 +687,21 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         )
         config_path = cached_path(config_path)
 
+        config2_path = config.getoption("config2_path", None)
+        config2_path = pop_value(
+            config2_path,
+            nested_dict_value(pretrained_infos, "transformer2", "config"),
+        )
+
+        if config2_path is not None:
+            config2_path = cached_path(config2_path)
+
         text_config_path = config.getoption("text_config_path", None)
         text_config_path = pop_value(
             text_config_path,
             nested_dict_value(pretrained_infos, "text", "config"),
         )
         text_config_path = cached_path(text_config_path)
-
-        image_config_path = config.getoption("image_config_path", None)
-        image_config_path = pop_value(
-            image_config_path,
-            nested_dict_value(pretrained_infos, "image", "config"),
-        )
-        image_config_path = cached_path(image_config_path)
 
         vae_config_path = config.getoption("vae_config_path", None)
         vae_config_path = pop_value(
@@ -718,8 +721,6 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         if quant_config_path is not None:
             quant_config_path = cached_path(quant_config_path)
 
-        in_channels = config.getoption("in_channels", None)
-        out_channels = config.getoption("out_channels", None)
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
         snr_gamma = config.getoption("snr_gamma", 5.0)
@@ -754,9 +755,9 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         inst = cls(
             config_path=config_path,
             text_config_path=text_config_path,
-            image_config_path=image_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -778,56 +779,21 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
 
         state_dict = None
         if pretrained_weight_folder is not None:
-            transformer_files = [
-                os.path.join(pretrained_weight_folder, "transformer", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "transformer")
-                )
-                if filename.endswith(".safetensors")
-            ]
-            text_files = [
-                os.path.join(pretrained_weight_folder, "text_encoder", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "text_encoder")
-                )
-                if filename.endswith(".safetensors")
-            ]
-            vae_files = [
-                os.path.join(pretrained_weight_folder, "vae", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "vae")
-                )
-                if filename.endswith(".safetensors")
-            ]
-            image_files = [
-                os.path.join(pretrained_weight_folder, "image_encoder", filename)
-                for filename in os.listdir(
-                    os.path.join(pretrained_weight_folder, "image_encoder")
-                )
-                if filename.endswith(".safetensors")
-            ]
-
-            print(f"transformer_files: {transformer_files}")
-            print(f"text_files: {text_files}")
-            print(f"vae_files: {vae_files}")
-            print(f"image_files: {image_files}")
             state_dict = [
                 load_weight(
-                    transformer_files,
+                    glob.glob(f"{pretrained_weight_folder}/transformer/*.safetensors"),
                     prefix_keys={"": "transformer."},
-                    replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
-                    text_files,
+                    glob.glob(f"{pretrained_weight_folder}/transformer_2/*.safetensors"),
+                    prefix_keys={"": "transformer2."},
+                ),
+                load_weight(
+                    glob.glob(f"{pretrained_weight_folder}/text_encoder/*.safetensors"),
                     prefix_keys={"": "text."},
-                    replace_keys=replace_keys if enable_text_adapter else {},
                 ),
                 load_weight(
-                    image_files,
-                    prefix_keys={"": "image."},
-                ),
-                load_weight(
-                    vae_files,
+                    glob.glob(f"{pretrained_weight_folder}/vae/*.safetensors"),
                     prefix_keys={"": "vae."},
                 ),
             ]
@@ -839,13 +805,14 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
                     replace_keys=replace_keys if enable_transformer_adapter else {},
                 ),
                 load_weight(
+                    nested_dict_value(pretrained_infos, "transformer2", "weight"),
+                    prefix_keys={"": "transformer2."},
+                    replace_keys=replace_keys if enable_transformer_adapter else {},
+                ),
+                load_weight(
                     nested_dict_value(pretrained_infos, "text", "weight"),
                     prefix_keys={"": "text."},
                     replace_keys=replace_keys if enable_text_adapter else {},
-                ),
-                load_weight(
-                    nested_dict_value(pretrained_infos, "image", "weight"),
-                    prefix_keys={"": "image."},
                 ),
                 load_weight(
                     nested_dict_value(pretrained_infos, "vae", "weight"),
@@ -876,7 +843,6 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
     def forward(
         self,
         pixel_values: torch.Tensor,
-        condition_pixel_values: torch.Tensor,
         vae_pixel_values: torch.Tensor,
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
@@ -1002,15 +968,10 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         latent_model_input = torch.cat([noise_latents, condition_latents], dim=1)
 
         encoder_hidden_states = self.text(input_ids, attention_mask)[0]
-        condition_hidden_states = self.image(
-            condition_pixel_values,
-            output_hidden_states=True,
-        ).hidden_states[-2]
         outputs = self.transformer(
             latent_model_input,
             timesteps,
             encoder_hidden_states=encoder_hidden_states,
-            encoder_hidden_states_image=condition_hidden_states,
         ).sample
         weighting = compute_loss_weighting_for_sd3(
             weighting_scheme="none", sigmas=sigmas

@@ -84,7 +84,7 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
         text_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
-        image_config_path: Optional[str] = None,
+        config2_path: Optional[str] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -105,12 +105,14 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
             torch.bfloat16
         )
 
+        if config2_path is not None:
+            config2_dict = json.load(open(config2_path))
+            self.transformer2 = WanTransformer3DModel.from_config(config2_dict).to(
+                torch.bfloat16
+            )
+
         text_config = UMT5Config.from_json_file(text_config_path)
         self.text = UMT5EncoderModel(text_config).to(torch.bfloat16)
-
-        if image_config_path is not None:
-            image_config = CLIPVisionConfig.from_json_file(image_config_path)
-            self.image = CLIPVisionModel(image_config).to(torch.bfloat16)
 
         vae_config_dict = json.load(open(vae_config_path))
         self.vae = AutoencoderKLWan.from_config(vae_config_dict).to(torch.bfloat16)
@@ -136,6 +138,9 @@ class GenericWanModel(GenericModel, QuantizationMixin, PeftWeightLoaderMixin):
         if freeze_transformer_encoder:
             for param in self.transformer.parameters():
                 param.requires_grad = False
+            if hasattr(self, "transformer2"):
+                for param in self.transformer2.parameters():
+                    param.requires_grad = False
 
         if quant_config_path is not None:
             self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
@@ -203,6 +208,7 @@ class WanForText2VideoGeneration(GenericWanModel):
         text_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
+        config2_path: Optional[str] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -217,6 +223,7 @@ class WanForText2VideoGeneration(GenericWanModel):
             text_config_path=text_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -232,6 +239,7 @@ class WanForText2VideoGeneration(GenericWanModel):
             vae=self.vae,
             text_encoder=self.text,
             transformer=self.transformer,
+            transformer_2=getattr(self, "transformer2", None),
             scheduler=self.scheduler,
             tokenizer=None,
         )
@@ -241,7 +249,7 @@ class WanForText2VideoGeneration(GenericWanModel):
     @add_default_section_for_init("microsoft/model/diffusers/text2video/wan")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/text2video/wan")
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-t2v-1.3b")
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.2-t2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -250,6 +258,15 @@ class WanForText2VideoGeneration(GenericWanModel):
             nested_dict_value(pretrained_infos, "transformer", "config"),
         )
         config_path = cached_path(config_path)
+
+        config2_path = config.getoption("config2_path", None)
+        config2_path = pop_value(
+            config2_path,
+            nested_dict_value(pretrained_infos, "transformer2", "config"),
+        )
+
+        if config2_path is not None:
+            config2_path = cached_path(config2_path)
 
         text_config_path = config.getoption("text_config_path", None)
         text_config_path = pop_value(
@@ -276,8 +293,6 @@ class WanForText2VideoGeneration(GenericWanModel):
         if quant_config_path is not None:
             quant_config_path = cached_path(quant_config_path)
 
-        in_channels = config.getoption("in_channels", None)
-        out_channels = config.getoption("out_channels", None)
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
         freeze_vae_encoder = config.getoption("freeze_vae_encoder", True)
@@ -291,6 +306,7 @@ class WanForText2VideoGeneration(GenericWanModel):
             text_config_path=text_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -312,6 +328,10 @@ class WanForText2VideoGeneration(GenericWanModel):
                     prefix_keys={"": "transformer."},
                 ),
                 load_weight(
+                    glob.glob(f"{pretrained_weight_folder}/transformer_2/*.safetensors"),
+                    prefix_keys={"": "transformer2."},
+                ),
+                load_weight(
                     glob.glob(f"{pretrained_weight_folder}/text_encoder/*.safetensors"),
                     prefix_keys={"": "text."},
                 ),
@@ -325,6 +345,10 @@ class WanForText2VideoGeneration(GenericWanModel):
                 load_weight(
                     nested_dict_value(pretrained_infos, "transformer", "weight"),
                     prefix_keys={"": "transformer."},
+                ),
+                load_weight(
+                    nested_dict_value(pretrained_infos, "transformer2", "weight"),
+                    prefix_keys={"": "transformer2."},
                 ),
                 load_weight(
                     nested_dict_value(pretrained_infos, "text", "weight"),
@@ -495,9 +519,9 @@ class WanForImage2VideoGeneration(GenericWanModel):
         self,
         config_path: str,
         text_config_path: str,
-        image_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
+        config2_path: Optional[str] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -510,9 +534,9 @@ class WanForImage2VideoGeneration(GenericWanModel):
         super().__init__(
             config_path=config_path,
             text_config_path=text_config_path,
-            image_config_path=image_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -523,12 +547,14 @@ class WanForImage2VideoGeneration(GenericWanModel):
         )
         if gradient_checkpointing:
             self.transformer.enable_gradient_checkpointing()
+            if hasattr(self, "transformer2"):
+                self.transformer2.enable_gradient_checkpointing()
 
         self.pipeline = WanImageToVideoPipeline(
             vae=self.vae,
             text_encoder=self.text,
-            image_encoder=self.image,
             transformer=self.transformer,
+            transformer_2=getattr(self, "transformer2", None),
             scheduler=self.scheduler,
             tokenizer=None,
             image_processor=None,
@@ -539,7 +565,7 @@ class WanForImage2VideoGeneration(GenericWanModel):
     @add_default_section_for_init("microsoft/model/diffusers/image2video/wan")
     def from_core_configure(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/image2video/wan")
-        pretrained_name = config.getoption("pretrained_name", "wan-v2.1-i2v-14b-480p")
+        pretrained_name = config.getoption("pretrained_name", "wan-v2.2-i2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
 
         config_path = config.getoption("config_path", None)
@@ -549,19 +575,21 @@ class WanForImage2VideoGeneration(GenericWanModel):
         )
         config_path = cached_path(config_path)
 
+        config2_path = config.getoption("config2_path", None)
+        config2_path = pop_value(
+            config2_path,
+            nested_dict_value(pretrained_infos, "transformer2", "config"),
+        )
+
+        if config2_path is not None:
+            config2_path = cached_path(config2_path)
+
         text_config_path = config.getoption("text_config_path", None)
         text_config_path = pop_value(
             text_config_path,
             nested_dict_value(pretrained_infos, "text", "config"),
         )
         text_config_path = cached_path(text_config_path)
-
-        image_config_path = config.getoption("image_config_path", None)
-        image_config_path = pop_value(
-            image_config_path,
-            nested_dict_value(pretrained_infos, "image", "config"),
-        )
-        image_config_path = cached_path(image_config_path)
 
         vae_config_path = config.getoption("vae_config_path", None)
         vae_config_path = pop_value(
@@ -581,8 +609,6 @@ class WanForImage2VideoGeneration(GenericWanModel):
         if quant_config_path is not None:
             quant_config_path = cached_path(quant_config_path)
 
-        in_channels = config.getoption("in_channels", None)
-        out_channels = config.getoption("out_channels", None)
         num_train_timesteps = config.getoption("num_train_timesteps", 1000)
         num_infer_timesteps = config.getoption("num_infer_timesteps", 50)
         freeze_vae_encoder = config.getoption("freeze_vae_encoder", True)
@@ -594,9 +620,9 @@ class WanForImage2VideoGeneration(GenericWanModel):
         inst = cls(
             config_path=config_path,
             text_config_path=text_config_path,
-            image_config_path=image_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
+            config2_path=config2_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -698,7 +724,6 @@ class WanForImage2VideoGeneration(GenericWanModel):
     def forward(
         self,
         pixel_values: torch.Tensor,
-        condition_pixel_values: torch.Tensor,
         vae_pixel_values: torch.Tensor,
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
@@ -786,15 +811,10 @@ class WanForImage2VideoGeneration(GenericWanModel):
         latent_model_input = torch.cat([noise_latents, condition_latents], dim=1)
 
         encoder_hidden_states = self.text(input_ids, attention_mask)[0]
-        condition_hidden_states = self.image(
-            condition_pixel_values,
-            output_hidden_states=True,
-        ).hidden_states[-2]
         outputs = self.transformer(
             latent_model_input,
             timesteps,
             encoder_hidden_states=encoder_hidden_states,
-            encoder_hidden_states_image=condition_hidden_states,
         ).sample
         # weighting = compute_loss_weighting_for_sd3(
         #     weighting_scheme="none", sigmas=sigmas
@@ -819,7 +839,6 @@ class WanForImage2VideoGeneration(GenericWanModel):
         self,
         input_ids: torch.Tensor,
         negative_input_ids: torch.Tensor,
-        condition_pixel_values: torch.Tensor,
         vae_pixel_values: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
         negative_attention_mask: Optional[torch.Tensor] = None,
@@ -846,11 +865,6 @@ class WanForImage2VideoGeneration(GenericWanModel):
         if enable_cpu_offload:
             self.image.to(device=cpu_offload_device)
 
-        condition_hidden_states = self.image(
-            condition_pixel_values.to(device=cpu_offload_device),
-            output_hidden_states=True,
-        ).hidden_states[-2]
-
         if enable_cpu_offload:
             self.image.to(device="cpu")
             condition_hidden_states = condition_hidden_states.to("cpu")
@@ -859,7 +873,6 @@ class WanForImage2VideoGeneration(GenericWanModel):
             image=vae_pixel_values,
             prompt_embeds=outputs.prompt_embeds,
             negative_prompt_embeds=outputs.negative_prompt_embeds,
-            image_embeds=condition_hidden_states,
             generator=torch.Generator(device=self.pipeline.device).manual_seed(
                 self.seed
             ),
