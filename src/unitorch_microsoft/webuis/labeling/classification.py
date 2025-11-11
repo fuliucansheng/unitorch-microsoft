@@ -34,7 +34,34 @@ from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft.fastapis.collector import reported_item
 
 _js = """
-() => {}
+() => {
+    const shortcuts = (e) => {
+        const event = document.all ? window.event : e;
+        if(e.target.tagName.toLowerCase() == "body") {
+            const code = e.key;
+            if (code.toLowerCase() === "enter") {
+                document.getElementById("ut-labeling-submit").click();
+                document.activeElement.blur();
+                window.focus();
+            } else {
+                const choices = document.getElementById("ut-labeling-choices").getElementsByTagName("label");
+                if (/^[1-9]$/.test(code)) {
+                    const index = parseInt(code, 10) - 1; // 数字键1对应choices[0]
+                    if (index >= 0 && index < choices.length) {
+                        choices[index].click();
+                        document.activeElement.blur();
+                        window.focus();
+                    } else {
+                        console.warn("Key index out of range:", index);
+                    }
+                }
+
+            }
+        }
+    };
+    document.addEventListener("keyup", shortcuts);
+    console.log("Shortcut keys for labeling loaded.");
+}
 """
 
 _css = """
@@ -99,6 +126,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.zip_cols = config.getoption("zip_cols", None)
         self.zip_http_url = config.getoption("zip_http_url", None)
         self.group_col = config.getoption("group_col", None)
+        self.pre_label_col = config.getoption("pre_label_col", None)
         self.num_group_texts_per_row = config.getoption("num_group_texts_per_row", 4)
         self.num_images_per_row = config.getoption("num_images_per_row", 4)
         self.num_videos_per_row = config.getoption("num_videos_per_row", 4)
@@ -212,15 +240,25 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.guideline = config.getoption("guideline", None)
         self.choices = config.getoption("choices", None)
         self.checkbox = config.getoption("checkbox", False)
+        self.use_shortcuts = config.getoption("use_shortcuts", False)
         self.html_styles = config.getoption("html_styles", {})
         self.dataset["User"] = ""
         self.dataset["Comment"] = ""
         self.dataset["Label"] = ""
 
+        if self.pre_label_col is not None:
+            assert (
+                self.pre_label_col in self.dataset.columns
+            ), f"pre_label_col {self.pre_label_col} not found in dataset"
+            self.dataset["Label"] = self.dataset[self.pre_label_col].map(
+                lambda x: str(x).strip()
+            )
+            self.dataset["Label"].fillna("", inplace=True)
+
         if isinstance(self.choices, str):
             self.choices = re.split(r"[,;]", self.choices)
             self.choices = [c.strip() for c in self.choices]
-        self.choices = [str(c).replace(",", " ").strip() for c in self.choices]
+        self.choices = [str(c).strip() for c in self.choices]
 
         if os.path.exists(result_file) and not force_to_relabel:
             self.dataset = pd.read_csv(result_file, sep="\t")
@@ -310,6 +348,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             label="Label",
             values=self.choices,
             scale=3,
+            elem_id="ut-labeling-choices",
         )
 
         comment = create_element(
@@ -333,6 +372,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         submit = create_element(
             "button",
             label="Submit",
+            elem_id="ut-labeling-submit",
         )
         reset = create_element(
             "button",
@@ -480,7 +520,10 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             name="Advanced",
         )
         tabs = create_tabs(tab1, tab2, tab3)
-        iface = create_blocks(guideline_header, guideline, tabs, js=_js, css=_css)
+        if self.use_shortcuts:
+            iface = create_blocks(guideline_header, guideline, tabs, js=_js, css=_css)
+        else:
+            iface = create_blocks(guideline_header, guideline, tabs, css=_css)
 
         # create events
         iface.__enter__()
