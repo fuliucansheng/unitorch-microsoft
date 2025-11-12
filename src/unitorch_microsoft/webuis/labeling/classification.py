@@ -35,11 +35,11 @@ from unitorch_microsoft.fastapis.collector import reported_item
 
 _js = """
 () => {
-    const shortcuts = (e) => {
+  const shortcuts = (e) => {
         const event = document.all ? window.event : e;
         if(e.target.tagName.toLowerCase() == "body") {
             const code = e.key;
-            if (code.toLowerCase() === "enter") {
+            if (code.toLowerCase() === "arrowright") {
                 document.getElementById("ut-labeling-submit").click();
                 document.activeElement.blur();
                 window.focus();
@@ -745,7 +745,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         new_htmls = new_one[self.html_cols].tolist()
         new_group = new_one[self.group_col] if self.group_col is not None else None
         new_comment = new_one["Comment"]
-        new_choices = new_one["Label"].split(",") if new_one["Label"] != "" else None
+        new_choices = new_one["Label"].split("<label-gap>") if new_one["Label"] != "" else None
         new_choices = (
             new_choices[0]
             if not self.checkbox and new_choices is not None
@@ -771,7 +771,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         choices = self.choices
 
         labeled["Label"] = labeled["Label"].map(
-            lambda x: x.split(",") if x != "" else []
+            lambda x: x.split("<label-gap>") if x != "" else []
         )
         labeled_exploded = labeled.explode("Label")
 
@@ -866,7 +866,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             gr.Warning("Please ensure the label field is not left empty.")
             return os.path.abspath(self.result_file), self.stats(), logs, index
         if isinstance(choice, list) or isinstance(choice, tuple):
-            choice = ",".join(choice)
+            choice = "<label-gap>".join(choice)
         self.dataset.loc[self.dataset.Index == index, "User"] = user
         self.dataset.loc[self.dataset.Index == index, "Label"] = choice
         self.dataset.loc[self.dataset.Index == index, "Comment"] = comment
