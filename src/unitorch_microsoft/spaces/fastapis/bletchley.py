@@ -65,7 +65,11 @@ class BletchleyV1FastAPI(GenericFastAPI):
         return self._router
 
     def start(self):
-        if self._pipe1 is not None and self._pipe2 is not None and self._pipe3 is not None:
+        if (
+            self._pipe1 is not None
+            and self._pipe2 is not None
+            and self._pipe3 is not None
+        ):
             return "running"
         self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,

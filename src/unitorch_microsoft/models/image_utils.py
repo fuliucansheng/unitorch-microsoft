@@ -87,3 +87,32 @@ class ImageProcessor:
         bottom = top + size[1]
         right, bottom = min(width, right), min(height, bottom)
         return image.crop((left, top, right, bottom))
+
+    @register_process("microsoft/process/image/padding")
+    def _padding(
+        self,
+        image: Image.Image,
+        pad_ratios: Union[float, Tuple[float, float]] = (0.4, 0.4),
+        pad_pixels: Union[int, Tuple[int, int]] = (0, 0),
+        color: Union[int, Tuple[int, int, int]] = (255, 255, 255),
+    ):
+        width, height = image.size
+        if isinstance(pad_ratios, float):
+            pad_x = int(pad_ratios * width)
+            pad_y = int(pad_ratios * height)
+        else:
+            pad_x = int(pad_ratios[0] * width)
+            pad_y = int(pad_ratios[1] * height)
+
+        if isinstance(pad_pixels, int):
+            pad_x += pad_pixels
+            pad_y += pad_pixels
+        else:
+            pad_x += pad_pixels[0]
+            pad_y += pad_pixels[1]
+
+        new_width = int(width + pad_x)
+        new_height = int(height + pad_y)
+        new_image = Image.new("RGB", (new_width, new_height), color)
+        new_image.paste(image, ((new_width - width) // 2, (new_height - height) // 2))
+        return new_image

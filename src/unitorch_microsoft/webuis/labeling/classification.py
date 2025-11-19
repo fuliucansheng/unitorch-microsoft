@@ -241,7 +241,8 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         self.choices = config.getoption("choices", None)
         self.checkbox = config.getoption("checkbox", False)
         self.use_shortcuts = config.getoption("use_shortcuts", False)
-        self.html_styles = config.getoption("html_styles", {})
+        self.sort_rules = config.getoption("sort_rules", [])
+        self.html_templates = config.getoption("html_templates", {})
         self.dataset["User"] = ""
         self.dataset["Comment"] = ""
         self.dataset["Label"] = ""
@@ -264,6 +265,26 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             self.dataset = pd.read_csv(result_file, sep="\t")
         else:
             self.dataset.to_csv(result_file, sep="\t", index=False)
+
+        if isinstance(self.sort_rules, str):
+            self.sort_rules = re.split(r"[,;]", self.sort_rules)
+            self.sort_rules = [sr.strip() for sr in self.sort_rules]
+
+        _sort_rules = []
+        for sort_rule in self.sort_rules:
+            if isinstance(sort_rule, str):
+                if sort_rule.count(":") > 0:
+                    col, asc_str = sort_rule.split(":")
+                    asc = asc_str.lower() in ["true", "1", "yes"]
+                    _sort_rules.append((col.strip(), asc))
+                else:
+                    _sort_rules.append((sort_rule, True))
+            else:
+                _sort_rules.append(sort_rule)
+            assert (
+                _sort_rules[-1][0] in self.dataset.columns
+            ), f"sort column {_sort_rules[-1][0]} not in dataset"
+        self.sort_rules = _sort_rules
 
         self.logs = f"* {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}: Start Labeling. \n"
 
@@ -618,7 +639,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
             sample[col] = url(sample[col])
 
         for col in self.html_cols:
-            sample[col] = self.html_styles.get(sample[col], "{0}").format(sample[col])
+            sample[col] = self.html_templates.get(col, "{0}").format(sample[col])
         return sample
 
     def process_results(self, results):
@@ -651,7 +672,7 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
 
         for col in set(self.html_cols):
             results[col] = results[col].map(
-                lambda x: self.html_styles.get(x, "{0}").format(x)
+                lambda x: self.html_templates.get(col, "{0}").format(x)
             )
         return results
 
@@ -669,7 +690,19 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         if len(sampled_data) == 0:
             return " - "
 
-        return sampled_data.sample(1).iloc[0]["Index"]
+        if len(self.sort_rules) > 0:
+            cols, ascs = [], []
+            for sort_rule in self.sort_rules:
+                if isinstance(sort_rule, str):
+                    col, asc = sort_rule, True
+                else:
+                    col, asc = sort_rule
+                cols.append(col)
+                ascs.append(asc)
+            sampled_data = sampled_data.sort_values(by=cols, ascending=ascs)
+            return sampled_data.iloc[0]["Index"]
+        else:
+            return sampled_data.sample(1).iloc[0]["Index"]
 
     def show(self, group=None, data_type="Labeled", choice=None, disp_cols=None):
         total = self.dataset.shape[0]
@@ -745,7 +778,9 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         new_htmls = new_one[self.html_cols].tolist()
         new_group = new_one[self.group_col] if self.group_col is not None else None
         new_comment = new_one["Comment"]
-        new_choices = new_one["Label"].split("<label-gap>") if new_one["Label"] != "" else None
+        new_choices = (
+            new_one["Label"].split("<label-gap>") if new_one["Label"] != "" else None
+        )
         new_choices = (
             new_choices[0]
             if not self.checkbox and new_choices is not None
