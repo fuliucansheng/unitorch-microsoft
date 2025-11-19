@@ -28,9 +28,9 @@ steps:
     sudo apt-get clean
     sudo rm -rf /var/lib/apt/lists/*
     # 删除 pip 缓存
-    pip cache purge
+    sudo pip cache purge
     # 删除临时文件
-    rm -rf /tmp/*
+    sudo rm -rf /tmp/*
   displayName: 'Clean Disk Space Before Install'
 
 - script: |
