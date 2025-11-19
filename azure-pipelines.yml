@@ -34,9 +34,8 @@ steps:
 
 - script: |
     python -m pip install --upgrade pip
-    pip install --no-cache-dir pillow
+    python -m pip install --no-cache-dir pillow
     python -m pip install --no-cache-dir torch==2.4.1+cpu torchvision==0.19.1+cpu torchaudio==2.4.1 --extra-index-url https://download.pytorch.org/whl/cpu
-    pip install --no-cache-dir -r requirements.txt
     python -m pip install --no-cache-dir .
   displayName: 'Install Package'
 
