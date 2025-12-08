@@ -425,7 +425,7 @@ class BadCropProcessor(SiglipProcessor):
             if len(rois) != 4:
                 raise ValueError("rois must contain 4 values")
             image = self._processing_smart_crop(image, rois, ratio)
-        elif crop == "CampaignROI":
+        elif crop in ["CampaignROI", "CampaignManualCropROI", "CampaignCenterCropROI"]:
             if rois is None:
                 raise ValueError("rois must be provided for CampaignCrop")
             rois = process(rois)
