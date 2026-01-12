@@ -42,7 +42,6 @@ from unitorch_microsoft.spaces import (
     create_dashboard_cards_group,
     create_cards_group,
 )
-from unitorch_microsoft.scripts.tools.report_items import reported_item
 
 
 class RecraftCreateImgWebUI(SimpleWebUI):
@@ -138,17 +137,6 @@ class RecraftCreateImgWebUI(SimpleWebUI):
             width=width,
             height=height,
         )
-        reported_item(
-            record={
-                "prompt": prompt,
-                "style": "realistic_image",
-                "width": width,
-                "height": height,
-                "tags": "#Recraft#T2I",
-            },
-            images={"result": result},
-        )
-
         return result
 
 

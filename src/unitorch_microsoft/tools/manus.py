@@ -730,6 +730,7 @@ Execute a bash command in the terminal.
 * Timeout: If a command execution result says "Command timed out. Sending SIGINT to the process", the assistant should retry running the command in the background.
 * Pay attention to the whitespace in the command, it should be escaped properly. Don't add extra whitespace in the command like `(`, `)`, `&`, etc.
 """
+_BASH_TIMEOUT = float(os.environ.get("BASH_TIMEOUT", 120.0))  # seconds
 
 
 class BashSession:
@@ -738,7 +739,7 @@ class BashSession:
 
     command: str = "/bin/bash"
     _output_delay: float = 0.2  # seconds
-    _timeout: float = 120.0  # seconds
+    _timeout: float = _BASH_TIMEOUT  # seconds
     _sentinel: str = "<<exit>>"
 
     def __init__(self):
@@ -933,7 +934,9 @@ class LocalFileOperator:
         return Path(path).exists()
 
     async def run_command(
-        self, cmd: str, timeout: Optional[float] = 120.0
+        self,
+        cmd: str,
+        timeout: Optional[float] = _BASH_TIMEOUT,
     ) -> Tuple[int, str, str]:
         """Run a shell command locally."""
         process = await asyncio.create_subprocess_shell(

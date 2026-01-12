@@ -52,8 +52,8 @@ others = [
     "httpcore>=1.0.5", 
     "starlette>=0.38.2", 
     "uvicorn>=0.30.6", 
-    "gradio==5.34.2", 
-    "gradio_client==1.10.3",
+    "gradio>6.0.0", 
+    "gradio_client",
   ]
 all = ["unitorch_microsoft[deepspeed,diffusers,detection,quantization,megatron,docs,agents,others]"]
 

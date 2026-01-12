@@ -61,8 +61,8 @@ class DashboardWebUI(SimpleWebUI):
                 y=y,
                 color=g,
                 y_aggregate="mean",
-                x_label=x,
-                y_label=y,
+                x_title=x,
+                y_title=y,
             )
             table = gr.Markdown()
             return GenericOutputs(

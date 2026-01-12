@@ -9,7 +9,6 @@ from unitorch_microsoft.externals.papyrus import (
     get_access_token,
     papyrus_endpoint1,
     papyrus_endpoint2,
-    reported_item,
 )
 
 
@@ -46,7 +45,6 @@ def get_image_response(
     ]
 
     try:
-        reported_images = {}
         if len(images) == 0:
             headers["Content-Type"] = "application/json"
             data = {
@@ -70,10 +68,8 @@ def get_image_response(
                 ("image[]", (f"image_{i}.png", get_image(image), "image/png"))
                 for i, image in enumerate(images)
             ]
-            reported_images = {f"image_{i}": image for i, image in enumerate(images)}
             if mask is not None:
                 files.append(("mask", ("mask.png", get_image(mask), "image/png")))
-                reported_images["mask"] = mask
             response = requests.post(
                 papyrus_endpoint2, headers=headers, data=data, files=files
             )
@@ -82,12 +78,6 @@ def get_image_response(
         if "data" in response and len(response["data"]) > 0:
             result = response["data"][0]["b64_json"]
             result = Image.open(io.BytesIO(base64.b64decode(result)))
-            reported_images["result"] = result
-
-            reported_item(
-                record={"prompt": prompt, "size": size, "tags": "#GPT-Image-1"},
-                images=reported_images,
-            )
 
             return result
         else:

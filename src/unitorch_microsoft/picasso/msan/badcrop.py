@@ -43,8 +43,7 @@ def covert(
         header=None if names is not None else "infer",
     )
 
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    os.makedirs(cache_dir, exist_ok=True)
 
     data.to_csv(
         os.path.join(cache_dir, "converted_data.tsv"),
@@ -63,8 +62,7 @@ def preprocess(
     keep_columns: Optional[Union[str, List[str]]] = None,
     url_prefix: Optional[str] = None,
 ):
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    os.makedirs(cache_dir, exist_ok=True)
 
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -79,8 +77,8 @@ def preprocess(
         quoting=3,
         header=None if names is not None else "infer",
     )
-    if image_folder is not None and not os.path.exists(image_folder):
-        os.makedirs(image_folder)
+    if image_folder is not None:
+        os.makedirs(image_folder, exist_ok=True)
 
     all_images = []
     if isinstance(images, str):
@@ -180,8 +178,7 @@ def gpt(
     
     N for good crop, Y for bad crop. Organize the answer with following structure:  <ans1>Blurry or Clear</ans1><reasoning1></reasoning1> <ans2>N or Y</ans2><reasoning2></reasoning2>
     """
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    os.makedirs(cache_dir, exist_ok=True)
 
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -261,8 +258,7 @@ def model(
     image_col: str,
     names: Union[str, List[str]] = None,
 ):
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    os.makedirs(cache_dir, exist_ok=True)
 
     if isinstance(names, str) and names.strip() == "*":
         names = None
@@ -303,8 +299,7 @@ def postprocess(
     names: Union[str, List[str]] = None,
     threshold: float = 0.3,
 ):
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    os.makedirs(cache_dir, exist_ok=True)
 
     if isinstance(names, str) and names.strip() == "*":
         names = None

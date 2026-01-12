@@ -9,7 +9,6 @@ from unitorch_microsoft.externals.papyrus import (
     get_access_token,
     papyrus_endpoint1,
     papyrus_endpoint2,
-    reported_item,
 )
 
 

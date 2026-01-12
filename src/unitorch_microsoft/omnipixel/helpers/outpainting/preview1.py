@@ -42,8 +42,7 @@ def main(
 
     if temp_folder is None:
         temp_folder = tempfile.gettempdir()
-    if not os.path.exists(temp_folder):
-        os.makedirs(temp_folder)
+    os.makedirs(temp_folder, exist_ok=True)
     data_file = tempfile.mktemp(suffix=".data.txt", dir=temp_folder)
     res_file = tempfile.mktemp(suffix=".result.txt", dir=temp_folder)
 

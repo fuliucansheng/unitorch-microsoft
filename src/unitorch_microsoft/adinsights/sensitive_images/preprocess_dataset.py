@@ -22,8 +22,7 @@ positive_zip = zipfile.ZipFile("./positiveCat.zip")
 negative_zip = zipfile.ZipFile("./negative.zip")
 
 output_folder = "./sensitive_dataset"
-if not os.path.exists(output_folder):
-    os.makedirs(output_folder)
+os.makedirs(output_folder, exist_ok=True)
 output_zipfile = zipfile.ZipFile(
     os.path.join(output_folder, "./zip_images.zip"),
     mode="w",

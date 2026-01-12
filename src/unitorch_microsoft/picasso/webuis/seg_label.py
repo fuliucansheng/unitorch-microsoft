@@ -15,7 +15,7 @@ import gradio as gr
 from PIL import Image
 from collections import Counter, defaultdict
 from torch.hub import download_url_to_file
-from unitorch import get_temp_home
+from unitorch import get_temp_dir
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import register_webui
 from unitorch.cli.webuis import (
@@ -64,7 +64,7 @@ class SegmentationLabelingWebUI(SimpleWebUI):
             names = [n.strip() for n in names]
 
         sep = config.getoption("sep", "\t")
-        temp_folder = config.getoption("temp_folder", get_temp_home())
+        temp_folder = config.getoption("temp_folder", get_temp_dir())
         os.makedirs(temp_folder, exist_ok=True)
         self.temp_folder = temp_folder
 

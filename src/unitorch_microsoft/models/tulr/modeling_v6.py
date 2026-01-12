@@ -15,7 +15,8 @@ from transformers.modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPooling,
 )
-from transformers.modeling_utils import PreTrainedModel, prune_linear_layer
+from transformers.modeling_utils import PreTrainedModel
+from transformers.pytorch_utils import prune_linear_layer
 from transformers.models.bert.modeling_bert import (
     BertIntermediate,
     BertOutput,

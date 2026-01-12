@@ -21,17 +21,15 @@ from unitorch_microsoft.spaces import (
     create_cards_group,
     hashed_link,
 )
-from unitorch_microsoft.spaces.demos.contribs.stable import stable_pages
 from unitorch_microsoft.spaces.demos.contribs.flux import flux_pages
 from unitorch_microsoft.spaces.demos.commericals import commerical_pages
 from unitorch_microsoft.spaces.demos.tools import tools_pages
 
-stable_pages = [_webui(spaces_settings).iface for _webui in stable_pages]
 flux_pages = [_webui(spaces_settings).iface for _webui in flux_pages]
 commerical_pages = [_webui(spaces_settings).iface for _webui in commerical_pages]
 tools_pages = [_webui(spaces_settings).iface for _webui in tools_pages]
 
-all_pages = stable_pages + flux_pages + commerical_pages + tools_pages
+all_pages = flux_pages + commerical_pages + tools_pages
 for page in all_pages:
     page._link = f"/demos/{hashed_link(page._title + page._description, 6)}"
     page.title = f"Ads Spaces | Demos - {page._title}"
@@ -39,19 +37,6 @@ for page in all_pages:
 
 def create_demos_page():
     toper_menus = create_toper_menus()
-
-    stable_cards = [
-        GenericOutputs(
-            title=p._title,
-            desc=p._description,
-            link=p._link,
-        )
-        for p in stable_pages
-    ]
-    stable_group = create_cards_group(
-        "✨ Stable V1.5",
-        stable_cards,
-    )
 
     flux_cards = [
         GenericOutputs(
@@ -94,7 +79,6 @@ def create_demos_page():
     footer = create_footer()
     return create_blocks(
         toper_menus,
-        stable_group,
         flux_group,
         commerical_group,
         tools_group,

@@ -3,11 +3,12 @@
 
 import torch
 import json
+import importlib
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch import autocast
 from transformers.utils import is_remote_url
 from transformers import BloomModel, BloomConfig
-from unitorch.utils import pop_value, nested_dict_value, is_auto_gptq_available
+from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
 from unitorch.cli import (
     cached_path,
@@ -19,6 +20,8 @@ from unitorch.cli.models import generation_model_decorator
 from unitorch.cli.models import ClassificationOutputs, GenerationOutputs, LossOutputs
 from unitorch.cli.models.bloom import pretrained_bloom_infos
 from unitorch_microsoft.models.bloom.modeling_utils import BloomForCausalLM
+
+_auto_gptq_available = importlib.util.find_spec("auto_gptq") is not None
 
 
 @register_model("microsoft/model/generation/bloom/gptq", generation_model_decorator)
@@ -48,7 +51,7 @@ class BloomGPTQForGeneration(GenericModel):
         self.config.gradient_checkpointing = gradient_checkpointing
         self.model = BloomForCausalLM(self.config)
         assert (
-            is_auto_gptq_available()
+            _auto_gptq_available
         ), "Please install auto-gptq to use BloomGPTQForGeneration."
 
         from auto_gptq import BaseQuantizeConfig

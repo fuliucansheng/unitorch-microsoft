@@ -14,7 +14,7 @@ import gradio as gr
 from PIL import Image
 from collections import Counter
 from torch.hub import download_url_to_file
-from unitorch import get_temp_home
+from unitorch import get_temp_dir
 from unitorch.models import GenericOutputs
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli import register_webui

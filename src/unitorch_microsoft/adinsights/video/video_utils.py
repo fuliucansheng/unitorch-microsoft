@@ -214,8 +214,7 @@ class VideoProcessor(ImageProcessor):
             _, ext = os.path.splitext(video_path)
         except:
             ext = ".mp4"
-        if not os.path.exists(self.tmp_download_folder):
-            os.makedirs(self.tmp_download_folder, exist_ok=True)
+        os.makedirs(self.tmp_download_folder, exist_ok=True)
         name = hashlib.md5(video_path.encode()).hexdigest() + ext
         name = os.path.join(self.tmp_download_folder, name)
         download_url_to_file(video_path, name, progress=False)

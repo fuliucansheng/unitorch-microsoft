@@ -34,15 +34,13 @@ steps:
 
 - script: |
     python -m pip install --upgrade pip
-    python -m pip install --no-cache-dir pillow
-    python -m pip install --no-cache-dir torch==2.4.1+cpu torchvision==0.19.1+cpu torchaudio==2.4.1 --extra-index-url https://download.pytorch.org/whl/cpu
-    python -m pip install --no-cache-dir .
+    python -m pip install --no-cache-dir . --no-deps
   displayName: 'Install Package'
 
 - task: CmdLine@2
   inputs:
     script: |
-      version=$(python3.10 -c 'import unitorch_microsoft; print(unitorch_microsoft.VERSION)')
+      version=$(UNITORCH_MS_SKIP_IMPORT=True python3.10 -c 'import unitorch_microsoft; print(unitorch_microsoft.VERSION)')
       git config --global user.email "decu@microsoft.com"
       git config --global user.name "decu"
       version="v$version"

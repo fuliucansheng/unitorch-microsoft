@@ -9,7 +9,7 @@ import requests
 from PIL import Image
 from pathlib import Path
 from typing import Optional, List
-from unitorch_microsoft import get_unitorch_home
+from unitorch import get_dir
 
 CLIENT_ID = "Iv1.b507a08c87ecfe98"
 HEADERS = {
@@ -17,7 +17,7 @@ HEADERS = {
     "content-type": "application/json",
     "user-agent": "GithubCopilot/1.155.0",
 }
-TOKEN_FILE = get_unitorch_home() + "/.github_copilot_access_token"
+TOKEN_FILE = get_dir() + "/.github_copilot_access_token"
 
 
 def cached_file(file_path: str):

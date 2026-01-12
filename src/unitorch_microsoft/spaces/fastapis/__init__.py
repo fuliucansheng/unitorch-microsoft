@@ -3,3 +3,4 @@
 
 import unitorch_microsoft.spaces.fastapis.bletchley
 import unitorch_microsoft.spaces.fastapis.siglip2
+import unitorch_microsoft.spaces.fastapis.swin

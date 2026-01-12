@@ -14,8 +14,6 @@ from transformers.models.t5.configuration_t5 import T5Config
 from transformers.models.t5.modeling_t5 import T5EncoderModel
 from diffusers.schedulers import SchedulerMixin, FlowMatchEulerDiscreteScheduler
 from diffusers.models import (
-    FluxControlNetModel,
-    FluxMultiControlNetModel,
     FluxTransformer2DModel,
     AutoencoderKL,
 )
@@ -398,7 +396,6 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
         text2_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
-        controlnet_configs_path: Union[str, List[str]] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -427,7 +424,6 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
             text2_config_path=text2_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
-            controlnet_configs_path=controlnet_configs_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,
@@ -1138,7 +1134,6 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         text2_config_path: str,
         vae_config_path: str,
         scheduler_config_path: str,
-        controlnet_configs_path: Union[str, List[str]] = None,
         quant_config_path: Optional[str] = None,
         num_train_timesteps: Optional[int] = 1000,
         num_infer_timesteps: Optional[int] = 50,
@@ -1168,7 +1163,6 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
             text2_config_path=text2_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
-            controlnet_configs_path=controlnet_configs_path,
             quant_config_path=quant_config_path,
             num_train_timesteps=num_train_timesteps,
             num_infer_timesteps=num_infer_timesteps,

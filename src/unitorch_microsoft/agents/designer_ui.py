@@ -10,7 +10,6 @@ import fire
 import glob
 import urllib.parse
 import logging
-import frontmatter
 import subprocess
 import tempfile
 import asyncio

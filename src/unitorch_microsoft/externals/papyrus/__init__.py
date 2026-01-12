@@ -9,7 +9,6 @@ import requests
 from PIL import Image
 from typing import Optional, List
 from azure.identity import AzureCliCredential
-from unitorch_microsoft.scripts.tools.report_items import reported_item
 
 """
 pip3 install azure-identity

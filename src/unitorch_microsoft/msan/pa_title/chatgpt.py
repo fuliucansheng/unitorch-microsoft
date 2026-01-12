@@ -138,8 +138,7 @@ class AzureChatGPTScript(GenericScript):
             )
 
         output_file = self.config.getoption("output_file", "./output.tsv")
-        if not os.path.exists(os.path.dirname(output_file)):
-            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
         logging.info(f"Start processing data file {data_file}.")
         for i, _data in enumerate(data):
             _data.fillna("", inplace=True)

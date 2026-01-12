@@ -21,7 +21,7 @@ pretrained_ms_stable_infos = {
                 "config": hf_endpoint_url(
                     "/stabilityai/stable-diffusion-x4-upscaler/resolve/main/unet/config.json"
                 ),
-                "weight": "",
+                "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.sd1.5.4x-upscaler.logo.bin",
             }
         },
     },
@@ -37,26 +37,6 @@ pretrained_ms_stable_infos = {
                     )
                     for i in range(1, 3 + 1)
                 ],
-            }
-        },
-    },
-    "stable-flux-schnell-ms-fill-e2e-1": {
-        **__hf_hub_stable_flux_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
-        **__hf_hub_vae_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
-        **{
-            "transformer": {
-                "config": "omnipixel/experiments/stable-flux-schnell-fill-config.json",
-                "weight": "/data/decu/pytorch_model_latest.transformer.merge.bin",
-            }
-        },
-    },
-    "stable-flux-schnell-ms-fill-e2e-2": {
-        **__hf_hub_stable_flux_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
-        **__hf_hub_vae_safetensors_dict__("lzyvegetable/FLUX.1-schnell"),
-        **{
-            "transformer": {
-                "config": "omnipixel/experiments/stable-flux-schnell-fill-config.json",
-                "weight": "/data/decu/pytorch_model_latest.transformer.merge2.bin",
             }
         },
     },
@@ -76,21 +56,6 @@ pretrained_ms_stable_extensions_infos = {
     "stable-flux-lora-ms-dev-fill-simple": {
         "lora": {
             "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.dev.fill.ms.lora.simple.bin"
-        }
-    },
-    "stable-flux-lora-ms-debug-1": {
-        "lora": {
-            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.ms.lora.debug.1.bin"
-        }
-    },
-    "stable-flux-lora-ms-debug-2": {
-        "lora": {
-            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.ms.lora.debug.2.bin"
-        }
-    },
-    "stable-flux-lora-ms-debug-3": {
-        "lora": {
-            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.flux.ms.lora.debug.3.bin"
         }
     },
 }

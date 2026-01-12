@@ -10,7 +10,6 @@ from typing import Optional, List
 from unitorch_microsoft.externals.papyrus import (
     get_access_token,
     papyrus_endpoint3,
-    reported_item,
 )
 
 
@@ -34,7 +33,6 @@ def get_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -46,7 +44,6 @@ def get_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -77,15 +74,6 @@ def get_response(
     except Exception as e:
         print(e)
         return ""
-    reported_item(
-        record={
-            "prompt": prompt,
-            "system_prompt": system_prompt,
-            "tags": "#GPT-4",
-            "result": result,
-        },
-        images=reported_images if len(reported_images) > 0 else None,
-    )
     return result
 
 
@@ -111,7 +99,6 @@ def get_tools_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -123,7 +110,6 @@ def get_tools_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -205,7 +191,6 @@ def get_chat_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -217,7 +202,6 @@ def get_chat_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
 
     messages += [
         {
@@ -272,7 +256,6 @@ def get_gpt5_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -284,7 +267,6 @@ def get_gpt5_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -314,15 +296,6 @@ def get_gpt5_response(
     except Exception as e:
         print(e)
         return ""
-    reported_item(
-        record={
-            "prompt": prompt,
-            "system_prompt": system_prompt,
-            "tags": "#GPT-5",
-            "result": result,
-        },
-        images=reported_images if len(reported_images) > 0 else None,
-    )
     return result
 
 
@@ -348,7 +321,6 @@ def get_gpt5_tools_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -360,7 +332,6 @@ def get_gpt5_tools_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -441,7 +412,6 @@ def get_gpt5_chat_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -453,7 +423,6 @@ def get_gpt5_chat_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
 
     messages += [
         {

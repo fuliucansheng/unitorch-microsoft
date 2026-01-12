@@ -16,13 +16,9 @@ from multiprocessing import Process, Queue
 from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_file
 from unitorch.cli import CoreConfigureParser
-from unitorch.cli.pipelines.tools import controlnet_processes
 from unitorch.cli.fastapis.stable.text2image import StableForText2ImageFastAPIPipeline
 from unitorch.cli.fastapis.stable.inpainting import (
     StableForImageInpaintingFastAPIPipeline,
-)
-from unitorch.cli.fastapis.controlnet.inpainting import (
-    ControlNetForImageInpaintingFastAPIPipeline,
 )
 import unitorch_microsoft.models.diffusers
 
@@ -149,11 +145,6 @@ def inpainting(
     prompt_col: Optional[str] = None,
     prompt_text: Optional[str] = None,
     pretrained_name: Optional[str] = "stable-v1.5-realistic-v5.1-inpainting",
-    pretrained_controlnet_names: Optional[str] = None,
-    controlnet_process_names: Optional[str] = None,
-    controlnet_guidance_scales: Optional[float] = None,
-    pretrained_inpainting_controlnet_name: Optional[str] = None,
-    inpaint_controlnet_guidance_scale: Optional[float] = 0.8,
     neg_prompt_text: Optional[str] = None,
     guidance_scale: Optional[float] = 7.5,
     num_timesteps: Optional[int] = 50,
@@ -167,48 +158,16 @@ def inpainting(
     device: Optional[Union[str, int]] = "cpu",
     processor_name: Optional[str] = "default",
 ):
-    if (
-        pretrained_controlnet_names is None
-        and pretrained_inpainting_controlnet_name is None
-    ):
-        pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
-            config=CoreConfigureParser(),
-            pretrained_name=pretrained_name,
-            pad_token=pad_token,
-            pretrained_weight_path=weight_path,
-            pretrained_lora_weights_path=lora_weight_path,
-            pretrained_lora_weights=lora_weight,
-            pretrained_lora_alphas=lora_alpha,
-            device=device,
-        )
-        is_controlnet_inpainting = False
-    else:
-        pretrained_controlnet_names = re.split(r"[,;]", pretrained_controlnet_names)
-        pretrained_controlnet_names = [n.strip() for n in pretrained_controlnet_names]
-        controlnet_process_names = re.split(r"[,;]", controlnet_process_names)
-        controlnet_process_names = [n.strip() for n in controlnet_process_names]
-        if isinstance(controlnet_guidance_scales, str):
-            controlnet_guidance_scales = re.split(r"[,;]", controlnet_guidance_scales)
-            controlnet_guidance_scales = [
-                float(n.strip()) for n in controlnet_guidance_scales
-            ]
-        if isinstance(controlnet_guidance_scales, float) or isinstance(
-            controlnet_guidance_scales, int
-        ):
-            controlnet_guidance_scales = [controlnet_guidance_scales]
-        pipe = ControlNetForImageInpaintingFastAPIPipeline.from_core_configure(
-            config=CoreConfigureParser(),
-            pretrained_name=pretrained_name,
-            pretrained_controlnet_names=pretrained_controlnet_names,
-            pretrained_inpainting_controlnet_name=pretrained_inpainting_controlnet_name,
-            pad_token=pad_token,
-            pretrained_weight_path=weight_path,
-            pretrained_lora_weights_path=lora_weight_path,
-            pretrained_lora_weights=lora_weight,
-            pretrained_lora_alphas=lora_alpha,
-            device=device,
-        )
-        is_controlnet_inpainting = True
+    pipe = StableForImageInpaintingFastAPIPipeline.from_core_configure(
+        config=CoreConfigureParser(),
+        pretrained_name=pretrained_name,
+        pad_token=pad_token,
+        pretrained_weight_path=weight_path,
+        pretrained_lora_weights_path=lora_weight_path,
+        pretrained_lora_weights=lora_weight,
+        pretrained_lora_alphas=lora_alpha,
+        device=device,
+    )
     if isinstance(names, str) and names.strip() == "*":
         names = None
     if isinstance(names, str):
@@ -267,37 +226,15 @@ def inpainting(
             p_image, p_mask_image = process_func(
                 image, mask_image, reversed_mask=reversed_mask
             )
-            if is_controlnet_inpainting:
-                new_image = Image.new("RGBA", p_image.size, (0, 0, 0, 0))
-                new_image.paste(p_image, (0, 0), ImageOps.invert(p_mask_image))
-                new_image = new_image.convert("RGB")
-                controlnet_images = [
-                    controlnet_processes.get(p)(new_image)
-                    for p in controlnet_process_names
-                ]
-                result = pipe(
-                    prompt,
-                    p_image,
-                    p_mask_image,
-                    neg_prompt_text,
-                    guidance_scale=guidance_scale,
-                    num_timesteps=num_timesteps,
-                    seed=seed,
-                    controlnet_images=controlnet_images,
-                    controlnet_guidance_scales=controlnet_guidance_scales,
-                    inpaint_controlnet_image=p_image,
-                    inpaint_controlnet_guidance_scale=inpaint_controlnet_guidance_scale,
-                )
-            else:
-                result = pipe(
-                    prompt,
-                    p_image,
-                    p_mask_image,
-                    neg_prompt_text,
-                    guidance_scale=guidance_scale,
-                    num_timesteps=num_timesteps,
-                    seed=seed,
-                )
+            result = pipe(
+                prompt,
+                p_image,
+                p_mask_image,
+                neg_prompt_text,
+                guidance_scale=guidance_scale,
+                num_timesteps=num_timesteps,
+                seed=seed,
+            )
             record = {
                 "prompt": prompt,
                 "image": image,
@@ -314,35 +251,14 @@ def inpainting(
             p_image, p_mask_image = process_func(
                 image, mask_image, reversed_mask=reversed_mask
             )
-            if is_controlnet_inpainting:
-                new_image = Image.new("RGBA", p_image.size, (0, 0, 0, 0))
-                new_image.paste(p_image, (0, 0), ImageOps.invert(p_mask_image))
-                new_image = new_image.convert("RGB")
-                controlnet_images = [
-                    controlnet_processes.get(p)(new_image)
-                    for p in controlnet_process_names
-                ]
-                result = pipe(
-                    prompt,
-                    p_image,
-                    p_mask_image,
-                    guidance_scale=guidance_scale,
-                    num_timesteps=num_timesteps,
-                    seed=seed,
-                    controlnet_images=controlnet_images,
-                    controlnet_guidance_scales=controlnet_guidance_scales,
-                    inpaint_controlnet_image=p_image,
-                    inpaint_controlnet_guidance_scale=inpaint_controlnet_guidance_scale,
-                )
-            else:
-                result = pipe(
-                    prompt,
-                    p_image,
-                    p_mask_image,
-                    guidance_scale=guidance_scale,
-                    num_timesteps=num_timesteps,
-                    seed=seed,
-                )
+            result = pipe(
+                prompt,
+                p_image,
+                p_mask_image,
+                guidance_scale=guidance_scale,
+                num_timesteps=num_timesteps,
+                seed=seed,
+            )
             record = {
                 "prompt": prompt,
                 "image": image,

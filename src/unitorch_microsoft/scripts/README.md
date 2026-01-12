@@ -21,14 +21,3 @@ python3.10 -m unitorch_microsoft.scripts.tools.hfhub delete_file --repo fuliucan
 ```bash
 python3.10 -m unitorch_microsoft.scripts.tools.hfhub delete_folder --repo fuliucansheng/tempfiles --repo_type dataset --remote_folder badcrop_ta
 ```
-
-
-### Report Items
-
-```bash
-UNITORCH_MS_FASTAPI_ENDPOINT=http://decu-pc2:5432 python3.10 -m unitorch_microsoft.scripts.tools.report_items report_jsonl_file --data_file ./recraft/output.jsonl --image_cols result --tags "#Recraft#T2I"
-```
-
-```bash
-UNITORCH_MS_FASTAPI_ENDPOINT=http://decu-pc2:5432 python3.10 -m unitorch_microsoft.scripts.tools.report_items report_file --data_file ./output.tsv --names "prompt;image" --image_cols image --tags "#FluxDev#T2I"
-```

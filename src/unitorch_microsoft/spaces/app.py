@@ -23,7 +23,6 @@ from typing import Optional
 from unitorch.utils import read_file
 from unitorch.cli import CoreConfigureParser
 from unitorch.cli.webuis import SimpleWebUI
-from unitorch.cli.webuis.utils import create_blocks
 from unitorch.cli import (
     import_library,
     cached_path,
@@ -66,9 +65,6 @@ page_routers = {
     **docs_routers,
     **betas_routers,
 }
-for router, page in page_routers.items():
-    page.theme_css = theme_css
-    page.css = theme_css
 
 page_routers = [(k, v) for k, v in page_routers.items()]
 page_routers.sort(key=lambda x: len(x[0]), reverse=False)
@@ -77,7 +73,12 @@ page_routers_replaces = []
 for index, (router, page) in enumerate(page_routers):
     page_routers_replaces.append((router, f"/_page{index}"))
     app = gr.mount_gradio_app(
-        app, page, path=f"/_page{index}", favicon_path=icon_path, allowed_paths=["/"]
+        app,
+        page,
+        path=f"/_page{index}",
+        favicon_path=icon_path,
+        allowed_paths=["/"],
+        css=theme_css,
     )
 
 page_routers_replaces.reverse()
@@ -110,7 +111,6 @@ async def ReverseMiddleware(request: Request, call_next):
             headers.pop("content-length", None)
 
             async with httpx.AsyncClient(timeout=3600.0) as client:
-                # GET/DELETE 不要传 body
                 if request.method.upper() in ["GET", "DELETE"]:
                     response = await client.request(
                         method=request.method,
@@ -127,10 +127,24 @@ async def ReverseMiddleware(request: Request, call_next):
                         follow_redirects=True,
                     )
 
+            # 🔥 关键修复点在这里
+            excluded_headers = {
+                "content-length",
+                "transfer-encoding",
+                "connection",
+                "content-encoding",
+            }
+
+            clean_headers = {
+                k: v
+                for k, v in response.headers.items()
+                if k.lower() not in excluded_headers
+            }
+
             return Response(
                 content=response.content,
                 status_code=response.status_code,
-                headers=dict(response.headers),
+                headers=clean_headers,
             )
 
     return await call_next(request)

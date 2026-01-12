@@ -18,8 +18,8 @@ class Container:
     def __init__(
         self,
         name: str,
-        url: str = os.environ.get("AZURE_URL"),
-        key: str = os.environ.get("AZURE_KEY"),
+        url: str = os.environ.get("AZUREURL", None),
+        key: str = os.environ.get("AZUREKEY", None),
     ):
         self.container = ContainerClient(
             url,
@@ -40,8 +40,8 @@ class BlobFile:
         self,
         path: str,
         name: str,
-        url: str = os.environ.get("AZURE_URL"),
-        key: str = os.environ.get("AZURE_KEY"),
+        url: str = os.environ.get("AZUREURL", None),
+        key: str = os.environ.get("AZUREKEY", None),
     ):
         container = ContainerClient(
             url,
@@ -108,8 +108,8 @@ class BlobFile:
 class AzureTools:
     def __init__(
         self,
-        url: str = os.environ.get("AZURE_URL"),
-        key: str = os.environ.get("AZURE_KEY"),
+        url: str = os.environ.get("AZUREURL", None),
+        key: str = os.environ.get("AZUREKEY", None),
     ):
         self.url = url
         self.key = key

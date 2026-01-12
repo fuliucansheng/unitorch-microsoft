@@ -5,8 +5,7 @@ import os
 
 _PICASSO_TEMP_DIR = "/tmp/picasso"
 
-if not os.path.exists(_PICASSO_TEMP_DIR):
-    os.makedirs(_PICASSO_TEMP_DIR)
+os.makedirs(_PICASSO_TEMP_DIR, exist_ok=True)
 
 
 def get_picasso_temp_dir() -> str:

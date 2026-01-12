@@ -33,7 +33,6 @@ def get_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -45,7 +44,6 @@ def get_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -103,7 +101,6 @@ def get_tools_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -115,7 +112,6 @@ def get_tools_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
     messages = [
         {
             "role": "system",
@@ -199,7 +195,6 @@ def get_chat_response(
         for im in images
         if isinstance(im, Image.Image) or isinstance(im, str)
     ]
-    reported_images = {}
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -211,7 +206,6 @@ def get_chat_response(
                 },
             }
         )
-        reported_images[f"image_{i}"] = image
 
     messages += [
         {

@@ -17,7 +17,6 @@ from unitorch.cli.pipelines.stable.interrogator import ClipInterrogatorPipeline
 from unitorch.cli.fastapis.stable_flux.inpainting import (
     StableFluxForImageInpaintingFastAPIPipeline,
 )
-from unitorch.cli.pipelines.tools import depth, canny
 from unitorch.cli.webuis import SimpleWebUI
 from unitorch_microsoft import cached_path
 import unitorch_microsoft.models.sam

@@ -14,7 +14,6 @@ from transformers.models.t5.configuration_t5 import T5Config
 from transformers.models.t5.modeling_t5 import T5EncoderModel
 from diffusers.schedulers import SchedulerMixin
 from diffusers.models import (
-    # FluxControlNetModel,
     FluxTransformer2DModel,
     AutoencoderKL,
 )
