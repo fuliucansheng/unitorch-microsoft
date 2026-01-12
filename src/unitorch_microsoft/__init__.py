@@ -3,9 +3,6 @@
 
 import os
 import logging
-import importlib
-import importlib_resources
-import importlib.metadata as importlib_metadata
 
 VERSION = "0.0.0.2"
 
@@ -15,6 +12,9 @@ if UNITORCH_MS_SKIP_IMPORT:
     logging.warning("UNITORCH_MS_SKIP_IMPORT is set to TRUE, skipping unitorch_microsoft imports.")
     pass
 else:
+    import importlib
+    import importlib_resources
+    import importlib.metadata as importlib_metadata
     import torch
     import ast
     import hashlib
