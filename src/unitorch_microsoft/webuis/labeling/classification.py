@@ -812,18 +812,29 @@ class GenericClassificationLabelingWebUI(SimpleWebUI):
         percent = lambda x, y: f"{x / (y if y > 0 else 1):.2%}"
 
         if self.group_col is not None:
-            group = labeled.groupby(self.group_col)["Num"].count().to_dict()
+            group_labeled = labeled.groupby(self.group_col)["Num"].count().to_dict()
+            group_all = dataset.groupby(self.group_col)["Num"].count().to_dict()
 
             stats = labeled_exploded.groupby([self.group_col, "Label"])["Num"].count()
             stats = [
                 {
                     "Group": g,
                     "Label": c,
-                    "Count": f"{stats.get((g, c), 0)} / {group[g]}",
-                    "Percentage": percent(stats.get((g, c), 0), group[g]),
+                    "Count": f"{stats.get((g, c), 0)} / {group_labeled[g]}",
+                    "Percentage": percent(stats.get((g, c), 0), group_labeled[g]),
                 }
-                for g in group.keys()
+                for g in group_labeled.keys()
                 for c in choices
+            ]
+            group_names = group_all.keys()
+            stats += [
+                {
+                    "Group": g,
+                    "Label": "Total",
+                    "Count": f"{group_labeled.get(g, 0)} / {group_all[g]}",
+                    "Percentage": percent(group_labeled.get(g, 0), group_all[g]),
+                }
+                for g in group_names
             ]
             stats = pd.DataFrame(stats)
             stats = stats.append(

@@ -9,9 +9,7 @@ import asyncio
 from pydantic import Field, model_validator
 from typing import Any, List, Literal, Optional, Union
 from unitorch.utils import read_file
-from unitorch_microsoft.agents.utils.chatgpt import GPTModel
-
-# from unitorch_microsoft.agents.utils.github_copilot import GPTModel
+from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.components import (
     GenericResult,
     GenericAgent,

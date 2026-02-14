@@ -5,7 +5,7 @@ import json
 import logging
 from pydantic import BaseModel, Field
 from typing import Any, List, Literal, Optional, Union
-from unitorch_microsoft.agents.utils.chatgpt import GPTModel
+from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.components import (
     GenericTool,
     GenericResult,

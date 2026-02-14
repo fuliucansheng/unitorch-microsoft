@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 import os
-import math
 import cv2
+import math
 import gc
 import json
 import requests
@@ -22,6 +22,13 @@ from unitorch_microsoft import cached_path
 from unitorch_microsoft.externals.github_copilot import (
     get_response as get_gpt5_response,
 )
+from unitorch_microsoft.externals.recraft import (
+    get_image as get_recraft_image,
+    get_inpainting_image as get_recraft_inpainting_image,
+    get_change_background_image as get_recraft_change_background_image,
+    get_resolution_image as get_recraft_resolution_image,
+    get_remove_background_image as get_recraft_remove_background_image,
+)
 from unitorch_microsoft.spaces import (
     create_element,
     create_row,
@@ -38,22 +45,19 @@ from unitorch_microsoft.spaces import (
 )
 
 
-class ExpandBGV2WebUI(SimpleWebUI):
-    _title = "Expand Background V2"
-    _description = "This is a demo for expanding the background of images using FLUX. You can input an image and a ratio, and the model will generate a new image with the specified background expanded."
+class ExpandBGV1WebUI(SimpleWebUI):
+    _title = "Expand Background V1"
+    _description = "This is a demo for expanding the background of images using Recraft. You can input an image and a ratio, and the model will generate a new image with the specified background expanded."
 
     def __init__(self, config: CoreConfigureParser):
         self._status = getattr(self, "_status", "Stopped")
-
-        config.set_default_section("microsoft/spaces/picasso/expand_bg_v2")
-        self._flux_endpoint = config.getoption("flux_endpoint", None)
 
         # create elements
         toper_menus = create_toper_menus()
         footer = create_footer()
         header = create_element(
             "markdown",
-            label=f"# <div style='margin-top:10px'>🎢 {self._title} </div>",
+            label=f"# <div style='margin-top:10px'>✨ {self._title} </div>",
             interactive=False,
         )
         description = create_element(
@@ -62,9 +66,6 @@ class ExpandBGV2WebUI(SimpleWebUI):
             interactive=False,
         )
 
-        status = create_element("text", "Status", default="Stopped", interactive=False)
-        start = create_element("button", "Start", variant="primary")
-        stop = create_element("button", "Stop", variant="stop")
         input_image = create_element("image", "Image")
         input_ratio = create_element(
             "slider", "Ratio", default=1.91, min_value=0.1, max_value=10.0, step=0.01
@@ -79,7 +80,7 @@ class ExpandBGV2WebUI(SimpleWebUI):
             toper_menus,
             create_row(
                 create_column(header, description, scale=1),
-                create_row(status, start, stop),
+                create_column(),
             ),
             create_row(
                 left, right, elem_classes="ut-bg-transparent ut-ms-min-70-height"
@@ -92,17 +93,6 @@ class ExpandBGV2WebUI(SimpleWebUI):
         # create events
         iface.__enter__()
 
-        start.click(
-            self.start,
-            outputs=[status],
-            trigger_mode="once",
-        )
-        stop.click(
-            self.stop,
-            outputs=[status],
-            trigger_mode="once",
-        )
-
         generate.click(
             fn=self.generate,
             inputs=[input_image, input_ratio],
@@ -110,40 +100,15 @@ class ExpandBGV2WebUI(SimpleWebUI):
             trigger_mode="once",
         )
 
-        iface.load(
-            fn=lambda: self._status,
-            outputs=status,
-        )
-
         iface.__exit__()
 
         super().__init__(config, iname=self._title, iface=iface)
 
     def start(self):
-        if self._status == "Running":
-            return self._status
-        requests.post(
-            self._flux_endpoint + "/start",
-            timeout=1200,
-            params={
-                "pretrained_name": "stable-flux-dev-fill",
-            },
-            data=json.dumps(
-                {
-                    "pretrained_lora_names": "stable-flux-lora-ms-dev-fill-simple",
-                    "pretrained_lora_weights": 0.2,
-                    "pretrained_lora_alphas": 32,
-                }
-            ),
-            headers={"Content-type": "application/json"},
-        )
         self._status = "Running"
         return self._status
 
     def stop(self):
-        if self._status == "Stopped":
-            return self._status
-        requests.get(self._flux_endpoint + "/stop", timeout=1200).raise_for_status()
         self._status = "Stopped"
         return self._status
 
@@ -190,12 +155,12 @@ class ExpandBGV2WebUI(SimpleWebUI):
         return new_image, mask
 
     def generate(self, image, ratio):
-        caption = get_gpt5_response(
+        prompt = get_gpt5_response(
             "Describe the background of this image, maintaining its colors, textures, and lighting. Ensure seamless blending without adding new objects, text, or artifacts. The caption is in a single short paragraph. Don't mention any object in foreground.",
             images=[image],
         )
-
         pad_ratio = 0.4
+
         ratio2 = ratio
         _ratio = image.size[0] / image.size[1]
         if ratio > (1 + pad_ratio) * _ratio:
@@ -204,26 +169,10 @@ class ExpandBGV2WebUI(SimpleWebUI):
             ratio = _ratio / (1 + pad_ratio)
 
         new_image, new_mask = self.process(image, ratio)
-        image_np = np.array(new_image.convert("RGB"))
-        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
-
-        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
-        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
-        latent_image = Image.fromarray(inpainted_image)
-        result = call_fastapi(
-            self._flux_endpoint + "/generate",
-            images={
-                "image": latent_image,
-                "mask_image": new_mask,
-            },
-            params={
-                "text": "no text, no watermark, no logos, no people. " + caption,
-                "guidance_scale": 30,
-                "strength": 0.95,
-                "num_timesteps": 50,
-                "seed": 42,
-            },
-            resp_type="image",
+        result = get_recraft_inpainting_image(
+            prompt,
+            new_image,
+            new_mask,
         )
         raw_width, raw_height = image.size
         if raw_width / raw_height > ratio:
@@ -240,26 +189,10 @@ class ExpandBGV2WebUI(SimpleWebUI):
 
         ratio = ratio2
         new_image, new_mask = self.process(result, ratio)
-        image_np = np.array(new_image.convert("RGB"))
-        mask_np = np.array(new_mask.convert("L")).astype(np.uint8)
-
-        _, binary_mask = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
-        inpainted_image = cv2.inpaint(image_np, binary_mask, 10, cv2.INPAINT_TELEA)
-        latent_image = Image.fromarray(inpainted_image)
-        result = call_fastapi(
-            self._flux_endpoint + "/generate",
-            images={
-                "image": latent_image,
-                "mask_image": new_mask,
-            },
-            params={
-                "text": "no text, no watermark, no logos, no people. " + caption,
-                "guidance_scale": 30,
-                "strength": 0.95,
-                "num_timesteps": 50,
-                "seed": 42,
-            },
-            resp_type="image",
+        result = get_recraft_inpainting_image(
+            prompt,
+            new_image,
+            new_mask,
         )
         raw_width, raw_height = image.size
         if raw_width / raw_height > ratio:

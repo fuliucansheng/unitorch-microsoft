@@ -34,14 +34,11 @@ from unitorch.cli.webuis import (
     create_blocks,
 )
 from unitorch_microsoft.agents.components.picasso import (
-    PicassoImageTool,
-    PicassoInternalTool,
+    # PicassoImageTool,
+    # PicassoInternalTool,
     PicassoHtmlTool,
-    PicassoLayoutTool,
 )
-from unitorch_microsoft.agents.utils.chatgpt import GPTModel
-
-# from unitorch_microsoft.agents.utils.github_copilot import GPTModel
+from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.utils.utils_ui import (
     format_tool_for_logs,
     format_tool_for_preview,
@@ -304,11 +301,10 @@ You can use the following tools to complete tasks:
 2. `bash`: Execute shell commands. 
 3. `python`: Run Python scripts or calculations
 4. `editor`: Create or modify text files
-5. `picasso_internal_tool`: Process & generate any image with provided prompt & images.
-6. `picasso_html_tool`: Render HTML content to an image and the feedback will be provided about the result.
-7. `notify_human`: Notify user some messages/progress or results without waiting for user's response. (message tools)
-8. `check_image_tool`: Analysis the image with the provided prompt or mark the image to the priority for view.
-9. `handoff_tool`: Hand off the task to another agent. The available agents are: Coordinator, Marketer, Designer.
+5. `picasso_html_tool`: Render HTML content to an image and the feedback will be provided about the result.
+6. `notify_human`: Notify user some messages/progress or results without waiting for user's response. (message tools)
+7. `check_image_tool`: Analysis the image with the provided prompt or mark the image to the priority for view.
+8. `handoff_tool`: Hand off the task to another agent. The available agents are: Coordinator, Marketer, Designer.
     * Coordinator: A planner agent that can assign tasks to other agents, and terminate the task when it's done.
     * Marketer: A highly capable AI assistant designed to handle any task (except image-related tasks) agent that can solve all kinds of tasks like planning, coding, web search, browsing urls, etc.
     * Designer: A designer agent that can solve image/video design tasks. Please prepare enough text/image assets (few assets might be difficult for design) in local by Marketer before handoff.
@@ -369,7 +365,6 @@ During task execution, you must follow these rules:
 - The overall design result must convey a premium and tech-savvy feel.
 - Use `bash` to download images from URLs before processing; do not use URLs directly in image related tools.
 - The image size could be found in the event stream after the image path which is always the absolute path.
-- Use `picasso_internal_tool` to generate/edit/process any images instead of any other tools.
 - Use `picasso_html_tool` to render HTML content to an image with Tailwind CSS, including text, images, and styles. Design Requirements as follows:
     * Set `auto_refine_steps` to at least 20 for high quality result. 
     * Don't check & refine the design from `picasso_html_tool` if the feedback is good.
@@ -515,7 +510,6 @@ class DesignerAgent(GenericAgent):
         EditorTool(),
         # PlannerTool(),
         # WebSearchTool(),
-        PicassoInternalTool(),
         PicassoHtmlTool(),
         NotifyHumanTool(),
         CheckImageTool(),
@@ -1230,10 +1224,10 @@ def cli_main(host: str = "0.0.0.0", port: int = 7050):
 
     demo.__exit__()
 
-    css_file = os.path.join(
+    css = read_file(
         os.path.join(importlib_resources.files("unitorch"), "cli/assets/style.css")
     )
-    demo.theme_css = read_file(css_file)
+    js = ""
     demo.title = "Unitorch Microsoft Coordinator Agent"
 
     demo.launch(
@@ -1243,6 +1237,8 @@ def cli_main(host: str = "0.0.0.0", port: int = 7050):
             importlib_resources.files("unitorch"), "cli/assets/icon.png"
         ),
         allowed_paths=["/"],
+        css=css,
+        js=js,
     )
 
 

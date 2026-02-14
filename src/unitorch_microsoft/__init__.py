@@ -6,10 +6,14 @@ import logging
 
 VERSION = "0.0.0.2"
 
-UNITORCH_MS_SKIP_IMPORT = os.environ.get("UNITORCH_MS_SKIP_IMPORT", "FALSE").upper() == "TRUE"
+UNITORCH_MS_SKIP_IMPORT = (
+    os.environ.get("UNITORCH_MS_SKIP_IMPORT", "FALSE").upper() == "TRUE"
+)
 
 if UNITORCH_MS_SKIP_IMPORT:
-    logging.warning("UNITORCH_MS_SKIP_IMPORT is set to TRUE, skipping unitorch_microsoft imports.")
+    logging.warning(
+        "UNITORCH_MS_SKIP_IMPORT is set to TRUE, skipping unitorch_microsoft imports."
+    )
     pass
 else:
     import importlib
@@ -45,10 +49,8 @@ else:
     except importlib_metadata.PackageNotFoundError:
         _openai_available = False
 
-
     def is_openai_available():
         return _openai_available
-
 
     @replace(unitorch.cli.cached_path)
     def cached_path(
@@ -82,7 +84,6 @@ else:
             use_auth_token=use_auth_token,
             local_files_only=local_files_only,
         )
-
 
     import unitorch_microsoft.scores
     import unitorch_microsoft.models

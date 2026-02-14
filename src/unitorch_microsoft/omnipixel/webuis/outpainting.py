@@ -83,7 +83,7 @@ class StableFluxImageOutpaintingWebUI(SimpleWebUI):
         mask_image = create_element("image", "Input Image Mask")
 
         input_ratio = create_element(
-            "slider", "Ratio", default=1.9, min_value=0.1, max_value=10.0, step=0.01
+            "slider", "Ratio", default=1.91, min_value=0.1, max_value=10.0, step=0.01
         )
         longest_size = create_element(
             "slider",

@@ -11,7 +11,9 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 from browser_use import Browser as BrowserUseBrowser
 from browser_use import BrowserProfile as BrowserUseProfile
-from unitorch_microsoft.externals.papyrus import get_gpt5_response
+from unitorch_microsoft.externals.github_copilot import (
+    get_response as get_gpt5_response,
+)
 from unitorch_microsoft.agents.components import (
     GenericTool,
     GenericResult,

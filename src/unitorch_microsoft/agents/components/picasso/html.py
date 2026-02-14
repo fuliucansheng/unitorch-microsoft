@@ -17,8 +17,8 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 from playwright.async_api import async_playwright
 from unitorch_microsoft import cached_path
-from unitorch_microsoft.externals.papyrus import (
-    get_gpt5_response,
+from unitorch_microsoft.externals.github_copilot import (
+    get_response as get_gpt5_response,
 )
 from unitorch_microsoft.externals.recraft import (
     get_remove_background_image as get_recraft_remove_background_image,
@@ -34,7 +34,7 @@ from unitorch_microsoft.agents.components import (
     ToolChoice,
 )
 from unitorch_microsoft.agents.components.tools import GPT4FormatTool, TerminateTool
-from unitorch_microsoft.agents.utils.chatgpt import GPTModel
+from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.components.picasso import get_picasso_temp_dir
 
 tailwind_file = cached_path("agents/components/picasso/tailwind-browser.js")
@@ -385,186 +385,5 @@ You need to check if the designed image looks perfect. If not, refine or rewrite
                 "_height": res.height,
                 "_image": result,
                 "_histories": histories,
-            },
-        )
-
-
-async def layout_to_image(
-    title: str,
-    description: str,
-    call_to_action: str,
-    call_to_action_size: tuple[int, int],
-    product_image: str,
-    logo_image: str,
-    background_prompt: Optional[str] = None,
-    viewport: Optional[tuple[int, int]] = (1920, 1080),
-):
-    api_url = "http://br1t45-s1-01:8787/generate"
-    asset_url = "http://10.172.118.59:49876/{0}"
-    response = requests.post(
-        api_url,
-        json={
-            "grid_width": viewport[0],
-            "grid_height": viewport[1],
-            "headline": title,
-            "subcopy": description,
-            "cta": call_to_action,
-            "cta_width": call_to_action_size[0],
-            "cta_height": call_to_action_size[1],
-            "background_prompt": background_prompt,
-            "product_image_url": asset_url.format(product_image),
-            "logo_image_url": asset_url.format(logo_image),
-        },
-        headers={"Content-Type": "application/json"},
-        timeout=60,
-    ).json()
-    html_results = response.get("html_files", [])
-    for html_results in html_results:
-        html_str = html_results.get("content", "")
-        if not html_str:
-            continue
-        logging.info(f"HTML content from interal layout tool: {html_str}")
-        image = await html_to_image(
-            html_str, viewport=viewport, use_tailwind_template=False
-        )
-        temp_file = tempfile.NamedTemporaryFile(
-            suffix=".png", dir=get_picasso_temp_dir(), delete=False
-        )
-        image.save(temp_file.name)
-        return temp_file.name
-    return None
-
-
-_LAYOUT_DESCRIPTION = """
-Use the layout_to_image tool to create visually appealing layouts for posters, banners, or social media cards with the provided inputs.
-"""
-
-
-class PicassoLayoutTool(GenericTool):
-    """Add a tool to generate images based on the provided layout parameters."""
-
-    name: str = "picasso_layout_tool"
-    description: str = _LAYOUT_DESCRIPTION
-    parameters: str = {
-        "type": "object",
-        "properties": {
-            "title": {
-                "type": "string",
-                "description": "The title of the generated layout.",
-            },
-            "description": {
-                "type": "string",
-                "description": "The description of the generated layout.",
-            },
-            "product_image": {
-                "type": ["string"],
-                "description": ("The product image path."),
-            },
-            "logo_image": {
-                "type": ["string"],
-                "description": ("The logo image path"),
-            },
-            "call_to_action": {
-                "type": "string",
-                "description": "The call to action text.",
-            },
-            "call_to_action_size": {
-                "type": "array",
-                "items": {"type": "integer"},
-                "description": (
-                    "The size of the call to action button as [width, height]. (default is [200, 50])"
-                ),
-                "default": [200, 50],
-                "minItems": 2,
-                "maxItems": 2,
-            },
-            "background_prompt": {
-                "type": ["string", "null"],
-                "description": (
-                    "The background prompt for the background of the generatted layout image. (default is None)"
-                ),
-            },
-            "viewport": {
-                "type": ["array", "null"],
-                "items": {"type": "integer"},
-                "description": (
-                    "The viewport size for layout_to_image action. Default is [1920, 1080]."
-                ),
-                "default": [1920, 1080],
-                "minItems": 2,
-                "maxItems": 2,
-            },
-        },
-        "required": [
-            "title",
-            "description",
-            "product_image",
-            "logo_image",
-            "call_to_action",
-        ],
-    }
-
-    async def execute(
-        self,
-        title: str,
-        description: str,
-        product_image: str,
-        logo_image: str,
-        call_to_action: str,
-        call_to_action_size: Optional[tuple[int, int]] = (200, 50),
-        background_prompt: Optional[str] = None,
-        viewport: Optional[tuple[int, int]] = (1920, 1080),
-    ) -> GenericResult:
-        if not title or not description or not product_image or not logo_image:
-            raise ValueError(
-                "title, description, product_image and logo_image are required."
-            )
-
-        product = Image.open(product_image)
-        logo = Image.open(logo_image)
-
-        if product.mode != "RGBA":
-            product = get_recraft_remove_background_image(product)
-            temp_file = tempfile.NamedTemporaryFile(
-                suffix=".png", dir=get_picasso_temp_dir(), delete=False
-            )
-            product.save(temp_file.name)
-            product_image = temp_file.name
-        if logo.mode != "RGBA":
-            logo = get_recraft_remove_background_image(logo)
-            temp_file = tempfile.NamedTemporaryFile(
-                suffix=".png", dir=get_picasso_temp_dir(), delete=False
-            )
-            logo.save(temp_file.name)
-            logo_image = temp_file.name
-
-        try:
-            result = await layout_to_image(
-                title=title,
-                description=description,
-                call_to_action=call_to_action,
-                call_to_action_size=call_to_action_size,
-                product_image=product_image,
-                logo_image=logo_image,
-                background_prompt=background_prompt,
-                viewport=viewport,
-            )
-            if result is None:
-                return GenericError(
-                    "Failed to generate layout image.",
-                )
-            res = Image.open(result)
-        except Exception as e:
-            return GenericError(
-                f"Failed to generate layout image: {str(e)}",
-            )
-
-        return GenericResult(
-            output=f"Generated layout image path: {result} . Width: {res.width}, Height: {res.height}.",
-            images={"path": result},
-            meta={
-                "_width": res.width,
-                "_height": res.height,
-                "_image": result,
             },
         )

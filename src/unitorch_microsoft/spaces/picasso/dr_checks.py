@@ -163,7 +163,7 @@ class DRChecksWebUI(SimpleWebUI):
                 "image": image,
             },
         )
-        result7 = {"White": results["White"]}
+        result7 = {"Bad BlurryPadding": results["White"]}
         result2 = {k: results[k] for k in ["Poster", "Logo", "Real"]}
         if option == "Others" or option == "All":
             result1 = call_fastapi(

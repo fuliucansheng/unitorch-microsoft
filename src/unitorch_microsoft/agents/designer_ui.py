@@ -36,11 +36,8 @@ from unitorch_microsoft.agents.components.picasso import (
     PicassoImageTool,
     PicassoInternalTool,
     PicassoHtmlTool,
-    PicassoLayoutTool,
 )
-from unitorch_microsoft.agents.utils.chatgpt import GPTModel
-
-# from unitorch_microsoft.agents.utils.github_copilot import GPTModel
+from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.utils.utils_ui import (
     format_tool_for_logs,
     format_tool_for_preview,
@@ -74,8 +71,7 @@ SYSTEM_PROMPT = """
 You are a Designer AI Assistant, built to solve a wide range of visual design tasks presented by the user. You have access to a variety of tools that you can invoke to efficiently complete complex objectives. 
 
 **Important**: 
-1. You should follow <picasso_rules> & <designer_rules> strictly to complete the design tasks. 
-2. Improvments from the `review_image_tool` must be resolved before finishing the design task. Except the result from `picasso_layout_tool`, which could be the final result of the design task without any further modifications.
+1. You should follow <picasso_rules> & <designer_rules> strictly to complete the design tasks.
 
 You are operating in an agent loop, iteratively completing tasks through these steps:
 1. Analyze Events: Understand user needs and current state through event stream, focusing on latest user messages and execution results
@@ -91,12 +87,10 @@ You can use the following tools to complete tasks:
 3. `python`: Run Python scripts or calculations
 4. `editor`: Create or modify text files
 5. `picasso_internal_tool`: Process & generate any image with provided prompt & images.
-6. `picasso_layout_tool`: Generate a poster image with some title/images assets, prefer to use `picasso_layout_tool` to generate a poster/layout image than `picasso_html_tool`.
-7. `picasso_html_tool`: Render HTML content to an image.
-8. `notify_human`: Notify user some messages/progress or results without waiting for user's response. (message tools)
-9. `check_image_tool`: Analysis the image with the provided prompt or mark the image to the priority for view.
+6. `picasso_html_tool`: Render HTML content to an image and the feedback will be provided about the result.
+7. `notify_human`: Notify user some messages/progress or results without waiting for user's response. (message tools)
+8. `check_image_tool`: Analysis the image with the provided prompt or mark the image to the priority for view.
 10. `terminate`: Enter idle mode once all tasks are completed or user requests stop
-11. `review_image_tool`: Check the designed image and give feedback from a professional visual designer perspective.
 
 During task execution, you must follow these rules:
 
@@ -151,33 +145,28 @@ During task execution, you must follow these rules:
 </writing_rules>
 
 <picasso_rules>
+- The overall design result must convey a premium and tech-savvy feel.
 - Use `bash` to download images from URLs before processing; do not use URLs directly in image related tools.
 - The image size could be found in the event stream after the image path which is always the absolute path.
-- Use `picasso_internal_tool` to generate/edit/process any images instead of any other tools. It can also process the generated image from other tools like `picasso_html_tool` or `picasso_layout_tool`.
-- Use `picasso_layout_tool` to generate a poster/layout image is preferred than `picasso_html_tool`. Don't use this tool if the user does not provide any product or logo image.
-- Use `picasso_html_tool` to render HTML content to image, including text, images, and styles using Tailwind CSS
+- Use `picasso_internal_tool` to generate/edit/process any images instead of any other tools.
+- Use `picasso_html_tool` to render HTML content to an image with Tailwind CSS, including text, images, and styles. Design Requirements as follows:
+    * Set `auto_refine_steps` to at least 20 for high quality result. 
+    * Don't check & refine the design from `picasso_html_tool` if the feedback is good.
 </picasso_rules>
 
 <designer_rules>
 - Use `bash` or `python` to get the padding pixel numbers. Print results to logs. Never calculate mentally.
-- If the user provides a product or background, it must be retained in the final result. padding the input as background is preferred than generating a new background.
-- Use `picasso_layout_tool` to generate a poster/layout image is preferred than `picasso_html_tool`.
-- All the Call-To-Action elements must be aligned to each other from both style, position and size, such as buttons, text, and images.
-- The logo or other image assets may needs to be `remove_background` before overlaying it on the background. Be careful about this.
-- Use `check_image_tool` to analyze the input & generated image based on the provided prompt or set it priority for view.
+- Use `check_image_tool` to analyze the input & generated image based on the provided prompt first.
+- Ignore minor issues such as typography refinements, small spacing or padding changes, subtle adjustments to color, opacity, or shadows, and slight alignment tweaks that do not materially impact the overall visual balance.
+- If a product image is provided, check the main product image size, ratio, color, etc, and whether it needs to be processed (padding, fitting, editing, etc).
+- If a background image is provided, check the background image size, ratio, color, etc, and whether it needs to be processed (padding, fitting, editing, etc). Resize it to fit the designed canvas size (could be done in `picasso_html_tool`) if necessary.
+- If a logo image is provided, check the logo image size, ratio, color, etc, and whether it needs to be removed the background.
+    * Removing the background of the logo image is preferable if the background is not pure white or transparent.
+    * Don't change the logo image in any way except removing the background.
+- Don't crop the image (except plain background), use `padding` or `fitting` to adjust the image to the expected size. 
 - Don't edit the image in-place, always create a new file after processing the image.
-- Don't design the image in a resolution more than 1536x1536. Resize the image (don't change the ratio) and save it to a new file when the image is larger than this resolution.
-- Follow professional visual and design principles to ensure high-quality output:
-    * Ensure the overall composition is clear, engaging, and emotionally resonant.
-    * Maintain a strong aesthetic presence and creative originality.
-    * Avoid issues such as text, product, or any key elements overlapping (including the elements from background from visual view), misalignment, or visual clutter.
-    * Typography: Establish a clear hierarchy with legible, well-paired fonts.
-    * Color Harmony: Use a cohesive color palette and apply contrast effectively to highlight key elements.
-    * Layout & Spacing: Structure the layout logically with proper alignment—including strict horizontal and vertical alignment of elements—and sufficient whitespace. Element sizes should be well considered to ensure clear hierarchy and legibility.
-    * Visual Hierarchy: Ensure key elements are visually distinct and easy to identify.
-    * Aspect Ratio & Dimensions: Ensure the design is appropriately sized for its intended platform (e.g., print, mobile, social media).
-    * Product Integration: Integrate product images seamlessly without distortion or loss of focus. Ensure the product's size and proportion within the final composition are appropriate and balanced, so it neither overwhelms nor gets visually lost.
-- Use `review_image_tool` to check the designed image and get feedbacks from a professional visual designer. Except the result from `picasso_layout_tool`.
+- Don't design the image in a resolution more than 2048x2048. Resize the image (keeping the ratio) and save it to a new file when the image is larger than this resolution.
+- Use `python` to resize the result to the expected size after finalize the design if user specifies it.
 </designer_rules>
 
 <error_handling>
@@ -210,29 +199,6 @@ Don't do duplicated work, and don't repeat the same step again.
 Be concise in your reasoning, generate a detailed plan, check the current step and then select the appropriate tool or combination of tools or action as next step.
 """
 
-REVIEW_PROMPT = """
-You are a professional visual designer and experienced design critic.
-
-Your task is to evaluate the final designed image based on the provided messages. Don't need to check the logo correctness, relevance or any color if it's provided by user.
-
-When reviewing visual design work (e.g., posters, promotional graphics, UI screens), your evaluation must address
-
-1. Is the overall composition visually appealing and professionally executed?
-2. Does the design clearly communicate its intended purpose or message?
-3. Does the aesthetic reflect a modern and refined visual style?
-4. Are there flaws such as text, product or any key elements overlap (including the elements from background from visual view), inconsistent spacing, imbalanced sizing or misaligned elements?
-5. Are horizontal and vertical alignments precise and intentional?
-6. What specific, actionable improvements can enhance the visual outcome?
-7. Is the product image preserved and integrated effectively into the design if a product is provided?
-8. Does the image meet the user's requirements and expectations?
-9. Does the image has any issues from the visual design perspective to be improved?
-
-If flaws are identified, provide a clear, actionable suggestions to guide refinement. Please focus on the high-priority issues that can significantly enhance the design quality.
-Don't need to mention the good parts of the design, just focus on the flaws and how to improve them.
-
-If the overall looks excellent, you can just say "The design looks excellent, no further improvements needed.".
-"""
-
 PREVIEW_PROMPT = """
 You are an intelligent summarizer. Your task is to analyze the current messages and generate a brief, concise and informative task summary for the user.
 The summary should:
@@ -247,82 +213,6 @@ The summary should:
 """
 
 PREVIEW_PROMPT = PREVIEW_PROMPT.format("/gradio_api/file=<absolute-path-to-file>")
-
-
-class ReviewImageTool(GenericTool):
-    name: str = "review_image_tool"
-    description: str = """
-Use this tool to check the designed image and give feedback from a professional visual designer perspective.
-
-Parameters:
-- `image`: The image path for checking.
-"""
-
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "image": {
-                "type": "string",
-                "description": "The image path for checking or marking.",
-            },
-        },
-        "required": ["image"],
-    }
-    gpt: Any = GPTModel()
-    system_message: Message = None
-    user_message: Message = None
-
-    def setup(self, system_prompt, user_inputs):
-        self.system_message = Message.system_message(content=system_prompt)
-        files = user_inputs.get("files", [])
-        images = []
-        for file in files:
-            try:
-                im = Image.open(file)
-                images.append(
-                    {
-                        "path": file,
-                        "width": im.width,
-                        "height": im.height,
-                        "priority": "high",
-                    }
-                )
-            except Exception as e:
-                logging.warning(f"Failed to open image {file}: {e}")
-                images.append(
-                    {"path": file, "width": None, "height": None, "priority": "low"}
-                )
-        self.user_message = Message.user_message(
-            content=f"### Task\n\n- **Instruction**:\n{user_inputs.get('text', '')}\n\n ### Inputs\n\n ```json\n{json.dumps(user_inputs, indent=2, ensure_ascii=False)}\n```",
-            images=images,
-        )
-
-    async def execute(
-        self,
-        image: str,
-    ):
-        """Execute the tool to check the image."""
-        if image is None or not os.path.exists(image):
-            raise ValueError("image is required and must exist.")
-        msg = Message.assistant_message(
-            content=f"Here is the image for review: {image}",
-            images=[{"path": image, "width": None, "height": None, "priority": "high"}],
-        )
-        resp = self.gpt.ask(
-            messages=Memory(
-                messages=[
-                    self.system_message,
-                    self.user_message,
-                    msg,
-                ]
-            ).to_dict_list(),
-        )
-        if not resp.content:
-            raise ValueError("No content returned from GPT-4 model.")
-        return GenericResult(
-            output=f"Review result: {resp.content}",
-            images=[{"path": image, "width": None, "height": None, "priority": "low"}],
-        )
 
 
 class DesignerAgent(GenericAgent):
@@ -343,11 +233,9 @@ class DesignerAgent(GenericAgent):
         # WebSearchTool(),
         PicassoInternalTool(),
         PicassoHtmlTool(),
-        PicassoLayoutTool(),
         NotifyHumanTool(),
         CheckImageTool(),
         TerminateTool(),
-        ReviewImageTool(),
     )
     content: str = Field(default="")
     tool_calls: List[ToolCall] = Field(default_factory=list)
@@ -357,11 +245,10 @@ class DesignerAgent(GenericAgent):
     current_step: int = 1
     max_steps: int = 500
 
-    def __init__(self, system_prompt, action_prompt, review_prompt, preview_prompt):
+    def __init__(self, system_prompt, action_prompt, preview_prompt):
         super().__init__()
         self._system_prompt = system_prompt
         self._action_prompt = action_prompt
-        self._review_prompt = review_prompt
         self._preview_prompt = preview_prompt
         self._action_message = Message.user_message(content=self._action_prompt)
         self._question = ""
@@ -449,10 +336,6 @@ class DesignerAgent(GenericAgent):
             "text": instruction,
             **kwargs,
         }
-        self.available_tools.get_tool("review_image_tool").setup(
-            system_prompt=self._review_prompt,
-            user_inputs=self._user_inputs,
-        )
 
         self.state = AgentState.RUNNING
         self.current_step = 1
@@ -584,7 +467,6 @@ def cli_main(host: str = "0.0.0.0", port: int = 7050):
     designer = DesignerAgent(
         system_prompt=SYSTEM_PROMPT,
         action_prompt=ACTION_PROMPT,
-        review_prompt=REVIEW_PROMPT,
         preview_prompt=PREVIEW_PROMPT,
     )
 

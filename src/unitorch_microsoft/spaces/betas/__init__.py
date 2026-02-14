@@ -25,12 +25,22 @@ from unitorch_microsoft.spaces import (
 from unitorch_microsoft.spaces.betas.bg_expand import ExpandBGWebUI
 from unitorch_microsoft.spaces.betas.bg_expand2 import ExpandBG2WebUI
 from unitorch_microsoft.spaces.betas.bg_expand3 import ExpandBG3WebUI
+from unitorch_microsoft.spaces.betas.bg_book import BookBGWebUI
+from unitorch_microsoft.spaces.betas.bg_book2 import BookBG2WebUI
+from unitorch_microsoft.spaces.betas.bg_book3 import BookBG3WebUI
+from unitorch_microsoft.spaces.betas.bg_book4 import BookBG4WebUI
+from unitorch_microsoft.spaces.betas.bg_product import ProductBGWebUI
 
 # beta examples
 image_pages = [
     ExpandBGWebUI(spaces_settings).iface,
     ExpandBG2WebUI(spaces_settings).iface,
     ExpandBG3WebUI(spaces_settings).iface,
+    BookBGWebUI(spaces_settings).iface,
+    BookBG2WebUI(spaces_settings).iface,
+    BookBG3WebUI(spaces_settings).iface,
+    BookBG4WebUI(spaces_settings).iface,
+    ProductBGWebUI(spaces_settings).iface,
 ]
 
 all_pages = image_pages

@@ -32,9 +32,7 @@ from unitorch.cli.webuis import (
     create_tabs,
     create_blocks,
 )
-from unitorch_microsoft.agents.utils.chatgpt import GPTModel
-
-# from unitorch_microsoft.agents.utils.github_copilot import GPTModel
+from unitorch_microsoft.agents.utils.github_copilot import GPTModel
 from unitorch_microsoft.agents.utils.utils_ui import (
     format_tool_for_logs,
     format_tool_for_preview,
@@ -657,10 +655,10 @@ def cli_main(host: str = "0.0.0.0", port: int = 7050):
 
     demo.__exit__()
 
-    css_file = os.path.join(
+    css = read_file(
         os.path.join(importlib_resources.files("unitorch"), "cli/assets/style.css")
     )
-    demo.theme_css = read_file(css_file)
+    js = ""
     demo.title = "Unitorch Microsoft Marketer Agent"
 
     demo.launch(
@@ -670,6 +668,8 @@ def cli_main(host: str = "0.0.0.0", port: int = 7050):
             importlib_resources.files("unitorch"), "cli/assets/icon.png"
         ),
         allowed_paths=["/"],
+        css=css,
+        js=js,
     )
 
 
