@@ -526,8 +526,8 @@ def outpainting(
         filter1 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
             config=CoreConfigureParser(),
             config_type="2.5B",
-            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
             label_dict={
                 "watermark": "watermarked, no watermark signature, brand logo",
             },

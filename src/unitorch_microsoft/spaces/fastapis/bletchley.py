@@ -74,8 +74,8 @@ class BletchleyV1FastAPI(GenericFastAPI):
         self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="0.8B",
-            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.8B.bin",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
             label_dict={
                 "Complex": "complex background, objects in the background or even no background",
                 "Simple": "clean background, no objects in the background",
@@ -89,8 +89,8 @@ class BletchleyV1FastAPI(GenericFastAPI):
         self._pipe2 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.2.5B.bin",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
             label_dict={
                 "Blurry": "blurry",
             },
@@ -99,7 +99,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
         self._pipe3 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="0.8B",
-            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v1/pytorch_model.0.8B.bin",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
             pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.bletchley.background.classification.202504.bin",
             label_dict={
                 "Complex": "A product, poster, or lifestyle image with a complex background that contains many visual elements and textures",
@@ -198,8 +198,8 @@ class BletchleyV3FastAPI(GenericFastAPI):
         self._pipe1 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
             label_dict={
                 "Watermark": "watermarked, no watermark signature, brand logo",
             },
@@ -208,8 +208,8 @@ class BletchleyV3FastAPI(GenericFastAPI):
         self._pipe2 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/bletchley/v3/pytorch_model.large.bin",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.aesthetics.tad66k.2412.bin",
+            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.aesthetics.tad66k.2412.bin",
             label_dict={
                 "Bad Aesthetics": "draft, disgusting, blurry, disfigured",
             },
