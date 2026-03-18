@@ -1,0 +1,58 @@
+﻿//Script GUID:6a2e8ce1-79ce-4b86-8560-2248a1fa1c8f
+//Used for tracking history
+#DECLARE Data string = @"/local/Users/xucha/Image/ImgSample/SampleDataByRandomAccount_DistActvieAssetWAccountWdocwTextEnhance_2025-11-09_5K.ss";
+
+/*
+ImgAssets = EXTRACT AccountId,CampaignId,AdId,AssetId,FinalUrl,Tag,Segment,L1,L2,L3,L4,ImgUrl,Text,Tmp1,Tmp2,doc
+FROM @Data
+USING DefaultTextExtractor();
+*/
+ImgAssets =
+    SSTREAM @Data;
+
+ImgAssets =
+    SELECT *.Except(url_id)
+    FROM ImgAssets;
+
+
+
+//ImgAssets = SSTREAM @Data;
+ImgAssets =
+    SELECT *,
+           ROW_NUMBER() OVER() AS Rid
+    FROM ImgAssets;
+
+
+//Language Detection
+//HumpbackV2
+//https://microsoftapc.sharepoint.com/teams/binguf/SitePages/Onboarding-to-Offline-Query-Language-Detection-Packages-Humpback-V2-(fasttext).aspx
+MODULE "/shares/BingUF/BingUFLibs/LanguageDetectorV2/1.3/LanguageDetectorV2.module" AS HumpbackV2;
+
+DocLang =
+    SELECT Rid,
+           LanguageDetectorV2Scope.DetectFirstLang(doc) AS Language
+    FROM ImgAssets;
+
+ImgAssets =
+    SELECT L.*,
+           R2.Language??"" AS DocLang
+    FROM ImgAssets AS L
+    LEFT OUTER JOIN
+        DocLang AS R2
+        ON L.Rid == R2.Rid;
+
+Stat =
+    SELECT "Overall" AS Lang,
+           "Overall" AS Name,
+           COUNT(DISTINCT AccountId) AS Accounts,
+           COUNT(DISTINCT CampaignId) AS Campaigns,
+           COUNT(DISTINCT FinalUrl) AS Urls,
+           COUNT() AS Rows,
+           COUNTIF(DocLang != "") AS WithdocLang
+    FROM ImgAssets;
+
+OUTPUT ImgAssets TO SSTREAM @"/local/Users/xucha/Image/ImgSample/SampleDataByRandomAccount_DistActvieAssetWAccountWdocwTextEnhancewLang_2025-11-09_5K.ss"
+WITH STREAMEXPIRY @"60";
+
+OUTPUT Stat TO  @"/local/Users/xucha/Image/ImgSample/SampleDataByRandomAccount_DistActvieAssetWAccountWdocwTextEnhancewLang_stat_2025-11-09_5K.tsv"
+WITH STREAMEXPIRY @"60";
