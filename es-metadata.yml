@@ -1,0 +1,12 @@
+schemaVersion: 1.0.0
+providers:
+- provider: InventoryAsCode
+  version: 1.0.0
+  metadata:
+    isProduction: false
+    accountableOwners:
+      service: ded39d04-d311-4eb3-abee-e3e574f7d430
+    routing:
+      defaultAreaPath:
+        org: msasg
+        path: PIQ\PromoteIQ - SFI
