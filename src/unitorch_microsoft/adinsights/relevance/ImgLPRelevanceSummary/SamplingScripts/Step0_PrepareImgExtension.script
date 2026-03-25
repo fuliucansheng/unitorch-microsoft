@@ -214,7 +214,7 @@ SELECT AccountId, CampaignId, AdExtensionId  FROM AdExtensionAccountView;
 AdExtensionCampaignView = 
     SELECT A.*,
     B.FinalUrl??"" AS FinalUrl,
-    B.AdId??"" AS AdId
+    B.AdId??0 AS AdId
     FROM AdExtensionCampaignView AS A 
     LEFT OUTER JOIN CampaignUrl AS B 
     ON A.CampaignId == B.CampaignId;
@@ -241,7 +241,7 @@ AdExtensionOrderView =
 AdExtensionOrderView = 
     SELECT A.*,
     B.FinalUrl??"" AS FinalUrl,
-    B.AdId??"" AS AdId
+    B.AdId??0 AS AdId
     FROM AdExtensionOrderView AS A 
     LEFT OUTER JOIN OrderUrl AS B 
     ON A.OrderId == B.OrderId;
@@ -268,19 +268,21 @@ AdExtension =
         FROM AdExtension
         HAVING Rid == 1;
 
+//get adextensionId, assetId Mapping: process logic in aether pipeline: aether://experiments/034836e1-3849-4205-84cd-1d1c154a0593. Use the dumped result from latest exp
 
 FullExtensionItemAssets = 
         SELECT  AdExtensionId,
                 long.Parse(AssetId) AS AssetId
                 FROM 
                 (
-                   SSTREAM "/shares/Bingads.algo.prod.IntentMatching/Data/user/jinjinchen/AdDemandMeasurement/FullExtension/2025/11/ImageExtension_20251109_195818.ss"
+                   SSTREAM "/shares/Bingads.algo.prod.IntentMatching/Data/aether/_7/rauser3/794775e9-5faf-47f2-a24c-f91164aa66bb@@@Full_set_ImageExtension_MS@@@7b1836f9@@@3-24-2026_12-39-00_PM/FullSetImageExtensionMS/FullSetImageExtensionMS_89b93094-5118-429c-b4a2-39cbdba5d0fb.ss"
                  );
 
 FullExtensionItemAssets = 
         SELECT AdExtensionId,
         FIRST(AssetId) AS AssetId
         FROM FullExtensionItemAssets;
+
 
 
 AdExtension =  

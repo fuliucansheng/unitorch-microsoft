@@ -110,8 +110,45 @@ MODULE "/shares/bingads.algo.prod.adinsights/data/shared_data/AdvertiserEngageme
 #DECLARE Stat string = string.Format("{0}/PrepareData_{1:yyyy-MM-dd}_Stat.ss", @OutputFolder, @RunDate);
 #DECLARE PerfData string = string.Format("{0}/PrepareData_CampaignPerf_{1:yyyy-MM-dd}.ss", @OutputFolder, @RunDate);
 
-//Get CampaignInfo
-// IsPerforming
+//Makesure Servable && Performing account
+AccountPerf =
+    SELECT  AccountId,
+           (double)SUM(RevenueUSD) AS RevenueUSD,
+           (double)SUM(Impressions) AS Impressions,
+           (double)SUM(Clicks) AS Clicks
+    FROM
+    (
+        VIEW @UnifiedLayerPerf
+        PARAMS
+        (
+            ViewName = "AccountPerf",
+            TimeZoneForUnifiedLayerPerf = "CampaignTimeZone",
+            StartDate = @RunDate.AddDays(-366),
+            EndDate = @RunDate.AddDays(-1)
+        )
+    )
+    HAVING RevenueUSD > 0;
+
+AccountServable = 
+    SELECT 
+        AccountId
+    FROM 
+    ( 
+        VIEW @UnifiedLayerDemandView 
+        PARAMS 
+        ( 
+            ViewName = "Accounts", 
+            LogDate = @RunDate 
+        ) 
+    ) WHERE IsServable == true; 
+
+ValidAccount = 
+    SELECT A.*
+    FROM AccountPerf AS A
+    LEFT SEMIJOIN AccountServable AS B
+    ON A.AccountId == B.AccountId;
+
+//Get CampaignInfo Perf, Previously ranking is based on campaign perf, latter replace this logic by random sampling
 CampaignPerf =
     SELECT  AccountId,
             CampaignId,
@@ -128,30 +165,16 @@ CampaignPerf =
             StartDate = @RunDate.AddDays(-366),
             EndDate = @RunDate.AddDays(-1)
         )
-    )
-    HAVING RevenueUSD > 0;
+    );
 
-// IsServable
-CampaignServable = 
-    SELECT 
-        AccountId,
-        CampaignId
-    FROM 
-    ( 
-        VIEW @UnifiedLayerDemandView 
-        PARAMS 
-        ( 
-            ViewName = "Campaigns", 
-            LogDate = @RunDate 
-        ) 
-    ) WHERE IsServable == true; 
+
 
 //CampaignInfo
 Campaigns = 
     SELECT A.*
     FROM CampaignPerf AS A
-    LEFT SEMIJOIN CampaignServable AS B
-    ON A.CampaignId == B.CampaignId;
+    LEFT SEMIJOIN ValidAccount AS B
+    ON A.AccountId == B.AccountId;
 
 // Segment
 AccountSegment =
