@@ -9,6 +9,7 @@ from unitorch_microsoft.spaces.demos.commericals.recraft import (
 )
 from unitorch_microsoft.spaces.demos.commericals.gpt import (
     GPT5WebUI,
+    GPTImageWebUI,
     SORA2CreateVideoWebUI,
 )
 from unitorch_microsoft.spaces.demos.commericals.gemini import (
@@ -24,6 +25,7 @@ from unitorch_microsoft.spaces.demos.commericals.seedream import (
 
 commerical_pages = [
     GPT5WebUI,
+    GPTImageWebUI,
     SORA2CreateVideoWebUI,
     NanoBananaWebUI,
     Gemini3WebUI,
