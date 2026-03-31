@@ -25,7 +25,9 @@ pretrained_qwen_infos.update(
             "chat_template": hf_endpoint_url(
                 "/Qwen/Qwen3-VL-2B-Instruct/resolve/main/chat_template.json"
             ),
-            "weight": "/home/decu/model.safetensors",
+            "weight": hf_endpoint_url(
+                "/Qwen/Qwen3-VL-2B-Instruct/resolve/main/model.safetensors"
+            ),
         },
     }
 )
