@@ -4,8 +4,19 @@
 import re
 import torch
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from unitorch.utils import pop_value, nested_dict_value
-from unitorch.models.bloom import BloomProcessor as _BloomProcessor
+from transformers import PreTrainedTokenizerFast, AddedToken
+from unitorch.utils import (
+    pop_value,
+    truncate_sequence_pair,
+    read_json_file,
+    get_added_token,
+    nested_dict_value,
+)
+from unitorch.models import (
+    HfTextClassificationProcessor,
+    HfTextGenerationProcessor,
+    GenericOutputs,
+)
 from unitorch.cli import (
     cached_path,
     add_default_section_for_init,
@@ -18,17 +29,21 @@ from unitorch.cli.models import (
     GenerationOutputs,
     GenerationTargets,
 )
-from unitorch.cli.models.bloom import pretrained_bloom_infos
+
+from unitorch_microsoft.models.bloom import pretrained_bloom_infos
 
 
-class BloomProcessor(_BloomProcessor):
+class BloomProcessor(HfTextClassificationProcessor, HfTextGenerationProcessor):
     """Processor for Bloom language models."""
 
     def __init__(
         self,
         tokenizer_file: str,
+        tokenizer_config: Optional[str] = None,
+        special_tokens_map: Optional[str] = None,
+        chat_template: Optional[str] = None,
         max_seq_length: Optional[int] = 128,
-        max_gen_seq_length: Optional[int] = 128,
+        max_gen_seq_length: Optional[int] = 48,
     ):
         """
         Initialize the BloomProcessor.
@@ -38,8 +53,52 @@ class BloomProcessor(_BloomProcessor):
             max_seq_length (int, optional): The maximum sequence length. Defaults to 128.
             max_gen_seq_length (int, optional): The maximum generation sequence length. Defaults to 128.
         """
-        super().__init__(
+        tokenizer_config = read_json_file(tokenizer_config) if tokenizer_config else {}
+        special_tokens_map = (
+            read_json_file(special_tokens_map) if special_tokens_map else {}
+        )
+        added_tokens_decoder = tokenizer_config.pop("added_tokens_decoder", {})
+        tokenizer_config = {
+            k: (
+                get_added_token(v)
+                if isinstance(v, dict) and v.get("__type") == "AddedToken"
+                else v
+            )
+            for k, v in tokenizer_config.items()
+        }
+
+        tokenizer = PreTrainedTokenizerFast(
             tokenizer_file=tokenizer_file,
+            **tokenizer_config,
+        )
+
+        for idx, spec in added_tokens_decoder.items():
+            token = spec["content"]
+            tokenizer.added_tokens_decoder[idx] = get_added_token(spec)
+            tokenizer.added_tokens_encoder[token] = idx
+
+        special_tokens = {}
+        for name, spec in special_tokens_map.items():
+            special_tokens[name] = get_added_token(spec)
+        tokenizer.add_special_tokens(special_tokens)
+
+        if chat_template:
+            tokenizer.chat_template = read_json_file(chat_template)["chat_template"]
+        tokenizer.cls_token = tokenizer.bos_token
+        tokenizer.sep_token = tokenizer.eos_token
+        tokenizer.cls_token_id = tokenizer.bos_token_id
+        tokenizer.sep_token_id = tokenizer.eos_token_id
+        tokenizer.pad_token = "<pad>"
+        tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids("<pad>")
+        
+        HfTextClassificationProcessor.__init__(
+            self,
+            tokenizer=tokenizer,
+            max_seq_length=max_seq_length,
+        )
+        HfTextGenerationProcessor.__init__(
+            self,
+            tokenizer=tokenizer,
             max_seq_length=max_seq_length,
             max_gen_seq_length=max_gen_seq_length,
         )
@@ -69,7 +128,7 @@ class BloomProcessor(_BloomProcessor):
         encode = instruction.format(encode2)
         return self.tokenizer.tokenize(encode)[:max_seq_length]
 
-    @register_process("microsoft/process/bloom/generation/inputs")
+    @register_process("microsoft/process/bloom/instruction/generation/inputs")
     def _generation_inputs(
         self,
         instruction: str,
@@ -88,13 +147,50 @@ class BloomProcessor(_BloomProcessor):
         assert len(input_ids) == max_seq_length
         return TensorsInputs(input_ids=torch.tensor(input_ids, dtype=torch.long))
 
+    def generation_labels(
+        self,
+        text: str,
+        max_gen_seq_length: Optional[int] = None,
+    ) -> GenericOutputs:
+        """
+        Preprocesses text as generation labels.
+
+        Args:
+            text (str): The input text for generation labels.
+            max_gen_seq_length (Optional[int]): The maximum generation sequence length. Defaults to None.
+
+        Returns:
+            GenericOutputs: The processed input IDs and attention mask tensors.
+        """
+        max_gen_seq_length = pop_value(
+            max_gen_seq_length,
+            self.max_gen_seq_length,
+        )
+        tokens = self.tokenizer.tokenize(str(text))[: max_gen_seq_length - 1] + [
+            self.eos_token
+        ]
+        padding = [self.pad_token] * (max_gen_seq_length - len(tokens))
+        input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        attention_mask = [1] * len(input_ids)
+
+        padding = [0] * (max_gen_seq_length - len(input_ids))
+        input_ids += [self.pad_token_id] * len(padding)
+        attention_mask += padding
+
+        assert len(input_ids) == max_gen_seq_length
+        assert len(attention_mask) == max_gen_seq_length
+        return GenericOutputs(
+            input_ids=torch.tensor(input_ids, dtype=torch.long),
+            attention_mask=torch.tensor(attention_mask, dtype=torch.long),
+        )
+
     @register_process("microsoft/process/bloom/generation/labels")
     def _generation_labels(
         self,
         decode: str,
         max_gen_seq_length: Optional[int] = None,
     ):
-        outputs = super().generation_labels(
+        outputs = self.generation_labels(
             text=decode,
             max_gen_seq_length=max_gen_seq_length,
         )
@@ -103,7 +199,7 @@ class BloomProcessor(_BloomProcessor):
             masks=outputs.attention_mask,
         )
 
-    @register_process("microsoft/process/bloom/generation")
+    @register_process("microsoft/process/bloom/instruction/generation")
     def _generation(
         self,
         instruction: str,

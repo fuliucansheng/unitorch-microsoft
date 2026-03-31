@@ -30,7 +30,7 @@ else:
     from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
     from unitorch.utils import replace
     from unitorch import is_deepspeed_available
-    from transformers.utils import is_remote_url
+    from unitorch.utils import is_remote_url
     from unitorch.cli import cached_path as _cached_path
 
     if is_deepspeed_available():
@@ -98,7 +98,6 @@ else:
         import unitorch_microsoft.adsplus
         import unitorch_microsoft.aether
         import unitorch_microsoft.externals
-        import unitorch_microsoft.deepgen
         import unitorch_microsoft.fastapis
         import unitorch_microsoft.interrogators
         import unitorch_microsoft.models.bletchley

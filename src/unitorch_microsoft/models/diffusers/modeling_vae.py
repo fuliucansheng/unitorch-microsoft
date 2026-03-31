@@ -13,8 +13,6 @@ from diffusers import AutoencoderKL
 from unitorch.models import (
     GenericModel,
     GenericOutputs,
-    QuantizationConfig,
-    QuantizationMixin,
 )
 from unitorch.utils import (
     pop_value,

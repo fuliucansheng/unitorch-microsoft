@@ -12,7 +12,7 @@ import logging
 import hashlib
 import numpy as np
 import pandas as pd
-from transformers.utils import is_remote_url
+from unitorch.utils import is_remote_url
 from unitorch.cli import CoreConfigureParser, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path

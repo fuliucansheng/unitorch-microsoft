@@ -5,15 +5,12 @@ import torch
 import torch.nn as nn
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch import autocast
-from transformers.utils import is_remote_url
 from unitorch.utils import pop_value, nested_dict_value
 from transformers import MistralConfig, MistralForCausalLM, MistralModel
 from peft import LoraConfig, PeftModelForCausalLM
 from unitorch.models import (
     GenericModel,
     GenericOutputs,
-    QuantizationConfig,
-    QuantizationMixin,
 )
 from unitorch.cli import (
     cached_path,
@@ -22,7 +19,7 @@ from unitorch.cli import (
     register_model,
 )
 
-from unitorch.models.quantization import quantize_model
+
 from unitorch.models.peft import PeftModelForSequenceClassification, GenericPeftModel
 
 from unitorch.cli.models import generation_model_decorator
@@ -52,7 +49,6 @@ class MistralLoraForClassification(GenericPeftModel):
         num_gender_classes: Optional[int] = 2,
         loss_weight: Optional[float] = 0.5,
         hidden_dropout_prob: Optional[float] = 0.1,
-        quant_config_path: Optional[str] = None,
         lora_r: Optional[int] = 16,
         lora_alpha: Optional[int] = 32,
         lora_dropout: Optional[float] = 0.05,
@@ -73,10 +69,6 @@ class MistralLoraForClassification(GenericPeftModel):
             target_modules=target_modules,
         )
         model = MistralModel(self.config)
-        if quant_config_path is not None:
-            quant_config = QuantizationConfig.from_json_file(quant_config_path)
-            ignore_modules = target_modules + ["lm_head"]
-            model = quantize_model(model, quant_config, ignore_modules=ignore_modules)
         self.peft_model = PeftModelForSequenceClassification(model, self.peft_config)
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.age_classifier = nn.Linear(
@@ -154,9 +146,6 @@ class MistralLoraForClassification(GenericPeftModel):
             nested_dict_value(pretrained_mistral_infos, pretrained_name, "config"),
         )
         config_path = cached_path(config_path)
-        quant_config_path = config.getoption("quant_config_path", None)
-        if quant_config_path is not None:
-            quant_config_path = cached_path(quant_config_path)
 
         num_age_classes = config.getoption("num_age_classes", 6)
         num_gender_classes = config.getoption("num_gender_classes", 2)
@@ -176,7 +165,6 @@ class MistralLoraForClassification(GenericPeftModel):
             num_gender_classes=num_gender_classes,
             loss_weight=loss_weight,
             hidden_dropout_prob=hidden_dropout_prob,
-            quant_config_path=quant_config_path,
             lora_r=lora_r,
             lora_alpha=lora_alpha,
             lora_dropout=lora_dropout,

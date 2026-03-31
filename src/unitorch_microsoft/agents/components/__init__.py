@@ -10,7 +10,7 @@ from enum import Enum
 from PIL import Image
 from typing import Any, List, Literal, Optional, Union, Dict
 from pydantic import BaseModel, Field, model_validator
-from transformers.utils import is_remote_url
+from unitorch.utils import is_remote_url
 
 
 class GenericTool(ABC, BaseModel):

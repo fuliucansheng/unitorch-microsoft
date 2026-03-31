@@ -7,7 +7,6 @@ import json
 import torch.nn as nn
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch import autocast
-from transformers.utils import is_remote_url
 from transformers.models.dinov2 import Dinov2Config, Dinov2Model
 from peft import LoraConfig
 from unitorch.utils import pop_value, nested_dict_value

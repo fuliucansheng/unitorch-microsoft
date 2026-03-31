@@ -13,7 +13,7 @@ import torch.nn as nn
 import numpy as np
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from random import random
-from PIL import Image, ImageOps, ImageFile, ImageFilter
+from PIL import Image, ImageOps, ImageFile, ImageFilter, ImageDraw
 from unitorch.utils import is_opencv_available
 from unitorch.cli import (
     add_default_section_for_init,
@@ -56,7 +56,8 @@ class ImageProcessor:
     def _center_crop(
         self,
         image: Image.Image,
-        size: Optional[Tuple[int, int]] = (224, 224),
+        size: Optional[Tuple[int, int]] = None,
+        ratio: Optional[float] = None,
         do_resize: bool = True,
     ):
         """
@@ -69,6 +70,19 @@ class ImageProcessor:
         Returns:
             The cropped image as a PIL Image object.
         """
+        if size is None:
+            if ratio is not None:
+                width, height = image.size
+                if width / height > ratio:
+                    new_height = height
+                    new_width = int(new_height * ratio)
+                else:
+                    new_width = width
+                    new_height = int(new_width / ratio)
+                size = (new_width, new_height)
+            else:
+                size = (224, 224)
+
         ratio = size[0] / size[1]
         if do_resize:
             if image.width / image.height > ratio:
@@ -116,3 +130,17 @@ class ImageProcessor:
         new_image = Image.new("RGB", (new_width, new_height), color)
         new_image.paste(image, ((new_width - width) // 2, (new_height - height) // 2))
         return new_image
+
+    @register_process("microsoft/process/image/radius")
+    def _radius(
+        self,
+        image: Image.Image,
+        radius: int = 20,
+    ):
+        width, height = image.size
+        mask = Image.new("L", (width, height), 0)
+        draw = ImageDraw.Draw(mask)
+        draw.rounded_rectangle((0, 0, width, height), radius=radius, fill=255)
+        rounded_image = Image.new("RGB", (width, height))
+        rounded_image.paste(image, mask=mask)
+        return rounded_image

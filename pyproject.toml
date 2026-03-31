@@ -30,7 +30,6 @@ dynamic = ["version", "dependencies"]
 deepspeed = ["unitorch[deepspeed]"]
 diffusers = ["unitorch[diffusers]"]
 detection = ["unitorch[detection]"]
-quantization = ["unitorch[quantization]"]
 megatron = ["unitorch[megatron]"]
 docs = ["unitorch[docs]"]
 agents = [
@@ -55,7 +54,7 @@ others = [
     "gradio>6.0.0", 
     "gradio_client",
   ]
-all = ["unitorch_microsoft[deepspeed,diffusers,detection,quantization,megatron,docs,agents,others]"]
+all = ["unitorch_microsoft[deepspeed,diffusers,detection,megatron,docs,agents,others]"]
 
 [project.scripts]
 unitorch-train = "unitorch_microsoft.consoles.train:cli_main"

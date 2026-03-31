@@ -74,7 +74,6 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
         vocab_path: str,
         merge_path: str,
         vocab2_path: str,
-        quant_config_path: Optional[str] = None,
         max_seq_length: Optional[int] = 77,
         max_seq_length2: Optional[int] = 256,
         pad_token: Optional[str] = "<|endoftext|>",
@@ -92,7 +91,6 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
             text2_config_path=text2_config_path,
             vae_config_path=vae_config_path,
             scheduler_config_path=scheduler_config_path,
-            quant_config_path=quant_config_path,
         )
         self.processor = StableFluxProcessor(
             vocab_path=vocab_path,
@@ -148,7 +146,6 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
         vocab_path: Optional[str] = None,
         merge_path: Optional[str] = None,
         vocab2_path: Optional[str] = None,
-        quant_config_path: Optional[str] = None,
         pretrained_weight_folder: Optional[str] = None,
         pretrained_weight_path: Optional[str] = None,
         device: Optional[str] = None,
@@ -208,9 +205,6 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
             nested_dict_value(pretrained_infos, "text2", "vocab"),
         )
         vocab2_path = cached_path(vocab2_path)
-
-        if quant_config_path is not None:
-            quant_config_path = cached_path(quant_config_path)
 
         max_seq_length = 77
         max_seq_length2 = 256
@@ -299,7 +293,6 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
             vocab_path=vocab_path,
             merge_path=merge_path,
             vocab2_path=vocab2_path,
-            quant_config_path=quant_config_path,
             pad_token=pad_token,
             max_seq_length=max_seq_length,
             max_seq_length2=max_seq_length2,

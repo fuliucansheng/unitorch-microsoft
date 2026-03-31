@@ -24,10 +24,8 @@ from unitorch.utils.decorators import replace
 from unitorch.models import (
     GenericModel,
     GenericOutputs,
-    QuantizationConfig,
-    QuantizationMixin,
 )
-from unitorch.models.quantization import quantize_model
+
 from unitorch.models.peft import PeftModelForSequenceClassification, GenericPeftModel
 from unitorch.cli import (
     cached_path,
@@ -60,7 +58,6 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
     def __init__(
         self,
         config_path: str,
-        quant_config_path: Optional[str] = None,
         image_token_index: Optional[int] = 32000,
         vision_config_type: Optional[str] = "2.5B",
         lora_r: Optional[int] = 16,
@@ -103,12 +100,6 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
             * embed_std
         )
         language_model = MistralModel(self.config.text_config)
-        if quant_config_path is not None:
-            quant_config = QuantizationConfig.from_json_file(quant_config_path)
-            ignore_modules = target_modules + ["lm_head"]
-            language_model = quantize_model(
-                language_model, quant_config, ignore_modules=ignore_modules
-            )
         self.peft_model = PeftModelForSequenceClassification(
             language_model, self.peft_config
         )
@@ -158,9 +149,7 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
             nested_dict_value(pretrained_llava_infos, pretrained_name, "config"),
         )
         config_path = cached_path(config_path)
-        quant_config_path = config.getoption("quant_config_path", None)
-        if quant_config_path is not None:
-            quant_config_path = cached_path(quant_config_path)
+
         image_token_index = config.getoption("image_token_index", 32000)
         vision_config_type = config.getoption("vision_config_type", "2.5B")
         lora_r = config.getoption("lora_r", 16)
@@ -178,7 +167,6 @@ class LlavaMistralBlethchleyV3LoraForClassification(GenericPeftModel):
 
         inst = cls(
             config_path,
-            quant_config_path=quant_config_path,
             image_token_index=image_token_index,
             vision_config_type=vision_config_type,
             lora_r=lora_r,
@@ -325,7 +313,6 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
     def __init__(
         self,
         config_path: str,
-        quant_config_path: Optional[str] = None,
         image_token_index: Optional[int] = 32000,
         vision_config_type: Optional[str] = "2.5B",
         lora_r: Optional[int] = 16,
@@ -367,13 +354,6 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
             * embed_std
         )
         language_model = MistralForCausalLM(self.config.text_config)
-
-        if quant_config_path is not None:
-            quant_config = QuantizationConfig.from_json_file(quant_config_path)
-            ignore_modules = target_modules + ["lm_head"]
-            language_model = quantize_model(
-                language_model, quant_config, ignore_modules=ignore_modules
-            )
 
         self.peft_model = PeftModelForCausalLM(language_model, self.peft_config)
         self.init_weights()
@@ -418,9 +398,7 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
         )
 
         config_path = cached_path(config_path)
-        quant_config_path = config.getoption("quant_config_path", None)
-        if quant_config_path is not None:
-            quant_config_path = cached_path(quant_config_path)
+
         image_token_index = config.getoption("image_token_index", 32000)
         vision_config_type = config.getoption("vision_config_type", "2.5B")
         lora_r = config.getoption("lora_r", 16)
@@ -435,7 +413,6 @@ class LlavaMistralBlethchleyV3LoraForGeneration(GenericPeftModel):
 
         inst = cls(
             config_path,
-            quant_config_path=quant_config_path,
             image_token_index=image_token_index,
             vision_config_type=vision_config_type,
             lora_r=lora_r,

@@ -23,10 +23,8 @@ from unitorch.utils.decorators import replace
 from unitorch.models import (
     GenericModel,
     GenericOutputs,
-    QuantizationConfig,
-    QuantizationMixin,
 )
-from unitorch.models.quantization import quantize_model
+
 from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.cli import (
     cached_path,
@@ -56,7 +54,6 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
     def __init__(
         self,
         config_path: str,
-        quant_config_path: Optional[str] = None,
         image_token_index: Optional[int] = 32000,
         vision_config_type: Optional[str] = "2.5B",
         num_classes: Optional[int] = 1,
@@ -88,14 +85,7 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
             * embed_std
         )
         language_model = MistralModel(self.config.text_config)
-        if quant_config_path is not None:
-            quant_config = QuantizationConfig.from_json_file(quant_config_path)
-            ignore_modules = ["lm_head"]
-            self.language_model = quantize_model(
-                language_model, quant_config, ignore_modules=ignore_modules
-            )
-        else:
-            self.language_model = language_model
+        self.language_model = language_model
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.classifier = nn.Linear(self.config.text_config.hidden_size, num_classes)
         self.init_weights()
@@ -144,9 +134,7 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
             nested_dict_value(pretrained_llava_infos, pretrained_name, "config"),
         )
         config_path = cached_path(config_path)
-        quant_config_path = config.getoption("quant_config_path", None)
-        if quant_config_path is not None:
-            quant_config_path = cached_path(quant_config_path)
+
         image_token_index = config.getoption("image_token_index", 32000)
         vision_config_type = config.getoption("vision_config_type", "2.5B")
         num_classes = config.getoption("num_classes", 1)
@@ -160,7 +148,6 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
 
         inst = cls(
             config_path,
-            quant_config_path=quant_config_path,
             image_token_index=image_token_index,
             vision_config_type=vision_config_type,
             num_classes=num_classes,
@@ -288,9 +275,7 @@ class LlavaMistralBlethchleyV3ForClassification(GenericModel, PeftWeightLoaderMi
 @register_model(
     "microsoft/model/generation/llava/mistral_bletchley_v3", generation_model_decorator
 )
-class LlavaMistralBlethchleyV3ForGeneration(
-    GenericModel, QuantizationMixin, PeftWeightLoaderMixin
-):
+class LlavaMistralBlethchleyV3ForGeneration(GenericModel, PeftWeightLoaderMixin):
     replace_keys_in_state_dict = {
         "image_encoder.": "vision_tower.",
     }
@@ -301,7 +286,6 @@ class LlavaMistralBlethchleyV3ForGeneration(
     def __init__(
         self,
         config_path: str,
-        quant_config_path: Optional[str] = None,
         image_token_index: Optional[int] = 32000,
         vision_config_type: Optional[str] = "2.5B",
         freeze_vision_encoder: Optional[bool] = True,
@@ -334,10 +318,6 @@ class LlavaMistralBlethchleyV3ForGeneration(
         )
         self.language_model = MistralForCausalLM(self.config.text_config)
         self.init_weights()
-
-        if quant_config_path is not None:
-            self.quant_config = QuantizationConfig.from_json_file(quant_config_path)
-            self.quantize(self.quant_config, ignore_modules=["lm_head"])
 
         if freeze_vision_encoder:
             for param in self.vision_tower.parameters():
@@ -384,9 +364,7 @@ class LlavaMistralBlethchleyV3ForGeneration(
         )
 
         config_path = cached_path(config_path)
-        quant_config_path = config.getoption("quant_config_path", None)
-        if quant_config_path is not None:
-            quant_config_path = cached_path(quant_config_path)
+
         image_token_index = config.getoption("image_token_index", 32000)
         vision_config_type = config.getoption("vision_config_type", "2.5B")
         freeze_vision_encoder = config.getoption("freeze_vision_encoder", True)
@@ -398,7 +376,6 @@ class LlavaMistralBlethchleyV3ForGeneration(
 
         inst = cls(
             config_path,
-            quant_config_path=quant_config_path,
             image_token_index=image_token_index,
             vision_config_type=vision_config_type,
             freeze_vision_encoder=freeze_vision_encoder,
