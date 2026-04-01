@@ -64,6 +64,9 @@ pretrained_qwen_infos.update(
     }
 )
 
+IMAGE_MIN_TOKEN_NUM = 4
+IMAGE_MAX_TOKEN_NUM = 16384
+
 @register_model("microsoft/model/generation/qwen3_vl/lp_image_relevance/v1", generation_model_decorator)
 class QWen3VLForGeneration(GenericModel, PeftWeightLoaderMixin):
     """Qwen3 model for text generation."""
@@ -395,6 +398,27 @@ class QWenVLProcessor(_QWenVLProcessor):
             "chat_template": chat_template,
         }
 
+    @register_process("microsoft/process/qwen_vl/lp_image_relevance/resize/v1")
+    def _resize(
+        self,
+        image: Image.Image,
+    ):
+        """
+        Resize the input image.
+
+        Args:
+            image (Image.Image): The input image.
+
+        Returns:
+            Image.Image: The resized image.
+        """
+        width, height = image.size
+        if width * height < IMAGE_MIN_TOKEN_NUM or width * height > IMAGE_MAX_TOKEN_NUM:
+            ratio = (IMAGE_MIN_TOKEN_NUM / (width * height)) ** 0.5 if width * height < IMAGE_MIN_TOKEN_NUM else (IMAGE_MAX_TOKEN_NUM / (width * height)) ** 0.5
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            image = image.resize((new_width, new_height), resample=Image.LANCZOS)
+        return image
 
     @register_process("microsoft/postprocess/qwen_vl/lp_image_relevance/v1")
     def _detokenize(
