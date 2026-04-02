@@ -445,8 +445,8 @@ class QWenVLProcessor(_QWenVLProcessor):
         new_width = int(width * scale)
         new_height = int(height * scale)
 
-        img_resized = img.resize((new_width, new_height), Image.LANCZOS)
-        return img_resized
+        image = image.resize((new_width, new_height), Image.LANCZOS)
+        return image
 
     @register_process("microsoft/postprocess/qwen_vl/lp_image_relevance/v1")
     def _detokenize(
