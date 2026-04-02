@@ -64,8 +64,9 @@ pretrained_qwen_infos.update(
     }
 )
 
-IMAGE_MIN_TOKEN_NUM = 4
-IMAGE_MAX_TOKEN_NUM = 16384
+IMAGE_PATCH_FACTOR = 14 * 2
+IMAGE_MIN_TOKEN_NUM = 4 * IMAGE_PATCH_FACTOR ** 2
+IMAGE_MAX_TOKEN_NUM = 16384 * IMAGE_PATCH_FACTOR ** 2
 
 @register_model("microsoft/model/generation/qwen3_vl/lp_image_relevance/v1", generation_model_decorator)
 class QWen3VLForGeneration(GenericModel, PeftWeightLoaderMixin):
