@@ -400,7 +400,7 @@ class QWenVLProcessor(_QWenVLProcessor):
         }
 
     @register_process("microsoft/process/qwen_vl/lp_image_relevance/resize/v1")
-    def _resize(
+    def _resize_v1(
         self,
         image: Image.Image,
     ):
@@ -420,6 +420,33 @@ class QWenVLProcessor(_QWenVLProcessor):
             new_height = int(height * ratio)
             image = image.resize((new_width, new_height), resample=Image.LANCZOS)
         return image
+
+    @register_process("microsoft/process/qwen_vl/lp_image_relevance/resize/v2")
+    def _resize_v2(
+        self,
+        image: Image.Image,
+        max_size: Optional[int] = 448, 
+    ):
+        """
+        Resize the input image.
+
+        Args:
+            image (Image.Image): The input image.
+
+        Returns:
+            Image.Image: The resized image.
+        """
+        width, height = image.size
+
+        if max(width, height) <= max_size:
+            return image
+
+        scale = max_size / max(width, height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+
+        img_resized = img.resize((new_width, new_height), Image.LANCZOS)
+        return img_resized
 
     @register_process("microsoft/postprocess/qwen_vl/lp_image_relevance/v1")
     def _detokenize(
