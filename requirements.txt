@@ -4,6 +4,6 @@ pillow-avif-plugin
 multiprocess<=0.70.14
 importlib_resources
 transformers>=5.0.0
-unitorch>=0.0.1.6,<0.0.2.0
+unitorch>=0.0.1.7,<0.0.2.0
 peft>=0.17.0
 opencv-python<4.12.0.88
