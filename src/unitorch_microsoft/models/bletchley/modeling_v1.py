@@ -148,7 +148,7 @@ class BletchleyTextEncoder(PreTrainedModel):
             attention_mask = input_ids.ne(self.pad_token_id)
         embedding_output = self.embeddings(input_ids=input_ids)
         extended_attention_mask: torch.Tensor = self.get_extended_attention_mask(
-            attention_mask, input_ids.size(), input_ids.device
+            attention_mask, input_ids.size()
         )
 
         if self.add_postln_encoder:
@@ -215,7 +215,7 @@ class BletchleyImageEncoder(PreTrainedModel):
 
         attention_mask = torch.ones(images.size()[:-1], device=images.device)
         extended_attention_mask: torch.Tensor = self.get_extended_attention_mask(
-            attention_mask, images.size()[:-1], images.device
+            attention_mask, images.size()[:-1]
         )
 
         outputs = self.encoder(

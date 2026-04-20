@@ -66,9 +66,9 @@ class Siglip2FastAPI(GenericFastAPI):
         self._pipe2 = Siglip2ForMatchingV2Pipeline.from_core_configure(
             self._config,
             pretrained_name="siglip2-so400m-patch14-384",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/siglip/pytorch_model.v2.lora4.whitepad.2510.v2.bin",
+            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/siglip/pytorch_model.v2.lora4.badpad.2601.bin",
             label_dict={
-                "Bad White Padding": "bad white padding",
+                "Bad Padding": "bad padding",
             },
             act_fn="sigmoid",
         )

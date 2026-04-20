@@ -6,40 +6,6 @@
 unitorch-fastapi apps/fastapis.ini --port 5000
 ```
 
-## API Usage
-
-```python
-def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json"):
-    assert resp_type in ["json", "image"], f"Unsupported response type: {resp_type}"
-
-    def process_image(image):
-        image = image.convert("RGB")
-        byte_arr = io.BytesIO()
-        image.save(byte_arr, format="JPEG")
-        byte_arr.seek(0)
-        return byte_arr
-
-    if images is None:
-        files = {}
-    else:
-        files = {
-            k: (f"{k}.jpg", process_image(v), "image/jpeg") for k, v in images.items()
-        }
-    if req_type == "POST" or images is not None:
-        resp = (
-            requests.post(url, params=params, files=files)
-            if images is not None
-            else requests.post(url, params=params)
-        )
-    else:
-        resp = requests.get(url, params=params)
-    if resp_type == "json":
-        result = resp.json()
-    elif resp_type == "image":
-        result = Image.open(io.BytesIO(resp.content)).convert("RGB")
-    return result
-```
-
 ## API Endpoints
 
 > The api_base_url is `http://127.0.0.1:5000` if you run the API server locally.
@@ -78,7 +44,7 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
         }
     ]
     ```
-- `POST /microsoft/apps/fastapi/bletchley/v1/generate1`: Get the matching score for the input image and text.
+- `POST /microsoft/apps/fastapi/bletchley/v1/generate1`: Get the background (complex, simple, white) & types (poster, real, logo) scores for the input image.
     * Request:
     ```bash
     curl -X 'POST' \
@@ -90,10 +56,15 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
     * Response: 
     ```json
     {
-        "Bad Aesthetics": 0.62109375
+        "Complex": 0.291015625,
+        "Simple": 0.7578125,
+        "White": 0.0927734375,
+        "Poster": 0.734375,
+        "Real": 0.20703125,
+        "Logo": 0.18359375
     }
     ```
-- `POST /microsoft/apps/fastapi/bletchley/v1/generate2`: Get the matching score for the input image and text.
+- `POST /microsoft/apps/fastapi/bletchley/v1/generate2`: Get the blurry score for the input image.
     * Request:
     ```bash
     curl -X 'POST' \
@@ -105,10 +76,10 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
     * Response: 
     ```json
     {
-        "Bad Aesthetics": 0.62109375
+        "Blurry": 0.62109375
     }
     ```
-- `POST /microsoft/apps/fastapi/bletchley/v1/generate3`: Get the matching score for the input image and text.
+- `POST /microsoft/apps/fastapi/bletchley/v1/generate3`: Get the background & scores for the input image.
     * Request:
     ```bash
     curl -X 'POST' \
@@ -120,7 +91,9 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
     * Response: 
     ```json
     {
-        "Bad Aesthetics": 0.62109375
+        "Complex": 0.93359375,
+        "Simple": 0.10693359375,
+        "White": 0.02978515625
     }
     ```
 - `POST /microsoft/apps/fastapi/bletchley/v3/generate1`: Get the watermark score for the input image.
@@ -153,7 +126,7 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
         "Bad Aesthetics": 0.62109375
     }
     ```
-- `POST /microsoft/apps/fastapi/siglip2/generate1`: Get the watermark score for the input image.
+- `POST /microsoft/apps/fastapi/siglip2/generate1`: Get the bad crop score for the input image.
     * Request:
     ```bash
     curl -X 'POST' \
@@ -165,10 +138,10 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
     * Response: 
     ```json
     {
-        "Watermark": 0.51171875
+        "Bad Cropped": 0.07568359375
     }
     ```
-- `POST /microsoft/apps/fastapi/siglip2/generate2`: Get the aesthetic score for the input image.
+- `POST /microsoft/apps/fastapi/siglip2/generate2`: Get the bad padding score for the input image.
     * Request:
     ```bash
     curl -X 'POST' \
@@ -180,6 +153,6 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
     * Response: 
     ```json
     {
-        "Bad Aesthetics": 0.62109375
+        "Bad Padding": 0.140625
     }
     ```
