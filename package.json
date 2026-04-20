@@ -1,0 +1,16 @@
+{
+  "name": "unitorch-microsoft",
+  "version": "1.0.0",
+  "scripts": {
+    "start:litellm": "pm2 start ecosystem.config.js --only litellm",
+    "stop:litellm": "pm2 stop litellm",
+    "start": "pm2 start all",
+    "stop": "pm2 stop all",
+    "delete": "pm2 delete all",
+    "restart": "pm2 restart all",
+    "status": "pm2 status"
+  },
+  "dependencies": {
+    "pm2": "^6.0.8"
+  }
+}

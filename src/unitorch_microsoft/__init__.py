@@ -97,7 +97,6 @@ else:
         import unitorch_microsoft.adinsights
         import unitorch_microsoft.adsplus
         import unitorch_microsoft.aether
-        import unitorch_microsoft.externals
         import unitorch_microsoft.fastapis
         import unitorch_microsoft.interrogators
         import unitorch_microsoft.models.bletchley

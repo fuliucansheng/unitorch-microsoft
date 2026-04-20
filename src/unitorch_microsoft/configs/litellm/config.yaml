@@ -1,0 +1,16 @@
+model_list:
+  - model_name: copilot-gemini-3.1-pro-preview
+    litellm_params:
+      model: github_copilot/gemini-3.1-pro-preview
+  - model_name: copilot-gpt-5.4
+    model_info:
+      mode: responses
+    litellm_params:
+      model: github_copilot/gpt-5.4
+  - model_name: papyrus-gpt-image-15-eval
+    litellm_params:
+      model: openai/gpt-image-1.5
+      api_base: https://westus2large.papyrus.binginternal.com
+
+litellm_settings:
+  callbacks: ["papyrus.handler"]
