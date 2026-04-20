@@ -42,13 +42,144 @@ def call_fastapi(url, params={}, images=None, req_type="POST", resp_type="json")
 
 ## API Endpoints
 
-> The host URL is `http://127.0.0.1:5000` if you run the API server locally.
+> The api_base_url is `http://127.0.0.1:5000` if you run the API server locally.
 
 - `POST /microsoft/apps/fastapi/swin/googlecate/generate`: Get the google category for the input image.
-    * Request Body:
-        * image: (file) The input image.
-        * topk: (param, int, optional) The number of top categories to return. Default is 1.
-    * Response Body:
-        * categories: (list) The list of predicted categories with their scores. Each category is a dictionary with the following keys:
-            * category: (str) The name of the category.
-            * score: (float) The confidence score of the prediction.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/swin/googlecate/generate?topk=5' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    [
+        {
+            "category": "Business & Industrial > Advertising & Marketing > Brochures",
+            "score": 0.6408588886260986
+        },
+        {
+            "category": "Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Art & Crafting Materials > Art & Craft Paper > Cardstock & Scrapbooking Paper",
+            "score": 0.1077391505241394
+        },
+        {
+            "category": "Software > Computer Software > Multimedia & Design Software > Video Editing Software",
+            "score": 0.07137665152549744
+        },
+        {
+            "category": "Software > Computer Software > Operating Systems",
+            "score": 0.05271176993846893
+        },
+        {
+            "category": "Cameras & Optics > Photography > Photo Negative & Slide Storage",
+            "score": 0.03096369095146656
+        }
+    ]
+    ```
+- `POST /microsoft/apps/fastapi/bletchley/v1/generate1`: Get the matching score for the input image and text.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/bletchley/v1/generate1' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Bad Aesthetics": 0.62109375
+    }
+    ```
+- `POST /microsoft/apps/fastapi/bletchley/v1/generate2`: Get the matching score for the input image and text.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/bletchley/v1/generate2' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Bad Aesthetics": 0.62109375
+    }
+    ```
+- `POST /microsoft/apps/fastapi/bletchley/v1/generate3`: Get the matching score for the input image and text.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/bletchley/v1/generate3' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Bad Aesthetics": 0.62109375
+    }
+    ```
+- `POST /microsoft/apps/fastapi/bletchley/v3/generate1`: Get the watermark score for the input image.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/bletchley/v3/generate1' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Watermark": 0.51171875
+    }
+    ```
+- `POST /microsoft/apps/fastapi/bletchley/v3/generate2`: Get the aesthetic score for the input image.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/bletchley/v3/generate2' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Bad Aesthetics": 0.62109375
+    }
+    ```
+- `POST /microsoft/apps/fastapi/siglip2/generate1`: Get the watermark score for the input image.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/siglip2/generate1' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Watermark": 0.51171875
+    }
+    ```
+- `POST /microsoft/apps/fastapi/siglip2/generate2`: Get the aesthetic score for the input image.
+    * Request:
+    ```bash
+    curl -X 'POST' \
+    '{api_base_url}/microsoft/apps/fastapi/siglip2/generate2' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F 'image=@debug.png;type=image/png'
+    ```
+    * Response: 
+    ```json
+    {
+        "Bad Aesthetics": 0.62109375
+    }
+    ```

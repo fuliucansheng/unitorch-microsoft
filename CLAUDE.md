@@ -38,7 +38,6 @@ unitorch-train <config.ini> [--key=value ...]
 unitorch-eval <config.ini> [--key=value ...]
 unitorch-infer <config.ini> [--key=value ...]
 unitorch-launch <config.ini> [--key=value ...]
-unitorch-webui <config.ini>
 unitorch-fastapi <config.ini>
 unitorch-service <config.ini>
 ```
@@ -77,7 +76,7 @@ Models and processors register themselves using decorators from `unitorch.cli`:
 ### Source Layout (`src/unitorch_microsoft/`)
 
 **Core infrastructure:**
-- `consoles/` — CLI entry points (train, eval, infer, launch, webui, fastapi, service)
+- `consoles/` — CLI entry points (train, eval, infer, launch, fastapi, service)
 - `models/` — Model implementations (bletchley, bloom, llama, llava, sam, siglip, detr, tribert, tulr, mmdnn, dinov2, diffusers, kolors, mask2former) plus shared utils
 - `modules/` — Utility modules (beam search, etc.)
 - `configs/` — INI configuration templates
@@ -93,7 +92,7 @@ Models and processors register themselves using decorators from `unitorch.cli`:
 - `omnigpt/`, `omnilora/`, `omnipixel/` — Experimental modules
 - `agents/` — AI agents with flows and component tools
 - `vpr/` — Visual Place Recognition
-- `fastapis/`, `webuis/`, `spaces/` — Service and UI layers
+- `fastapis/` — Service API layers
 
 ### Key Dependencies
 

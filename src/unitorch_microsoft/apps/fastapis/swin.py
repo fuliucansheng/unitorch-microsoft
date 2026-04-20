@@ -93,7 +93,7 @@ class GoogleCateFastAPI(GenericFastAPI):
         topk: int = 5,
     ):
         image_bytes = await image.read()
-        image = Image.open(io.BytesIO(image_bytes))
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         async with self._lock:
             if self.status() != "running":
                 self.start()

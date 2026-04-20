@@ -61,7 +61,6 @@ unitorch-train = "unitorch_microsoft.consoles.train:cli_main"
 unitorch-eval = "unitorch_microsoft.consoles.eval:cli_main"
 unitorch-infer = "unitorch_microsoft.consoles.infer:cli_main"
 unitorch-launch= "unitorch_microsoft.consoles.launch:cli_main"
-unitorch-webui= "unitorch_microsoft.consoles.webui:cli_main"
 unitorch-fastapi= "unitorch_microsoft.consoles.fastapi:cli_main"
 unitorch-service = "unitorch_microsoft.consoles.service:cli_main"
 

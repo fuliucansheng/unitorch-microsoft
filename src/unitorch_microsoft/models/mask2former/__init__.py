@@ -20,4 +20,3 @@ from unitorch_microsoft.models.mask2former.modeling import Mask2FormerForSegment
 from unitorch_microsoft.models.mask2former.processing import Mask2FormerProcessor
 
 import unitorch_microsoft.models.mask2former.pipeline
-import unitorch_microsoft.models.mask2former.webui
