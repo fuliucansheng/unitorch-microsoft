@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  body {
+    /* 浅色模式使用更有层次的极浅灰白 #F9FAFB，深色模式保持不变 */
+    @apply bg-[#F9FAFB] text-zinc-800 dark:bg-[#0a0a0c] dark:text-zinc-100 antialiased transition-colors duration-300;
+  }
+}
