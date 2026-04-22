@@ -3,16 +3,13 @@ import { useNavigate } from 'react-router-dom';
 const examples = [
   {
     title: "DR Measurement",
-    description: "This is a demo for DR Measurement. You can upload a fundus image and the output will be the measurements of the optic disc and optic cup.",
+    description: "Evaluate image quality and attributes. Upload an image to analyze key metrics including bad crop, padding issues, blurriness, watermark presence, and automatic categorization.",
     link: "/picasso/dr-measurement"
   },
   {
     title: "ROI Detection",
-    description: "This is a demo for detecting regions of interest (ROI) in images using the BASNet model. You can input an image and a mask threshold, and the model will generate an output image with detected ROIs highlighted."
-  },
-  {
-    title: "ROI Detection V2",
-    description: "This is a demo for detecting regions of interest (ROI) in images using the DETR model. You can input an image and a score threshold, and the model will generate an output image with detected ROIs highlighted."
+    description: "Identify and extract Regions of Interest (ROI) with precision. Compare results between BASNet (V1) and DETR (V2) models by fine-tuning detection thresholds in real-time.",
+    link: "/picasso/roi-detection"
   }
 ];
 
@@ -22,7 +19,7 @@ const Examples = () => {
   return (
     <div className="max-w-6xl space-y-8 pb-8">
       <div>
-        <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Examples</h2>
+        <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Spaces</h2>
         <p className="text-zinc-500 dark:text-zinc-400 mt-2 font-light">Explore demos powered by our customized models.</p>
       </div>
 

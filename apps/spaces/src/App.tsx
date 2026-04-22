@@ -5,6 +5,7 @@ import Picasso from './pages/picasso-view/Picasso';
 import PicassoOverview from './pages/picasso-view/Overview';
 import PicassoExamples from './pages/picasso-view/Examples';
 import DRMeasurement from './pages/picasso-view/DRMeasurement';
+import ROIDetection from './pages/picasso-view/ROIDetection';
 import Models from './pages/Models';
 import Demos from './pages/Demos';
 import Docs from './pages/Docs';
@@ -21,6 +22,7 @@ function App() {
             <Route path="overview" element={<PicassoOverview />} />
             <Route path="examples" element={<PicassoExamples />} />
             <Route path="dr-measurement" element={<DRMeasurement />} />
+            <Route path="roi-detection" element={<ROIDetection />} />
           </Route>
 
           <Route path="models" element={<Models />} />

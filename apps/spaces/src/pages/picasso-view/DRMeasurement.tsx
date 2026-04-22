@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { UploadCloud, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { UploadCloud, Image as ImageIcon, Loader2, Info, ArrowLeft } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000';
 
-type DisplayMode = 'DR' | 'Others' | 'All';
+type DisplayMode = 'DR' | 'Category' | 'Others' | 'All';
 
 interface AnalysisResults {
   dr?: {
@@ -11,20 +12,20 @@ interface AnalysisResults {
     badPad: number;
   };
   others?: {
-    imageTypes: { poster: number; real: number; logo: number };
     blurryScore: number;
     backgroundTypes: { Complex: number; Simple: number; White: number };
     watermarkScore: number;
-    aestheticScore: number;
+  };
+  category?: {
     googleCategory: any[];
   };
 }
 
 export default function DRMeasurement() {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  // 默认使用 DR 模式，减少初始请求量
   const [displayMode, setDisplayMode] = useState<DisplayMode>('DR');
   const [results, setResults] = useState<AnalysisResults | null>(null);
 
@@ -37,12 +38,12 @@ export default function DRMeasurement() {
     const fetchPromises = [];
 
     try {
-      // 如果需要显示 DR，并且 DR 数据尚未获取
+      // DR endpoints
       if ((mode === 'DR' || mode === 'All') && !newResults.dr) {
         fetchPromises.push(
           Promise.all([
-            fetch(`${API_BASE}/microsoft/apps/fastapi/siglip2/generate1`, { method: 'POST', body: formData }).then(r => r.json()),
-            fetch(`${API_BASE}/microsoft/apps/fastapi/siglip2/generate2`, { method: 'POST', body: formData }).then(r => r.json()),
+            fetch(`${API_BASE}/microsoft/apps/spaces/picasso/siglip2/generate1`, { method: 'POST', body: formData }).then(r => r.json()),
+            fetch(`${API_BASE}/microsoft/apps/spaces/picasso/siglip2/generate2`, { method: 'POST', body: formData }).then(r => r.json()),
           ]).then(([resSiglip1, resSiglip2]) => {
             newResults.dr = {
               badCrop: resSiglip1['Bad Cropped'],
@@ -52,26 +53,33 @@ export default function DRMeasurement() {
         );
       }
 
-      // 如果需要显示 Others，并且 Others 数据尚未获取
+      // Others endpoints
       if ((mode === 'Others' || mode === 'All') && !newResults.others) {
         fetchPromises.push(
           Promise.all([
-            fetch(`${API_BASE}/microsoft/apps/fastapi/bletchley/v1/generate1`, { method: 'POST', body: formData }).then(r => r.json()),
-            fetch(`${API_BASE}/microsoft/apps/fastapi/bletchley/v1/generate2`, { method: 'POST', body: formData }).then(r => r.json()),
-            fetch(`${API_BASE}/microsoft/apps/fastapi/bletchley/v1/generate3`, { method: 'POST', body: formData }).then(r => r.json()),
-            fetch(`${API_BASE}/microsoft/apps/fastapi/bletchley/v3/generate1`, { method: 'POST', body: formData }).then(r => r.json()),
-            fetch(`${API_BASE}/microsoft/apps/fastapi/bletchley/v3/generate2`, { method: 'POST', body: formData }).then(r => r.json()),
-            fetch(`${API_BASE}/microsoft/apps/fastapi/swin/googlecate/generate?topk=5`, { method: 'POST', body: formData }).then(r => r.json()),
-          ]).then(([resV1Gen1, resV1Gen2, resV1Gen3, resV3Gen1, resV3Gen2, resGoogleCate]) => {
+            fetch(`${API_BASE}/microsoft/apps/spaces/picasso/bletchley/v1/generate1`, { method: 'POST', body: formData }).then(r => r.json()),
+            fetch(`${API_BASE}/microsoft/apps/spaces/picasso/bletchley/v1/generate2`, { method: 'POST', body: formData }).then(r => r.json()),
+            fetch(`${API_BASE}/microsoft/apps/spaces/picasso/bletchley/v3/generate1`, { method: 'POST', body: formData }).then(r => r.json()),
+          ]).then(([resBlurry, resBg, resWatermark]) => {
             newResults.others = {
-              imageTypes: { poster: resV1Gen1.Poster, real: resV1Gen1.Real, logo: resV1Gen1.Logo },
-              blurryScore: resV1Gen2.Blurry,
-              backgroundTypes: resV1Gen3,
-              watermarkScore: resV3Gen1.Watermark,
-              aestheticScore: resV3Gen2['Bad Aesthetics'],
-              googleCategory: resGoogleCate
+              blurryScore: resBlurry.Blurry,
+              backgroundTypes: resBg,
+              watermarkScore: resWatermark.Watermark
             };
           })
+        );
+      }
+
+      // Category endpoint
+      if ((mode === 'Category' || mode === 'All') && !newResults.category) {
+        fetchPromises.push(
+          fetch(`${API_BASE}/microsoft/apps/spaces/picasso/swin/googlecate/generate?topk=5`, { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(resGoogleCate => {
+              newResults.category = {
+                googleCategory: resGoogleCate
+              };
+            })
         );
       }
 
@@ -91,16 +99,14 @@ export default function DRMeasurement() {
 
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
-    setResults(null); // 清空上一次结果
+    setResults(null);
     
-    // 按当前模式获取对应数据
     fetchAnalysis(file, displayMode, null);
   };
 
   const handleModeChange = (mode: DisplayMode) => {
     setDisplayMode(mode);
     if (selectedFile) {
-      // 切换模式时按需请求缺失的数据
       fetchAnalysis(selectedFile, mode, results);
     }
   };
@@ -122,9 +128,17 @@ export default function DRMeasurement() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">DR Measurement</h2>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-2 font-light">Upload an image to analyze its quality, type, and categories.</p>
+      <div className="flex items-start sm:items-center gap-4">
+        <button 
+          onClick={() => navigate('/picasso/examples')}
+          className="p-2.5 rounded-full bg-white dark:bg-zinc-900/60 border border-black/[0.08] dark:border-white/[0.05] shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 shrink-0"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">DR Measurement</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1.5 font-light">Upload an image to analyze its quality, type, and categories.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -152,101 +166,115 @@ export default function DRMeasurement() {
           )}
         </div>
 
-        {/* 右侧结果区 */}
-        <div className="bg-white dark:bg-zinc-900/40 border border-black/[0.04] dark:border-white/[0.05] rounded-3xl p-6 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Analysis Results</h3>
-            
-            {/* 选项卡切换 */}
-            <div className="flex items-center p-1 rounded-lg bg-black/5 dark:bg-white/5 border border-black/[0.04] dark:border-white/[0.05]">
-              {(['DR', 'Others', 'All'] as DisplayMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => handleModeChange(mode)}
-                  className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    displayMode === mode
-                      ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
+        {/* 右侧整体容器 */}
+        <div className="flex flex-col gap-4 h-full">
+          {/* 结果区 */}
+          <div className="bg-white dark:bg-zinc-900/40 border border-black/[0.04] dark:border-white/[0.05] rounded-3xl p-6 shadow-sm flex flex-col flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Analysis Results</h3>
+              
+              {/* 选项卡切换 */}
+              <div className="flex items-center w-full sm:w-auto p-1 rounded-lg bg-black/5 dark:bg-white/5 border border-black/[0.04] dark:border-white/[0.05]">
+                {(['DR', 'Category', 'Others', 'All'] as DisplayMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => handleModeChange(mode)}
+                    className={`flex-1 sm:flex-none text-center px-2 sm:px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      displayMode === mode
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                        : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {isLoading ? (
+                <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-3">
+                  <Loader2 className="animate-spin" size={24} />
+                  <p className="text-sm">Analyzing image...</p>
+                </div>
+              ) : !results ? (
+                <div className="h-full flex flex-col items-center justify-center text-zinc-400">
+                  <ImageIcon size={32} className="mb-2 opacity-50" />
+                  <p className="text-sm">Upload an image to see results</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* DR 相关信息 */}
+                  {(displayMode === 'DR' || displayMode === 'All') && results.dr && (
+                    <div className="space-y-5">
+                      <div>
+                        {renderProgress('Bad Crop Score', results.dr.badCrop)}
+                        {renderProgress('Bad Pad Score', results.dr.badPad)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category 相关信息 */}
+                  {(displayMode === 'Category' || displayMode === 'All') && results.category && results.category.googleCategory && results.category.googleCategory.length > 0 && (
+                    <div className="space-y-4">
+                      {displayMode === 'All' && <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">Google Categories</h4>}
+                      <ul className="space-y-2">
+                        {results.category.googleCategory.map((cat: any, i: number) => (
+                          <li key={i} className="text-xs flex flex-col bg-black/[0.02] dark:bg-white/[0.02] p-2.5 rounded-lg">
+                            <span className="text-zinc-700 dark:text-zinc-300 mb-1 leading-relaxed">{cat.category}</span>
+                            <span className="text-zinc-500 font-mono text-[10px]">Score: {(cat.score * 100).toFixed(2)}%</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Others 相关信息 */}
+                  {(displayMode === 'Others' || displayMode === 'All') && results.others && (
+                    <div className="space-y-5">
+                      {displayMode === 'All' && <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">Other Metrics</h4>}
+                      
+                      <div>
+                        {renderProgress('Blurry Score', results.others.blurryScore)}
+                        {renderProgress('Watermark Score', results.others.watermarkScore)}
+                      </div>
+
+                      <div className="pt-2 border-t border-black/[0.04] dark:border-white/[0.05]">
+                        <h5 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4 mt-2">Background Scores</h5>
+                        <div>
+                          {renderProgress('Complex', results.others.backgroundTypes.Complex)}
+                          {renderProgress('Simple', results.others.backgroundTypes.Simple)}
+                          {renderProgress('White', results.others.backgroundTypes.White)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {isLoading ? (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-3">
-                <Loader2 className="animate-spin" size={24} />
-                <p className="text-sm">Analyzing image...</p>
+          {/* 独立在外的 Evaluation Criteria，在 DR 或 All tab 下展示 */}
+          {(displayMode === 'DR' || displayMode === 'All') && (
+            <div className="overflow-hidden rounded-3xl border border-indigo-100/60 dark:border-indigo-500/10 bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-500/5 dark:to-zinc-900/40 p-5 shadow-sm shrink-0">
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-indigo-100/60 dark:border-indigo-500/10">
+                <Info size={16} className="text-indigo-500 dark:text-indigo-400" />
+                <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-300 uppercase tracking-wider">Evaluation Criteria</span>
               </div>
-            ) : !results ? (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-400">
-                <ImageIcon size={32} className="mb-2 opacity-50" />
-                <p className="text-sm">Upload an image to see results</p>
+              
+              <div className="space-y-3 w-full text-[13px]">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap min-w-[70px]">Bad Crop</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 leading-relaxed">Indicates poorly cropped images (scores ≥ 45% are considered bad).</span>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap min-w-[70px]">Bad Pad</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 leading-relaxed">Indicates excessive padding (scores ≥ 50% are considered bad).</span>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-8">
-                {/* DR 相关信息 */}
-                {(displayMode === 'DR' || displayMode === 'All') && results.dr && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-black/5 dark:border-white/5 pb-2">DR Measurements</h4>
-                    <div>
-                      {renderProgress('Bad Crop Score', results.dr.badCrop)}
-                      {renderProgress('Bad Pad Score', results.dr.badPad)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Others 相关信息 */}
-                {(displayMode === 'Others' || displayMode === 'All') && results.others && (
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-black/5 dark:border-white/5 pb-2">Image Quality & Properties</h4>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                        <div className="col-span-2">{renderProgress('Blurry Score', results.others.blurryScore)}</div>
-                        <div className="col-span-2">{renderProgress('Watermark Score', results.others.watermarkScore)}</div>
-                        <div className="col-span-2">{renderProgress('Bad Aesthetic Score', results.others.aestheticScore)}</div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Image Types</h4>
-                      <div className="grid grid-cols-2 gap-x-6">
-                        {renderProgress('Poster', results.others.imageTypes.poster)}
-                        {renderProgress('Real', results.others.imageTypes.real)}
-                        {renderProgress('Logo', results.others.imageTypes.logo)}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Background Types</h4>
-                      <div className="grid grid-cols-2 gap-x-6">
-                        {renderProgress('Complex', results.others.backgroundTypes.Complex)}
-                        {renderProgress('Simple', results.others.backgroundTypes.Simple)}
-                        {renderProgress('White', results.others.backgroundTypes.White)}
-                      </div>
-                    </div>
-
-                    {results.others.googleCategory && results.others.googleCategory.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider border-t border-black/5 dark:border-white/5 pt-4">Google Categories</h4>
-                        <ul className="space-y-2">
-                          {results.others.googleCategory.map((cat: any, i: number) => (
-                            <li key={i} className="text-xs flex flex-col bg-black/[0.02] dark:bg-white/[0.02] p-2.5 rounded-lg">
-                              <span className="text-zinc-700 dark:text-zinc-300 mb-1 leading-relaxed">{cat.category}</span>
-                              <span className="text-zinc-500 font-mono text-[10px]">Score: {(cat.score * 100).toFixed(2)}%</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

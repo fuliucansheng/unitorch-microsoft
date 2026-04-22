@@ -20,10 +20,6 @@ const examples = [
     description: "This is a demo for detecting regions of interest (ROI) in images using the BASNet model. You can input an image and a mask threshold, and the model will generate an output image with detected ROIs highlighted."
   },
   {
-    title: "ROI Detection V2",
-    description: "This is a demo for detecting regions of interest (ROI) in images using the DETR model. You can input an image and a score threshold, and the model will generate an output image with detected ROIs highlighted."
-  },
-  {
     title: "Background Synthesis",
     description: "This is a demo for background synthesis using Gemini & GPT. You can input an image of a product, and the model will generate a new image with an improved background suitable for e-commerce."
   }

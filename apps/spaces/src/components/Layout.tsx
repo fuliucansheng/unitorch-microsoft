@@ -32,7 +32,6 @@ const Layout = () => {
 
   const navItems = [
     { path: '/picasso', label: '💡 Picasso' },
-    { path: '/models', label: '🔥 Models' },
     { path: '/demos', label: '🚀 Demos' },
     { path: '/docs', label: '📚 Docs' },
   ];
