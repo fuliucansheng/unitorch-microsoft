@@ -11,6 +11,10 @@ model_list:
     litellm_params:
       model: openai/gpt-image-1.5
       api_base: https://westus2large.papyrus.binginternal.com
+  - model_name: gemini-3-pro-image-preview
+    litellm_params:
+      model: gemini/gemini-3-pro-image-preview
+      api_key: os.environ/GEMINI_API_KEY
 
 litellm_settings:
   callbacks: ["papyrus.handler"]

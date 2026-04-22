@@ -21,6 +21,13 @@ module.exports = {
       args: `--config ${litellm_config_path}`,
       autorestart: true,
       watch: false,
+    },
+    {
+      name: "apps",
+      script: "unitorch-fastapi",
+      args: "apps/fastapis.ini",
+      autorestart: true,
+      watch: false,
     }
   ],
 };

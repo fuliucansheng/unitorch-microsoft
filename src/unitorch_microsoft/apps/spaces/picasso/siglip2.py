@@ -27,12 +27,12 @@ from unitorch.cli import CoreConfigureParser, GenericFastAPI
 from unitorch_microsoft.models.siglip.pipeline import Siglip2ForMatchingV2Pipeline
 
 
-@register_fastapi("microsoft/apps/fastapi/siglip2")
+@register_fastapi("microsoft/apps/spaces/picasso/siglip2")
 class Siglip2FastAPI(GenericFastAPI):
     def __init__(self, config: CoreConfigureParser):
         self._config = config
-        config.set_default_section(f"microsoft/apps/fastapi/siglip2")
-        router = config.getoption("router", "/microsoft/apps/fastapi/siglip2")
+        config.set_default_section(f"microsoft/apps/spaces/picasso/siglip2")
+        router = config.getoption("router", "/microsoft/apps/spaces/picasso/siglip2")
         self._pipe1 = None
         self._pipe2 = None
         self._router = APIRouter(prefix=router)

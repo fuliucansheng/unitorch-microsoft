@@ -4,6 +4,8 @@
   "scripts": {
     "start:litellm": "pm2 start ecosystem.config.js --only litellm",
     "stop:litellm": "pm2 stop litellm",
+    "start:apps": "pm2 start ecosystem.config.js --only litellm && pm2 start ecosystem.config.js --only apps",
+    "stop:apps": "pm2 stop litellm && pm2 stop apps",
     "start": "pm2 start all",
     "stop": "pm2 stop all",
     "delete": "pm2 delete all",

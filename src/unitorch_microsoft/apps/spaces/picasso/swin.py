@@ -26,11 +26,11 @@ from unitorch.cli import (
 from unitorch.cli import CoreConfigureParser, GenericFastAPI
 
 
-@register_fastapi("microsoft/apps/fastapi/swin/googlecate")
+@register_fastapi("microsoft/apps/spaces/picasso/swin/googlecate")
 class GoogleCateFastAPI(GenericFastAPI):
     def __init__(self, config: CoreConfigureParser):
         self._config = config
-        config.set_default_section(f"microsoft/apps/fastapi/swin/googlecate")
+        config.set_default_section(f"microsoft/apps/spaces/picasso/swin/googlecate")
         self._model = None
         self._cates = pd.read_csv(
             cached_path(
@@ -42,7 +42,7 @@ class GoogleCateFastAPI(GenericFastAPI):
         )
         self._device = config.getoption("device", "cpu")
         self._cates = {row["id"]: row["cate"] for _, row in self._cates.iterrows()}
-        router = config.getoption("router", "/microsoft/apps/fastapi/swin/googlecate")
+        router = config.getoption("router", "/microsoft/apps/spaces/picasso/swin/googlecate")
         self._router = APIRouter(prefix=router)
         self._router.add_api_route("/generate", self.generate, methods=["POST"])
         self._router.add_api_route("/status", self.status, methods=["GET"])

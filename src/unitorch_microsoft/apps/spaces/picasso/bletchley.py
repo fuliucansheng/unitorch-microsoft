@@ -36,24 +36,21 @@ from unitorch_microsoft.models.bletchley.pipeline_v3 import (
 from unitorch_microsoft.omnipixel.bletchley import BletchleyForImageClickModelPipeline
 
 
-@register_fastapi("microsoft/apps/fastapi/bletchley/v1")
+@register_fastapi("microsoft/apps/spaces/picasso/bletchley/v1")
 class BletchleyV1FastAPI(GenericFastAPI):
     def __init__(self, config: CoreConfigureParser):
         self._config = config
-        config.set_default_section(f"microsoft/apps/fastapi/bletchley/v1")
+        config.set_default_section(f"microsoft/apps/spaces/picasso/bletchley/v1")
         self._pipe1 = None
         self._pipe2 = None
         self._pipe3 = None
-        router = config.getoption("router", "/microsoft/apps/fastapi/bletchley/v1")
+        router = config.getoption("router", "/microsoft/apps/spaces/picasso/bletchley/v1")
         self._router = APIRouter(prefix=router)
         self._router.add_api_route(
             "/generate1", self.generate1, methods=["POST"]
-        )  # bg/im type
-        self._router.add_api_route(
-            "/generate2", self.generate2, methods=["POST"]
         )  # blurry
         self._router.add_api_route(
-            "/generate3", self.generate3, methods=["POST"]
+            "/generate2", self.generate2, methods=["POST"]
         )  # bg type
         self._router.add_api_route("/status", self.status, methods=["GET"])
         self._router.add_api_route("/start", self.start, methods=["GET"])
@@ -68,25 +65,9 @@ class BletchleyV1FastAPI(GenericFastAPI):
         if (
             self._pipe1 is not None
             and self._pipe2 is not None
-            and self._pipe3 is not None
         ):
             return "running"
         self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
-            self._config,
-            config_type="0.8B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.bg_type.2501.bin",
-            label_dict={
-                "Complex": "complex background, objects in the background or even no background",
-                "Simple": "clean background, no objects in the background",
-                "White": "white background, no objects in the background",
-                "Poster": "poster image, composed of multiple objects, logo, text, etc.",
-                "Real": "a real image, not a poster or a logo",
-                "Logo": "logo image, composed of logo only",
-            },
-            act_fn="sigmoid",
-        )
-        self._pipe2 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="2.5B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
@@ -96,7 +77,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
             },
             act_fn="sigmoid",
         )
-        self._pipe3 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
+        self._pipe2 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
             self._config,
             config_type="0.8B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
@@ -113,7 +94,6 @@ class BletchleyV1FastAPI(GenericFastAPI):
     def stop(self):
         self._pipe1 = None
         self._pipe2 = None
-        self._pipe3 = None
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -123,7 +103,6 @@ class BletchleyV1FastAPI(GenericFastAPI):
         if (
             self._pipe1 is not None
             and self._pipe2 is not None
-            and self._pipe3 is not None
         ):
             return "running"
         return "stopped"
@@ -154,35 +133,18 @@ class BletchleyV1FastAPI(GenericFastAPI):
 
         return results
 
-    async def generate3(
-        self,
-        image: UploadFile,
-    ):
-        image_bytes = await image.read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        async with self._lock:
-            if self.status() != "running":
-                self.start()
-            results = self._pipe3(image)
-
-        return results
-
-
-@register_fastapi("microsoft/apps/fastapi/bletchley/v3")
+@register_fastapi("microsoft/apps/spaces/picasso/bletchley/v3")
 class BletchleyV3FastAPI(GenericFastAPI):
     def __init__(self, config: CoreConfigureParser):
         self._config = config
-        config.set_default_section(f"microsoft/apps/fastapi/bletchley/v3")
+        config.set_default_section(f"microsoft/apps/spaces/picasso/bletchley/v3")
         self._pipe1 = None
         self._pipe2 = None
-        router = config.getoption("router", "/microsoft/apps/fastapi/bletchley/v3")
+        router = config.getoption("router", "/microsoft/apps/spaces/picasso/bletchley/v3")
         self._router = APIRouter(prefix=router)
         self._router.add_api_route(
             "/generate1", self.generate1, methods=["POST"]
         )  # watermark
-        self._router.add_api_route(
-            "/generate2", self.generate2, methods=["POST"]
-        )  # aesthetics
         self._router.add_api_route("/status", self.status, methods=["GET"])
         self._router.add_api_route("/start", self.start, methods=["GET"])
         self._router.add_api_route("/stop", self.stop, methods=["GET"])
@@ -204,88 +166,6 @@ class BletchleyV3FastAPI(GenericFastAPI):
                 "Watermark": "watermarked, no watermark signature, brand logo",
             },
             act_fn="sigmoid",
-        )
-        self._pipe2 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
-            self._config,
-            config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.lora4.aesthetics.tad66k.2412.bin",
-            label_dict={
-                "Bad Aesthetics": "draft, disgusting, blurry, disfigured",
-            },
-            act_fn="sigmoid",
-        )
-        return "running"
-
-    def stop(self):
-        self._pipe1 = None
-        self._pipe2 = None
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        return "stopped"
-
-    def status(self):
-        if self._pipe1 is not None and self._pipe2 is not None:
-            return "running"
-        return "stopped"
-
-    async def generate1(
-        self,
-        image: UploadFile,
-    ):
-        image_bytes = await image.read()
-        image = Image.open(io.BytesIO(image_bytes))
-        async with self._lock:
-            if self.status() != "running":
-                self.start()
-            results = self._pipe1(image)
-
-        return results
-
-    async def generate2(
-        self,
-        image: UploadFile,
-    ):
-        image_bytes = await image.read()
-        image = Image.open(io.BytesIO(image_bytes))
-        async with self._lock:
-            if self.status() != "running":
-                self.start()
-            results = self._pipe2(image)
-
-        return results
-
-
-@register_fastapi("microsoft/apps/fastapi/bletchley/msan/image_click")
-class BletchleyImageClickModelFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
-        self._config = config
-        config.set_default_section(
-            f"microsoft/apps/fastapi/bletchley/msan/image_click"
-        )
-        self._pipe1 = None
-        router = config.getoption(
-            "router", "/microsoft/apps/fastapi/bletchley/msan/image_click"
-        )
-        self._router = APIRouter(prefix=router)
-        self._router.add_api_route(
-            "/generate1", self.generate1, methods=["POST"]
-        )  # watermark
-        self._router.add_api_route("/status", self.status, methods=["GET"])
-        self._router.add_api_route("/start", self.start, methods=["GET"])
-        self._router.add_api_route("/stop", self.stop, methods=["GET"])
-        self._lock = asyncio.Lock()
-
-    @property
-    def router(self):
-        return self._router
-
-    def start(self):
-        if self._pipe1 is not None:
-            return "running"
-        self._pipe1 = BletchleyForImageClickModelPipeline.from_core_configure(
-            self._config
         )
         return "running"
 
