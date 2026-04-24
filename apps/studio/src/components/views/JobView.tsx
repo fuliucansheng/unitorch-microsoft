@@ -1,49 +1,80 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../../store/useStore';
+import { api } from '../../lib/api';
 import { TerminalSquare, StopCircle, RefreshCw, Search, Share2, Check } from 'lucide-react';
 
 export function JobView() {
-  const { jobs, selectedEntityId, setView } = useStore();
+  const { jobs, selectedJobId, setView } = useStore();
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(false);
   
-  const job = jobs.find(j => j.id === selectedEntityId);
-  const [logs, setLogs] = useState<string[]>([]);
+  const baseJob = jobs.find(j => j.id === selectedJobId);
+  const [jobDetails, setJobDetails] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!job) return;
+    if (!selectedJobId) return;
     
-    const initialLogs = [
-      `[${new Date().toISOString()}] INITIALIZING JOB: ${job.name}`,
-      `[${new Date().toISOString()}] Setting up container environment...`,
-      `[${new Date().toISOString()}] Downloading base weights...`,
-    ];
-    setLogs(initialLogs);
-
-    if (job.status === 'completed') {
-      setLogs(prev => [...prev, `[${new Date().toISOString()}] Job completed successfully. Weights saved to output/`]);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setLogs(prev => [...prev, `[${new Date().toISOString()}] Processing batch ${Math.floor(Math.random() * 1000)}... loss: ${(Math.random() * 2).toFixed(4)}`]);
-      
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    let active = true;
+    const fetchDetails = async () => {
+      try {
+        const details = await api.jobs.getDetails(selectedJobId);
+        if (active) {
+          setJobDetails(details);
+        }
+      } catch (error) {
+        console.error("Failed to fetch job details:", error);
       }
-    }, 1500);
+    };
 
-    return () => clearInterval(interval);
-  }, [job]);
+    fetchDetails();
+    
+    // Poll every 3 seconds if the job is running
+    const interval = setInterval(() => {
+      if (jobDetails?.status === 'running' || baseJob?.status === 'running') {
+        fetchDetails();
+      }
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [selectedJobId, baseJob?.status, jobDetails?.status]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [jobDetails?.logs]);
 
   const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/jobs/${job?.id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/jobs/${selectedJobId}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!selectedEntityId) {
+  const handleCancel = async () => {
+    if (!selectedJobId) return;
+    try {
+      const res = await api.jobs.cancel(selectedJobId);
+      setJobDetails(res);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!selectedJobId) return;
+    try {
+      const res = await api.jobs.restart(selectedJobId);
+      setJobDetails(res);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  if (!selectedJobId) {
     const filtered = jobs.filter(j => j.name.toLowerCase().includes(search.toLowerCase()));
     return (
       <div className="h-full flex flex-col bg-background p-8">
@@ -73,10 +104,12 @@ export function JobView() {
                 <h3 className="font-semibold group-hover:text-primary transition-colors truncate pr-2">{j.name}</h3>
                 {j.status === 'running' && <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse mt-1" />}
                 {j.status === 'completed' && <div className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1" />}
+                {j.status === 'cancelled' && <div className="w-2.5 h-2.5 rounded-full bg-gray-500 mt-1" />}
               </div>
               <div className="flex items-center gap-2 mb-3">
                 <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
-                  j.status === 'running' ? 'bg-blue-500/10 text-blue-600' : 'bg-green-500/10 text-green-600'
+                  j.status === 'running' ? 'bg-blue-500/10 text-blue-600' : 
+                  j.status === 'completed' ? 'bg-green-500/10 text-green-600' : 'bg-gray-500/10 text-gray-600'
                 }`}>
                   {j.status}
                 </span>
@@ -87,7 +120,10 @@ export function JobView() {
               </div>
               <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                 <div 
-                  className={`h-full transition-all ${j.status === 'running' ? 'bg-blue-500' : 'bg-green-500'}`} 
+                  className={`h-full transition-all ${
+                    j.status === 'running' ? 'bg-blue-500' : 
+                    j.status === 'completed' ? 'bg-green-500' : 'bg-gray-500'
+                  }`} 
                   style={{ width: `${j.progress}%` }} 
                 />
               </div>
@@ -101,24 +137,34 @@ export function JobView() {
     );
   }
 
-  if (!job) return <div className="p-8 text-muted-foreground">Job not found</div>;
+  const currentJob = jobDetails || baseJob;
+  if (!currentJob) return <div className="p-8 text-muted-foreground">Job not found</div>;
+
+  const logs = jobDetails?.logs ? jobDetails.logs.split('\n') : ['Loading logs...'];
 
   return (
     <div className="h-full flex flex-col bg-background p-8">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-3 mb-2">
-            <TerminalSquare className={job.status === 'running' ? 'text-blue-500' : 'text-green-500'} /> 
-            {job.name}
+            <TerminalSquare className={
+              currentJob.status === 'running' ? 'text-blue-500' : 
+              currentJob.status === 'completed' ? 'text-green-500' : 'text-gray-500'
+            } /> 
+            {currentJob.name}
           </h2>
           <div className="flex items-center gap-3 text-sm">
             <span className={`px-2 py-1 rounded-md text-xs uppercase font-bold tracking-wider ${
-              job.status === 'running' ? 'bg-blue-500/10 text-blue-600' : 'bg-green-500/10 text-green-600'
+              currentJob.status === 'running' ? 'bg-blue-500/10 text-blue-600' : 
+              currentJob.status === 'completed' ? 'bg-green-500/10 text-green-600' : 'bg-gray-500/10 text-gray-600'
             }`}>
-              {job.status}
+              {currentJob.status}
             </span>
-            <span className="text-muted-foreground">ID: {job.id}</span>
+            <span className="text-muted-foreground">ID: {currentJob.id}</span>
           </div>
+          {jobDetails?.description && (
+            <p className="text-sm text-muted-foreground mt-2">{jobDetails.description}</p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -129,11 +175,17 @@ export function JobView() {
             {copied ? <Check size={16} className="text-green-500" /> : <Share2 size={16} className="text-blue-500" />}
             <span className="hidden sm:inline">{copied ? 'Copied Link' : 'Share Job'}</span>
           </button>
-          <button className="px-4 py-2 flex items-center gap-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm font-medium transition-colors">
+          <button 
+            onClick={handleRestart}
+            className="px-4 py-2 flex items-center gap-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm font-medium transition-colors"
+          >
             <RefreshCw size={16} /> Restart
           </button>
-          {job.status === 'running' && (
-            <button className="px-4 py-2 flex items-center gap-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-md text-sm font-medium transition-colors">
+          {currentJob.status === 'running' && (
+            <button 
+              onClick={handleCancel}
+              className="px-4 py-2 flex items-center gap-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-md text-sm font-medium transition-colors"
+            >
               <StopCircle size={16} /> Cancel Job
             </button>
           )}
@@ -143,12 +195,15 @@ export function JobView() {
       <div className="bg-card border border-border rounded-xl p-6 mb-6">
         <div className="flex justify-between text-sm mb-2">
           <span className="font-medium">Overall Progress</span>
-          <span className="font-mono">{job.progress}%</span>
+          <span className="font-mono">{currentJob.progress}%</span>
         </div>
         <div className="h-3 w-full bg-secondary rounded-full overflow-hidden">
           <div 
-            className={`h-full transition-all duration-500 ${job.status === 'running' ? 'bg-blue-500' : 'bg-green-500'}`} 
-            style={{ width: `${job.progress}%` }} 
+            className={`h-full transition-all duration-500 ${
+              currentJob.status === 'running' ? 'bg-blue-500' : 
+              currentJob.status === 'completed' ? 'bg-green-500' : 'bg-gray-500'
+            }`} 
+            style={{ width: `${currentJob.progress}%` }} 
           />
         </div>
       </div>
@@ -162,14 +217,14 @@ export function JobView() {
         </div>
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 font-mono text-sm text-slate-300 space-y-1"
+          className="flex-1 overflow-y-auto p-4 font-mono text-sm text-slate-300 space-y-1 whitespace-pre-wrap"
         >
-          {logs.map((log, i) => (
-            <div key={i} className="hover:bg-white/5 px-1 rounded">
+          {logs.map((log: string, i: number) => (
+            <div key={i} className="hover:bg-white/5 px-1 rounded break-words">
               {log}
             </div>
           ))}
-          {job.status === 'running' && (
+          {currentJob.status === 'running' && (
             <div className="animate-pulse mt-2 text-blue-400">_</div>
           )}
         </div>

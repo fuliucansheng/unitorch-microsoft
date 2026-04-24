@@ -1,54 +1,135 @@
-import { useState, useRef, type KeyboardEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react';
 import { useStore } from '../../store/useStore';
-import { Send, Command, Database, Paperclip, X, FileIcon, TerminalSquare, Tag, FileText } from 'lucide-react';
-
-const COMMANDS = ['/create-dataset', '/process-dataset', '/create-job', '/improve-prompt'];
+import { api } from '../../lib/api';
+import { Send, Command, Database, Paperclip, X, FileIcon, TerminalSquare, Tag, FileText, Brain, Wrench, ChevronDown, Check } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 export function ChatInput() {
   const [input, setInput] = useState('');
   const [showCommands, setShowCommands] = useState(false);
   const [showEntities, setShowEntities] = useState(false);
+  const [showModels, setShowModels] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [files, setFiles] = useState<File[]>([]);
+  
+  // API dynamically loaded states
+  const [commands, setCommands] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const { addMessage, datasets, jobs, labelTasks, reports, setTyping } = useStore();
+  const { 
+    addMessage, datasets, jobs, labelTasks, reports, setTyping,
+    availableModels, selectedModel, agentMode, setModel, setAgentMode, activeSessionId 
+  } = useStore();
 
-  const handleSend = () => {
+  useEffect(() => {
+    // Load commands dynamically
+    api.chat.getCommands().then(setCommands).catch(console.error);
+  }, []);
+
+  const allEntities = [
+    ...datasets.map(d => ({ ...d, type: 'dataset', icon: Database, color: 'text-blue-500' })),
+    ...jobs.map(j => ({ ...j, type: 'job', icon: TerminalSquare, color: 'text-orange-500' })),
+    ...labelTasks.map(l => ({ ...l, type: 'label', icon: Tag, color: 'text-purple-500' })),
+    ...reports.map(r => ({ ...r, type: 'report', icon: FileText, color: 'text-green-500' }))
+  ];
+
+  const handleSend = async () => {
     if (!input.trim() && files.length === 0) return;
 
     const userMessage = input.trim();
-    const attachments = files.map(f => ({
+    
+    // Create UI attachments
+    const storeAttachments = files.map(f => ({
       id: Math.random().toString(36).substring(2, 9),
       name: f.name,
       size: f.size,
       type: f.type
     }));
 
-    addMessage({ role: 'user', content: userMessage, attachments });
+    // Extract entities from mentions (e.g., @data1)
+    const entityMatches = userMessage.match(/@([a-zA-Z0-9_-]+)/g) || [];
+    const requestEntities = entityMatches.map(match => {
+      const id = match.slice(1);
+      const entity = allEntities.find(e => e.id === id);
+      return entity ? { type: entity.type, id: entity.id } : null;
+    }).filter(Boolean);
+
+    // Show the user's message immediately
+    addMessage({ role: 'user', content: userMessage, attachments: storeAttachments });
     
     if (userMessage) {
       setHistory(prev => [...prev, userMessage]);
     }
     setHistoryIndex(-1);
-    
     setInput('');
-    setFiles([]);
     setShowCommands(false);
     setShowEntities(false);
     setTyping(true);
     
-    // Simulate AI response processing
-    setTimeout(() => {
-      addMessage({ 
-        role: 'assistant', 
-        content: userMessage 
-          ? `Executed \`${userMessage}\`\n\nI have successfully queued this workflow.` 
-          : `I received your file${attachments.length > 1 ? 's' : ''}. Processing now...`
+    const filesToSend = [...files];
+    setFiles([]);
+    
+    try {
+      let appendedContent = '';
+      
+      // Upload files sequentially or in parallel, then append paths to the prompt
+      if (filesToSend.length > 0) {
+        const uploadPromises = filesToSend.map(f => api.utils.upload(f));
+        const uploadedResults = await Promise.all(uploadPromises);
+        
+        appendedContent = '\n\n[System Info: The user has uploaded the following files. Please use the paths below to access them:]\n';
+        uploadedResults.forEach(res => {
+          appendedContent += `- ${res.filename} (Server Path: ${res.path})\n`;
+        });
+      }
+
+      // Final api prompt includes the user's original message plus the appended file paths context
+      const finalApiMessageContent = userMessage + appendedContent;
+
+      const response = await fetch(api.chat.getCompletionsUrl(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: activeSessionId,
+          message: {
+            role: 'user',
+            content: finalApiMessageContent
+          },
+          mode: agentMode,
+          model: selectedModel,
+          entities: requestEntities,
+          stream: false
+        })
       });
-      setTyping(false);
-    }, 1500);
+
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const data = await response.json();
+      
+      // Extract content from response (handling various common API response structures)
+      let finalContent = '';
+      if (typeof data === 'string') {
+        finalContent = data;
+      } else if (data.content) {
+        finalContent = data.content;
+      } else if (data.message?.content) {
+        finalContent = data.message.content;
+      } else if (data.choices?.[0]?.message?.content) {
+        finalContent = data.choices[0].message.content;
+      } else {
+        finalContent = JSON.stringify(data, null, 2);
+      }
+
+      addMessage({ role: 'assistant', content: finalContent });
+    } catch (error) {
+      console.error('Error in completions:', error);
+      addMessage({ role: 'assistant', content: 'Sorry, an error occurred while processing your request.' });
+    } finally {
+      setTyping(false); 
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -91,9 +172,12 @@ export function ChatInput() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+      const newFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...newFiles]);
     }
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const removeFile = (index: number) => {
@@ -114,14 +198,6 @@ export function ChatInput() {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  const allEntities = [
-    ...datasets.map(d => ({ ...d, type: 'dataset', icon: Database, color: 'text-blue-500' })),
-    ...jobs.map(j => ({ ...j, type: 'job', icon: TerminalSquare, color: 'text-orange-500' })),
-    ...labelTasks.map(l => ({ ...l, type: 'label', icon: Tag, color: 'text-purple-500' })),
-    ...reports.map(r => ({ ...r, type: 'report', icon: FileText, color: 'text-green-500' }))
-  ];
-
-  // 计算当前的搜索词并过滤实体
   const lastWord = input.split(/[\s\n]+/).pop() || '';
   const mentionQuery = lastWord.startsWith('@') ? lastWord.slice(1).toLowerCase() : '';
   const filteredEntities = allEntities.filter(e => 
@@ -132,6 +208,73 @@ export function ChatInput() {
   return (
     <div className="p-4 bg-background/80 backdrop-blur-md border-t border-border flex flex-col items-center">
       <div className="w-full max-w-3xl relative flex flex-col gap-2">
+        
+        {/* Controls Row: Model Selector & Agent Mode */}
+        <div className="w-full flex items-center justify-between mb-1 px-1">
+          {/* Left: Model Selector */}
+          <div className="relative">
+            <button 
+              type="button"
+              onClick={() => setShowModels(!showModels)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-secondary/30 hover:bg-secondary rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {availableModels.find(m => m.id === selectedModel)?.name || 'Select Model'} <ChevronDown size={12} />
+            </button>
+            
+            {showModels && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowModels(false)}
+                />
+                <div className="absolute bottom-full left-0 mb-2 w-48 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-1">
+                  <div className="p-1 max-h-48 overflow-y-auto">
+                    {availableModels.map((m, idx) => (
+                      <button
+                        type="button"
+                        key={`${m.id}-${idx}`}
+                        onClick={() => { setModel(m.id); setShowModels(false); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-secondary rounded-lg flex items-center justify-between transition-colors"
+                      >
+                        {m.name}
+                        {selectedModel === m.id && <Check size={12} className="text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Right: Mode Toggle */}
+          <div className="flex items-center bg-secondary/30 p-0.5 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setAgentMode('plan')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all",
+                agentMode === 'plan' 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Brain size={12} /> Plan
+            </button>
+            <button
+              type="button"
+              onClick={() => setAgentMode('build')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all",
+                agentMode === 'build' 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Wrench size={12} /> Build
+            </button>
+          </div>
+        </div>
+
         {/* Autocomplete menus */}
         {showCommands && (
           <div className="absolute bottom-full left-0 mb-2 w-64 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-10 animate-in fade-in slide-in-from-bottom-2">
@@ -140,13 +283,15 @@ export function ChatInput() {
               <span className="text-[10px]">Enter to select</span>
             </div>
             <div className="p-1 max-h-48 overflow-y-auto">
-              {COMMANDS.map(cmd => (
+              {commands.map((cmd, idx) => (
                 <button
-                  key={cmd}
-                  onClick={() => insertText(cmd)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-secondary rounded-lg flex items-center gap-2 transition-colors"
+                  type="button"
+                  key={`${cmd.name}-${idx}`}
+                  onClick={() => insertText(`/${cmd.name}`)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-secondary rounded-lg flex flex-col gap-1 transition-colors"
                 >
-                  <Command size={14} className="text-primary" /> {cmd}
+                  <span className="flex items-center gap-2"><Command size={14} className="text-primary" /> /{cmd.name}</span>
+                  {cmd.description && <span className="text-[10px] text-muted-foreground ml-5">{cmd.description}</span>}
                 </button>
               ))}
             </div>
@@ -161,9 +306,10 @@ export function ChatInput() {
             </div>
             <div className="p-1 max-h-48 overflow-y-auto">
               {filteredEntities.length > 0 ? (
-                filteredEntities.map(entity => (
+                filteredEntities.map((entity, idx) => (
                   <button
-                    key={`${entity.type}-${entity.id}`}
+                    type="button"
+                    key={`${entity.type}-${entity.id}-${idx}`}
                     onClick={() => insertText(`@${entity.id}`)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-secondary rounded-lg flex items-center gap-2 transition-colors"
                   >
@@ -193,6 +339,7 @@ export function ChatInput() {
                   <span className="text-muted-foreground text-[10px]">{formatFileSize(file.size)}</span>
                 </div>
                 <button 
+                  type="button"
                   onClick={() => removeFile(idx)}
                   className="absolute right-2 p-1 rounded-full hover:bg-destructive hover:text-destructive-foreground text-muted-foreground transition-colors"
                 >
@@ -203,16 +350,18 @@ export function ChatInput() {
           </div>
         )}
 
+        {/* Input Box */}
         <div className="relative flex items-end gap-2 bg-card border border-border rounded-2xl p-2 shadow-sm focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
           <input 
             type="file" 
             multiple 
             ref={fileInputRef} 
-            className="hidden" 
+            style={{ display: 'none' }}
             onChange={handleFileChange} 
           />
           
           <button 
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors shrink-0 mb-0.5"
             title="Attach files"
@@ -227,10 +376,11 @@ export function ChatInput() {
             onKeyDown={handleKeyDown}
             placeholder="Ask Ads Studio anything... (Shift+Enter for new line)"
             className="w-full bg-transparent border-none py-2.5 px-1 text-sm focus:outline-none resize-none max-h-[200px] min-h-[44px]"
-            style={{ fieldSizing: 'content' } as React.CSSProperties} // Allows auto-grow in supported browsers
+            style={{ fieldSizing: 'content' } as React.CSSProperties}
           />
           
           <button 
+            type="button"
             onClick={handleSend}
             disabled={!input.trim() && files.length === 0}
             title="Send message"

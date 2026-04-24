@@ -1,29 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { FileText, Download, Search } from 'lucide-react';
+import { api } from '../../lib/api';
+import { FileText, Download, Search, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const mockReportMarkdown = `
+const fallbackReportMarkdown = `
 ## Executive Summary
-The recent fine-tuning of the Llama-3 model on \`training_split_v2.json\` yielded a **15% improvement** in overall F1 score across target categories.
+No detailed content available for this report.
 
 ### Key Metrics
 | Metric | Baseline | Fine-Tuned | Delta |
 |--------|----------|------------|-------|
-| Accuracy | 0.72 | 0.84 | +0.12 |
-| Precision | 0.68 | 0.81 | +0.13 |
-| Recall | 0.70 | 0.86 | +0.16 |
-| **F1 Score** | **0.69** | **0.83** | **+0.14** |
+| Accuracy | N/A | N/A | N/A |
 `;
 
 export function ReportView() {
-  const { reports, selectedEntityId, setView } = useStore();
+  const { reports, selectedReportId, setView } = useStore();
   const [search, setSearch] = useState('');
   
-  const report = reports.find(r => r.id === selectedEntityId);
+  const baseReport = reports.find(r => r.id === selectedReportId);
+  const [reportDetails, setReportDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  if (!selectedEntityId) {
+  useEffect(() => {
+    if (!selectedReportId) return;
+    
+    setLoading(true);
+    api.reports.getDetails(selectedReportId)
+      .then(data => {
+        setReportDetails(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch report details:', err);
+        setLoading(false);
+      });
+  }, [selectedReportId]);
+
+  if (!selectedReportId) {
     const filtered = reports.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
     return (
       <div className="h-full flex flex-col bg-background p-8">
@@ -65,6 +80,7 @@ export function ReportView() {
     );
   }
 
+  const report = reportDetails || baseReport;
   if (!report) return <div className="p-8 text-muted-foreground">Report not found</div>;
 
   return (
@@ -74,16 +90,24 @@ export function ReportView() {
           <h2 className="text-3xl font-bold flex items-center gap-3 mb-2">
             <FileText className="text-blue-500" /> {report.name}
           </h2>
-          <p className="text-muted-foreground">Generated on {report.date}</p>
+          <p className="text-muted-foreground">Generated on {report.date || 'Recent'}</p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm font-medium transition-colors">
           <Download size={16} /> Export PDF
         </button>
       </div>
 
-      <div className="prose max-w-4xl prose-headings:text-foreground prose-a:text-blue-500 prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-secondary/50 prose-td:border prose-td:border-border prose-td:p-2 prose-tr:border-b prose-tr:border-border prose-pre:bg-secondary/50 prose-pre:text-foreground">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{mockReportMarkdown}</ReactMarkdown>
-      </div>
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground mt-12">
+          <Loader2 className="animate-spin mr-2" size={24} /> Loading report content...
+        </div>
+      ) : (
+        <div className="prose max-w-4xl prose-headings:text-foreground prose-a:text-blue-500 prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-secondary/50 prose-td:border prose-td:border-border prose-td:p-2 prose-tr:border-b prose-tr:border-border prose-pre:bg-secondary/50 prose-pre:text-foreground">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {report.content || report.summary || fallbackReportMarkdown}
+          </ReactMarkdown>
+        </div>
+      )}
     </div>
   );
 }

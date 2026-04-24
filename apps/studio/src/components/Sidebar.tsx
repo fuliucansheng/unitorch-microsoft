@@ -1,13 +1,14 @@
-import { Database, TerminalSquare, MessageSquare, Settings, LogOut, Tag, FileText, Plus, X } from 'lucide-react';
+import { Database, TerminalSquare, MessageSquare, Settings, LogOut, Tag, FileText, Plus, X, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { cn } from '../lib/utils';
 
 export function Sidebar() {
   const { 
     datasets, jobs, reports, labelTasks, 
-    currentView, setView, selectedEntityId, logout,
-    sessions, activeSessionId, createNewSession, setActiveSession,
-    isSidebarOpen, toggleSidebar
+    currentView, setView, logout,
+    sessions, activeSessionId, createNewSession, setActiveSession, deleteSession,
+    isSidebarOpen, toggleSidebar,
+    selectedDatasetId, selectedJobId, selectedLabelId, selectedReportId
   } = useStore();
 
   return (
@@ -61,21 +62,34 @@ export function Sidebar() {
               </button>
             </div>
             {sessions.map((session) => (
-              <button
-                key={session.id}
-                title={!isSidebarOpen ? session.title : undefined}
-                onClick={() => setActiveSession(session.id)}
-                className={cn(
-                  "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
-                  isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
-                  currentView === 'chat' && activeSessionId === session.id 
-                    ? "bg-secondary text-foreground" 
-                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+              <div key={session.id} className="relative group w-full flex items-center">
+                <button
+                  title={!isSidebarOpen ? session.title : undefined}
+                  onClick={() => setActiveSession(session.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors pr-8",
+                    isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
+                    currentView === 'chat' && activeSessionId === session.id 
+                      ? "bg-secondary text-foreground" 
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  )}
+                >
+                  <MessageSquare size={16} className="shrink-0" />
+                  <span className={cn("truncate text-left flex-1", isSidebarOpen ? "block" : "lg:hidden")}>{session.title}</span>
+                </button>
+                {isSidebarOpen && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(session.id);
+                    }}
+                    className="absolute right-2 opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-all"
+                    title="Delete Session"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 )}
-              >
-                <MessageSquare size={16} className="shrink-0" />
-                <span className={cn("truncate text-left flex-1", isSidebarOpen ? "block" : "lg:hidden")}>{session.title}</span>
-              </button>
+              </div>
             ))}
           </div>
 
@@ -95,7 +109,7 @@ export function Sidebar() {
                 className={cn(
                   "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
                   isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
-                  currentView === 'dataset' && selectedEntityId === dataset.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  currentView === 'dataset' && selectedDatasetId === dataset.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
                 <Database size={16} className="shrink-0" />
@@ -120,7 +134,7 @@ export function Sidebar() {
                 className={cn(
                   "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
                   isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
-                  currentView === 'job' && selectedEntityId === job.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  currentView === 'job' && selectedJobId === job.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
                 <TerminalSquare size={16} className="shrink-0" />
@@ -147,7 +161,7 @@ export function Sidebar() {
                 className={cn(
                   "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
                   isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
-                  currentView === 'label' && selectedEntityId === task.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  currentView === 'label' && selectedLabelId === task.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
                 <Tag size={16} className="shrink-0" />
@@ -172,7 +186,7 @@ export function Sidebar() {
                 className={cn(
                   "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
                   isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
-                  currentView === 'report' && selectedEntityId === report.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  currentView === 'report' && selectedReportId === report.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
                 <FileText size={16} className="shrink-0" />

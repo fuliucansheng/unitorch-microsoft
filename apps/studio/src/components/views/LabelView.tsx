@@ -20,7 +20,7 @@ const MOCK_IMAGE_DATA = [
 ];
 
 export function LabelView() {
-  const { labelTasks, selectedEntityId, setView } = useStore();
+  const { labelTasks, selectedLabelId, setView } = useStore();
   const [search, setSearch] = useState('');
   
   // View states
@@ -33,7 +33,7 @@ export function LabelView() {
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   
-  const task = labelTasks.find(t => t.id === selectedEntityId);
+  const task = labelTasks.find(t => t.id === selectedLabelId);
   const isImageTask = task?.type === 'image_bbox';
 
   // BBox Interactive States
@@ -54,12 +54,12 @@ export function LabelView() {
   useEffect(() => {
     setBbox({ x: 25, y: 35, w: 45, h: 30 });
     setZoom(1);
-  }, [dataIndex, selectedEntityId]);
+  }, [dataIndex, selectedLabelId]);
 
   // Reset tab to labeling when task changes
   useEffect(() => {
     setActiveTab('labeling');
-  }, [selectedEntityId]);
+  }, [selectedLabelId]);
 
   // Handle global drag, resize, and draw events
   useEffect(() => {
@@ -169,7 +169,7 @@ export function LabelView() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!selectedEntityId) {
+  if (!selectedLabelId) {
     const filtered = labelTasks.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
     return (
       <div className="h-full flex flex-col bg-background p-8">

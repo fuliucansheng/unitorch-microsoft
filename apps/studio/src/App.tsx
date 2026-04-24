@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/chat/ChatArea';
 import { DatasetView } from './components/views/DatasetView';
@@ -7,14 +8,34 @@ import { ReportView } from './components/views/ReportView';
 import { LoginView } from './components/views/LoginView';
 import { useStore } from './store/useStore';
 import { Menu } from 'lucide-react';
+import { cn } from './lib/utils';
 
 function App() {
-  const { currentView, isAuthenticated, sessions, activeSessionId, selectedEntityId, toggleSidebar } = useStore();
+  const { 
+    currentView, isAuthenticated, sessions, activeSessionId, 
+    selectedDatasetId, selectedJobId, selectedLabelId, selectedReportId, toggleSidebar,
+    initData
+  } = useStore();
   const activeSession = sessions.find(s => s.id === activeSessionId);
+
+  // 当用户已登录时，确保初始化基础数据（包含模型列表等）
+  useEffect(() => {
+    if (isAuthenticated) {
+      initData();
+    }
+  }, [isAuthenticated, initData]);
 
   if (!isAuthenticated) {
     return <LoginView />;
   }
+
+  const getActiveId = () => {
+    if (currentView === 'dataset') return selectedDatasetId;
+    if (currentView === 'job') return selectedJobId;
+    if (currentView === 'label') return selectedLabelId;
+    if (currentView === 'report') return selectedReportId;
+    return null;
+  };
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
@@ -32,16 +53,26 @@ function App() {
           <h1 className="font-semibold text-sm">
             {currentView === 'chat' 
               ? (activeSession?.title || 'Active Session') 
-              : <span className="capitalize">{currentView} {selectedEntityId ? 'Details' : 'Overview'}</span>}
+              : <span className="capitalize">{currentView} {getActiveId() ? 'Details' : 'Overview'}</span>}
           </h1>
         </header>
         
         <div className="flex-1 overflow-hidden relative">
-          {currentView === 'chat' && <ChatArea />}
-          {currentView === 'dataset' && <DatasetView />}
-          {currentView === 'job' && <JobView />}
-          {currentView === 'label' && <LabelView />}
-          {currentView === 'report' && <ReportView />}
+          <div className={cn("absolute inset-0", currentView !== 'chat' && "hidden")}>
+            <ChatArea />
+          </div>
+          <div className={cn("absolute inset-0", currentView !== 'dataset' && "hidden")}>
+            <DatasetView />
+          </div>
+          <div className={cn("absolute inset-0", currentView !== 'job' && "hidden")}>
+            <JobView />
+          </div>
+          <div className={cn("absolute inset-0", currentView !== 'label' && "hidden")}>
+            <LabelView />
+          </div>
+          <div className={cn("absolute inset-0", currentView !== 'report' && "hidden")}>
+            <ReportView />
+          </div>
         </div>
       </main>
     </div>
