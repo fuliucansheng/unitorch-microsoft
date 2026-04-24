@@ -4,11 +4,15 @@ const path = require("path");
 const fs = require("fs");
 
 // 获取 unitorch_microsoft 包的路径
+const py = process.env.PYTHON_BIN || "python3";
 const pythonPath = execSync(
-  "python3.11 -c \"import os, unitorch_microsoft; print(os.path.dirname(unitorch_microsoft.__file__))\""
+  `PYTHONWARNINGS=ignore ${py} -c "import os, unitorch_microsoft; print(os.path.dirname(unitorch_microsoft.__file__))"`,
+  { stdio: ["pipe", "pipe", "ignore"] }
 )
 .toString()
-.trim();
+.trim()
+.split("\n")
+.pop();
 
 // 构造 litellm 路径和配置路径
 const litellm_config_path = path.join(pythonPath, "configs/litellm/config.yaml");
@@ -21,13 +25,15 @@ module.exports = {
       args: `--config ${litellm_config_path}`,
       autorestart: true,
       watch: false,
+      interpreter: process.env.PYTHON_BIN
     },
     {
       name: "apps",
       script: "unitorch-fastapi",
-      args: "apps/fastapis.ini",
+      args: "apps/fastapis.ini --device 0",
       autorestart: true,
       watch: false,
+      interpreter: process.env.PYTHON_BIN
     }
   ],
 };
