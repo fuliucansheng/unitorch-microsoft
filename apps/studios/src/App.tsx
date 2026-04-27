@@ -6,6 +6,7 @@ import { JobView } from './components/views/JobView';
 import { LabelView } from './components/views/LabelView';
 import { ReportView } from './components/views/ReportView';
 import { LoginView } from './components/views/LoginView';
+import { SettingsView } from './components/views/SettingsView';
 import { useStore } from './store/useStore';
 import { Menu } from 'lucide-react';
 import { cn } from './lib/utils';
@@ -72,6 +73,9 @@ function App() {
           </div>
           <div className={cn("absolute inset-0", currentView !== 'report' && "hidden")}>
             <ReportView />
+          </div>
+          <div className={cn("absolute inset-0", currentView !== 'settings' && "hidden")}>
+            <SettingsView />
           </div>
         </div>
       </main>

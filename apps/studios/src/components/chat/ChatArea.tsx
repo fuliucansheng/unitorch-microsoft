@@ -40,16 +40,19 @@ export function ChatArea() {
     if (!content) return '';
     
     // Replace @entityId with a special markdown link pattern
-    let formatted = content.replace(/@([a-zA-Z0-9_-]+)/g, (match, id) => {
+    // Only match @ if it's at the start or after a space to avoid breaking emails
+    let formatted = content.replace(/(^|\s)@([a-zA-Z0-9_-]+)/g, (_match, prefix, id) => {
       const entity = findEntity(id);
       if (entity) {
-        return `[@${entity.name}](entity:${entity.type}:${entity.id})`;
+        return `${prefix}[@${entity.name}](entity:${entity.type}:${entity.id})`;
       }
-      return `\`${match}\``; // Fallback to inline code if entity not found
+      return `${prefix}\`@${id}\``; // Fallback to inline code if entity not found
     });
 
     // Replace /commands with inline code
-    formatted = formatted.replace(/(\/\w+(-\w+)*)/g, '`$1`');
+    // Only match / if it's at the start or after a space to avoid breaking paths like a/b/c
+    formatted = formatted.replace(/(^|\s)(\/[a-zA-Z0-9_-]+)/g, '$1`$2`');
+    
     return formatted;
   };
 
@@ -64,6 +67,9 @@ export function ChatArea() {
   const processMessageData = (msg: any) => {
     let content = msg.content || '';
     let attachments = msg.attachments || [];
+
+    // Hide "Entities: [xxxxx]" from the UI completely
+    content = content.replace(/Entities:\s*\[.*?\]/g, '').trim();
 
     const sysInfoStr = '[System Info: The user has uploaded the following files. Please use the paths below to access them:]';
     const sysInfoIndex = content.indexOf(sysInfoStr);

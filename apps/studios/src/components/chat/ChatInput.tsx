@@ -12,14 +12,20 @@ export function ChatInput() {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [files, setFiles] = useState<File[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [commandQuery, setCommandQuery] = useState('');
   
   // API dynamically loaded states
   const [commands, setCommands] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { 
-    addMessage, datasets, jobs, labelTasks, reports, setTyping,
-    availableModels, selectedModel, agentMode, setModel, setAgentMode, activeSessionId 
+    addMessage, entities, setTyping,
+    availableModels, selectedModel, agentMode, setModel, setAgentMode, activeSessionId,
+    initData
   } = useStore();
 
   useEffect(() => {
@@ -27,12 +33,23 @@ export function ChatInput() {
     api.chat.getCommands().then(setCommands).catch(console.error);
   }, []);
 
-  const allEntities = [
-    ...datasets.map(d => ({ ...d, type: 'dataset', icon: Database, color: 'text-blue-500' })),
-    ...jobs.map(j => ({ ...j, type: 'job', icon: TerminalSquare, color: 'text-orange-500' })),
-    ...labelTasks.map(l => ({ ...l, type: 'label', icon: Tag, color: 'text-purple-500' })),
-    ...reports.map(r => ({ ...r, type: 'report', icon: FileText, color: 'text-green-500' }))
-  ];
+  const allEntities = entities.map((e: any) => {
+    let icon = Database;
+    let color = 'text-blue-500';
+    if (e.type === 'job') { icon = TerminalSquare; color = 'text-orange-500'; }
+    if (e.type === 'label') { icon = Tag; color = 'text-purple-500'; }
+    if (e.type === 'report') { icon = FileText; color = 'text-green-500'; }
+    return { ...e, icon, color };
+  });
+
+  const filteredEntities = allEntities.filter(e => 
+    e.name.toLowerCase().includes(mentionQuery) || 
+    e.id.toLowerCase().includes(mentionQuery)
+  );
+
+  const filteredCommands = commands.filter(c => 
+    c.name.toLowerCase().includes(commandQuery)
+  );
 
   const handleSend = async () => {
     if (!input.trim() && files.length === 0) return;
@@ -87,10 +104,14 @@ export function ChatInput() {
       // Final api prompt includes the user's original message plus the appended file paths context
       const finalApiMessageContent = userMessage + appendedContent;
 
+      // Find the selected model details
+      const currentModelObj = availableModels.find(m => m.id === selectedModel);
+
       const response = await fetch(api.chat.getCompletionsUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           session_id: activeSessionId,
@@ -100,8 +121,10 @@ export function ChatInput() {
           },
           mode: agentMode,
           model: selectedModel,
+          model_id: currentModelObj?.model_id,
+          provider_id: currentModelObj?.provider_id,
           entities: requestEntities,
-          stream: false
+          stream: false // Disabled streaming
         })
       });
 
@@ -124,16 +147,66 @@ export function ChatInput() {
       }
 
       addMessage({ role: 'assistant', content: finalContent });
+      
+      // Refresh background data (datasets, jobs, labels, reports) after AI response
+      initData().catch(console.error);
+
     } catch (error) {
       console.error('Error in completions:', error);
       addMessage({ role: 'assistant', content: 'Sorry, an error occurred while processing your request.' });
     } finally {
-      setTyping(false); 
+      setTyping(false);
     }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Handle dropdown navigation
+    if (showCommands && filteredCommands.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(prev + 1, filteredCommands.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        insertText(`/${filteredCommands[selectedIndex].name}`);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowCommands(false);
+        return;
+      }
+    }
+
+    if (showEntities && filteredEntities.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(prev + 1, filteredEntities.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        insertText(`@${filteredEntities[selectedIndex].id}`);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowEntities(false);
+        return;
+      }
+    }
+
+    // 按下 Shift+Enter 时发送消息
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleSend();
       return;
@@ -165,9 +238,32 @@ export function ChatInput() {
     const val = e.target.value;
     setInput(val);
     
-    const lastWord = val.split(/[\s\n]+/).pop() || '';
-    setShowCommands(lastWord.startsWith('/'));
-    setShowEntities(lastWord.startsWith('@'));
+    const cursor = e.target.selectionStart;
+    const beforeCursor = val.slice(0, cursor);
+    
+    // Match the last '@' or '/' and everything after it until a space or end of string
+    const match = beforeCursor.match(/([@/])([^@/\s]*)$/);
+    
+    if (match) {
+      const trigger = match[1];
+      const query = match[2].toLowerCase();
+      
+      if (trigger === '@') {
+        setShowEntities(true);
+        setShowCommands(false);
+        setMentionQuery(query);
+      } else if (trigger === '/') {
+        setShowCommands(true);
+        setShowEntities(false);
+        setCommandQuery(query);
+      }
+      setSelectedIndex(0);
+    } else {
+      setShowEntities(false);
+      setShowCommands(false);
+      setMentionQuery('');
+      setCommandQuery('');
+    }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -185,11 +281,30 @@ export function ChatInput() {
   };
 
   const insertText = (text: string) => {
-    const words = input.split(/[\s\n]+/);
-    words.pop();
-    setInput([...words, text, ''].join(' ') + ' ');
+    const cursor = textareaRef.current?.selectionStart || input.length;
+    const beforeCursor = input.slice(0, cursor);
+    const afterCursor = input.slice(cursor);
+    
+    const match = beforeCursor.match(/([@/])([^@/\s]*)$/);
+    let newValue = input;
+    
+    if (match) {
+      const triggerIndex = beforeCursor.length - match[0].length;
+      newValue = beforeCursor.slice(0, triggerIndex) + text + ' ' + afterCursor;
+      setInput(newValue);
+    }
+    
     setShowCommands(false);
     setShowEntities(false);
+    
+    // Refocus the textarea and move cursor to the very end
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const endPos = newValue.length;
+        textareaRef.current.setSelectionRange(endPos, endPos);
+      }
+    }, 0);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -197,13 +312,6 @@ export function ChatInput() {
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
-
-  const lastWord = input.split(/[\s\n]+/).pop() || '';
-  const mentionQuery = lastWord.startsWith('@') ? lastWord.slice(1).toLowerCase() : '';
-  const filteredEntities = allEntities.filter(e => 
-    e.name.toLowerCase().includes(mentionQuery) || 
-    e.id.toLowerCase().includes(mentionQuery)
-  );
 
   return (
     <div className="p-4 bg-background/80 backdrop-blur-md border-t border-border flex flex-col items-center">
@@ -283,12 +391,16 @@ export function ChatInput() {
               <span className="text-[10px]">Enter to select</span>
             </div>
             <div className="p-1 max-h-48 overflow-y-auto">
-              {commands.map((cmd, idx) => (
+              {filteredCommands.map((cmd, idx) => (
                 <button
                   type="button"
                   key={`${cmd.name}-${idx}`}
                   onClick={() => insertText(`/${cmd.name}`)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-secondary rounded-lg flex flex-col gap-1 transition-colors"
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm rounded-lg flex flex-col gap-1 transition-colors",
+                    selectedIndex === idx ? "bg-secondary" : "hover:bg-secondary/50"
+                  )}
                 >
                   <span className="flex items-center gap-2"><Command size={14} className="text-primary" /> /{cmd.name}</span>
                   {cmd.description && <span className="text-[10px] text-muted-foreground ml-5">{cmd.description}</span>}
@@ -311,7 +423,11 @@ export function ChatInput() {
                     type="button"
                     key={`${entity.type}-${entity.id}-${idx}`}
                     onClick={() => insertText(`@${entity.id}`)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-secondary rounded-lg flex items-center gap-2 transition-colors"
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors",
+                      selectedIndex === idx ? "bg-secondary" : "hover:bg-secondary/50"
+                    )}
                   >
                     <entity.icon size={14} className={entity.color} shrink-0 /> 
                     <span className="truncate">{entity.name}</span>
@@ -370,11 +486,12 @@ export function ChatInput() {
           </button>
           
           <textarea
+            ref={textareaRef}
             rows={1}
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Ads Studio anything... (Shift+Enter for new line)"
+            placeholder="Ask Ads Studio anything... (Shift+Enter to send)"
             className="w-full bg-transparent border-none py-2.5 px-1 text-sm focus:outline-none resize-none max-h-[200px] min-h-[44px]"
             style={{ fieldSizing: 'content' } as React.CSSProperties}
           />

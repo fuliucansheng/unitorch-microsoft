@@ -1,4 +1,5 @@
-import { Database, TerminalSquare, MessageSquare, Settings, LogOut, Tag, FileText, Plus, X, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Database, TerminalSquare, MessageSquare, Settings, LogOut, Tag, FileText, Plus, X, Trash2, Edit2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { cn } from '../lib/utils';
 
@@ -6,10 +7,26 @@ export function Sidebar() {
   const { 
     datasets, jobs, reports, labelTasks, 
     currentView, setView, logout,
-    sessions, activeSessionId, createNewSession, setActiveSession, deleteSession,
+    sessions, activeSessionId, createNewSession, setActiveSession, deleteSession, renameSession,
     isSidebarOpen, toggleSidebar,
     selectedDatasetId, selectedJobId, selectedLabelId, selectedReportId
   } = useStore();
+
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  const startEditing = (e: React.MouseEvent, session: any) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditTitle(session.title);
+  };
+
+  const saveEdit = () => {
+    if (editingSessionId && editTitle.trim()) {
+      renameSession(editingSessionId, editTitle.trim());
+    }
+    setEditingSessionId(null);
+  };
 
   return (
     <>
@@ -67,27 +84,58 @@ export function Sidebar() {
                   title={!isSidebarOpen ? session.title : undefined}
                   onClick={() => setActiveSession(session.id)}
                   className={cn(
-                    "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors pr-8",
-                    isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
+                    "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
+                    isSidebarOpen 
+                      ? (editingSessionId === session.id ? "px-2" : "pl-2 pr-14") 
+                      : "px-2 lg:px-0 lg:justify-center",
                     currentView === 'chat' && activeSessionId === session.id 
                       ? "bg-secondary text-foreground" 
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                   )}
                 >
-                  <MessageSquare size={16} className="shrink-0" />
-                  <span className={cn("truncate text-left flex-1", isSidebarOpen ? "block" : "lg:hidden")}>{session.title}</span>
+                  {editingSessionId === session.id ? (
+                    <input
+                      autoFocus
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onBlur={saveEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit();
+                        if (e.key === 'Escape') setEditingSessionId(null);
+                      }}
+                      className={cn(
+                        "flex-1 bg-background border border-border rounded px-1.5 py-0.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full",
+                        isSidebarOpen ? "ml-6" : ""
+                      )}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <>
+                      <MessageSquare size={16} className="shrink-0" />
+                      <span className={cn("truncate text-left flex-1", isSidebarOpen ? "block" : "lg:hidden")}>{session.title}</span>
+                    </>
+                  )}
                 </button>
-                {isSidebarOpen && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSession(session.id);
-                    }}
-                    className="absolute right-2 opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-all"
-                    title="Delete Session"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                {isSidebarOpen && editingSessionId !== session.id && (
+                  <div className="absolute right-1 opacity-0 group-hover:opacity-100 flex items-center gap-0.5">
+                    <button
+                      onClick={(e) => startEditing(e, session)}
+                      className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-all"
+                      title="Rename Session"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSession(session.id);
+                      }}
+                      className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-all"
+                      title="Delete Session"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -200,7 +248,12 @@ export function Sidebar() {
         <div className="p-3 border-t border-border/50 space-y-2 shrink-0">
           <button 
             title={!isSidebarOpen ? "Settings" : undefined}
-            className={cn("w-full flex items-center gap-2 py-2 text-sm text-muted-foreground hover:bg-secondary rounded-md transition-colors", isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center")}
+            onClick={() => setView('settings')}
+            className={cn(
+              "w-full flex items-center gap-2 py-2 text-sm rounded-md transition-colors",
+              isSidebarOpen ? "px-2" : "px-2 lg:px-0 lg:justify-center",
+              currentView === 'settings' ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
           >
             <Settings size={16} className="shrink-0" />
             <span className={cn("truncate", isSidebarOpen ? "block" : "lg:hidden")}>Settings</span>

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 
-export type EntityType = 'dataset' | 'job' | 'report' | 'label' | 'chat';
+export type EntityType = 'dataset' | 'job' | 'report' | 'label' | 'chat' | 'settings';
 
 export interface Dataset {
   id: string;
@@ -55,6 +55,13 @@ export interface ChatSession {
   updatedAt: Date;
 }
 
+export interface UserProfile {
+  username: string;
+  email: string;
+  fullName: string;
+  avatar: string;
+}
+
 interface AppState {
   isAuthenticated: boolean;
   currentView: EntityType;
@@ -68,9 +75,12 @@ interface AppState {
   labelTasks: LabelTask[];
   sessions: ChatSession[];
   availableModels: any[];
+  entities: any[];
   activeSessionId: string;
   isTyping: boolean;
   isSidebarOpen: boolean;
+  
+  userProfile: UserProfile;
   
   // Agent Chatbox Settings
   selectedModel: string;
@@ -79,11 +89,13 @@ interface AppState {
   login: (username: string, pass: string) => boolean;
   logout: () => void;
   setView: (view: EntityType, id?: string | null) => void;
+  updateProfile: (profile: Partial<UserProfile>) => void;
   addMessage: (msg: Omit<Message, 'id' | 'timestamp'>) => void;
   updateLastMessage: (content: string) => void;
   setTyping: (status: boolean) => void;
   createNewSession: () => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
+  renameSession: (id: string, name: string) => Promise<void>;
   setActiveSession: (id: string) => void;
   toggleSidebar: () => void;
   
@@ -105,9 +117,17 @@ export const useStore = create<AppState>()(
       isTyping: false,
       isSidebarOpen: window.innerWidth >= 1024,
       
-      selectedModel: 'GPT-4',
+      userProfile: {
+        username: 'guest',
+        email: 'guest@example.com',
+        fullName: 'Guest User',
+        avatar: '',
+      },
+      
+      selectedModel: 'gemini-3.1-pro-preview',
       agentMode: 'build',
       availableModels: [],
+      entities: [],
 
       datasets: [],
       jobs: [],
@@ -117,14 +137,7 @@ export const useStore = create<AppState>()(
         {
           id: 'session-1',
           title: 'New Chat',
-          messages: [
-            {
-              id: '1',
-              role: 'assistant',
-              content: 'Welcome to Ads Studio. How can I assist with your ML workflows today? Try typing `/` for commands.',
-              timestamp: new Date()
-            }
-          ],
+          messages: [],
           updatedAt: new Date()
         }
       ],
@@ -140,30 +153,44 @@ export const useStore = create<AppState>()(
       },
       logout: () => set({ isAuthenticated: false }),
       
+      updateProfile: (profile) => set((state) => ({
+        userProfile: { ...state.userProfile, ...profile }
+      })),
+      
       initData: async () => {
         try {
-          // Fetch baseline data from API
-          const [datasets, jobs, labels, reports, models, sessionsList] = await Promise.all([
-            api.datasets.list().catch(() => []),
-            api.jobs.list().catch(() => []),
-            api.labels.list().catch(() => []),
-            api.reports.list().catch(() => []),
-            api.chat.getModels().catch(() => []),
-            api.chat.getSessions().catch(() => [])
+          // Fetch baseline data from API. We use null to differentiate between API error and empty array [].
+          const [datasets, jobs, labels, reports, models, sessionsList, entities] = await Promise.all([
+            api.datasets.list().catch(() => null),
+            api.jobs.list().catch(() => null),
+            api.labels.list().catch(() => null),
+            api.reports.list().catch(() => null),
+            api.chat.getModels().catch(() => null),
+            api.chat.getSessions().catch(() => null),
+            api.chat.getEntities().catch(() => null)
           ]);
           
           set((state) => {
-            const updates: any = {
-              datasets: datasets.length ? datasets.map((d: any) => ({ ...d, size: 'Unknown', rows: 0 })) : state.datasets,
-              jobs: jobs.length ? jobs.map((j: any) => ({ ...j, status: j.status || 'completed', progress: j.progress || 100 })) : state.jobs,
-              labelTasks: labels.length ? labels.map((l: any) => ({ ...l, type: l.type || 'text', progress: 0, total: 100 })) : state.labelTasks,
-              reports: reports.length ? reports.map((r: any) => ({ ...r, date: 'Recent', summary: r.description })) : state.reports,
-              availableModels: models.length ? models : state.availableModels,
-              selectedModel: models.length ? models[0].id : state.selectedModel,
-            };
+            const updates: any = {};
+
+            // If API returned an array (even empty), we update the state to match it exactly.
+            if (datasets !== null) updates.datasets = datasets.map((d: any) => ({ ...d, size: 'Unknown', rows: 0 }));
+            if (jobs !== null) updates.jobs = jobs.map((j: any) => ({ ...j, status: j.status || 'completed', progress: j.progress || 100 }));
+            if (labels !== null) updates.labelTasks = labels.map((l: any) => ({ ...l, type: l.type || 'text', progress: 0, total: 100 }));
+            if (reports !== null) updates.reports = reports.map((r: any) => ({ ...r, date: 'Recent', summary: r.description }));
+            if (models !== null) updates.availableModels = models;
+            if (entities !== null) updates.entities = entities;
+
+            if (models !== null && models.length > 0) {
+              const modelExists = models.find((m: any) => m.id === state.selectedModel);
+              if (!modelExists) {
+                const defaultModel = models.find((m: any) => m.id === 'gemini-3.1-pro-preview');
+                updates.selectedModel = defaultModel ? defaultModel.id : models[0].id;
+              }
+            }
 
             // Map backend sessions to our local state
-            if (sessionsList && sessionsList.length > 0) {
+            if (sessionsList !== null) {
               updates.sessions = sessionsList.map((s: any) => {
                 const existing = state.sessions.find(es => es.id === s.id);
                 return {
@@ -175,8 +202,10 @@ export const useStore = create<AppState>()(
               });
               
               // Set the active session to the first one if the current active isn't in the list
-              if (!updates.sessions.find((s: any) => s.id === state.activeSessionId)) {
+              if (updates.sessions.length > 0 && !updates.sessions.find((s: any) => s.id === state.activeSessionId)) {
                 updates.activeSessionId = updates.sessions[0].id;
+              } else if (updates.sessions.length === 0) {
+                updates.activeSessionId = '';
               }
             }
 
@@ -218,7 +247,7 @@ export const useStore = create<AppState>()(
               return {
                 sessions: updatedSessions,
                 selectedModel: historyData.model || state.selectedModel,
-                agentMode: historyData.mode || state.agentMode,
+                agentMode: (historyData.mode === 'plan' || historyData.mode === 'build') ? historyData.mode : 'build', 
               };
             });
           }
@@ -251,21 +280,20 @@ export const useStore = create<AppState>()(
             const newSession: ChatSession = {
               id: newId,
               title: 'New Chat',
-              messages: [{
-                id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                role: 'assistant',
-                content: 'Welcome to Ads Studio. How can I assist with your ML workflows today?',
-                timestamp: new Date()
-              }],
+              messages: [],
               updatedAt: new Date()
             };
             return {
               sessions: [newSession, ...state.sessions],
               activeSessionId: newId,
               currentView: 'chat',
+              agentMode: 'build', // Force to build for new chat
               isSidebarOpen: window.innerWidth >= 1024 ? state.isSidebarOpen : false
             };
           });
+          
+          // Fetch history immediately after creating
+          await get().loadSessionHistory(newId);
         } catch (error) {
           console.error("Failed to create session", error);
         }
@@ -299,6 +327,17 @@ export const useStore = create<AppState>()(
           }
         } catch (error) {
           console.error("Failed to delete session", error);
+        }
+      },
+
+      renameSession: async (id: string, name: string) => {
+        try {
+          await api.chat.renameSession(id, name);
+          set((state) => ({
+            sessions: state.sessions.map(s => s.id === id ? { ...s, title: name } : s)
+          }));
+        } catch (error) {
+          console.error("Failed to rename session", error);
         }
       },
 
@@ -353,8 +392,7 @@ export const useStore = create<AppState>()(
       name: 'ads-studio-storage',
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
-        // Since we are loading true data from API, we don't strictly need to persist all session data, 
-        // but persisting helps UI feel fast before API finishes.
+        userProfile: state.userProfile,
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,
         currentView: state.currentView,
@@ -363,7 +401,6 @@ export const useStore = create<AppState>()(
         selectedReportId: state.selectedReportId,
         selectedLabelId: state.selectedLabelId,
         selectedModel: state.selectedModel,
-        agentMode: state.agentMode,
       }),
     }
   )
