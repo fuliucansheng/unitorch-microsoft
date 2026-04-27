@@ -11,6 +11,10 @@ model_list:
     litellm_params:
       model: openai/gpt-image-1.5
       api_base: https://westus2large.papyrus.binginternal.com
+  - model_name: papyrus-gpt-4o-mini-transcribe-2025-12-15-eval
+    litellm_params:
+      model: openai/gpt-4o-mini-transcribe
+      api_base: https://westus2large.papyrus.binginternal.com
   - model_name: gemini-3-pro-image-preview
     litellm_params:
       model: gemini/gemini-3-pro-image-preview

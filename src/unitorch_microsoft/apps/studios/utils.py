@@ -21,8 +21,9 @@ class StudioUtilsFastAPI(GenericFastAPI):
     def __init__(self, config: CoreConfigureParser):
         self._config = config
         config.set_default_section("microsoft/apps/studios/utils")
-        router = config.getoption("router", "/microsoft/apps/studio/utils")
-        self._upload_dir = config.getoption("upload_dir", "/tmp/studios")
+        router = config.getoption("router", "/microsoft/apps/studios/utils")
+        studios_folder = config.getoption("studios_folder", "studios")
+        self._upload_dir = os.path.join(studios_folder, "statics")
 
         os.makedirs(self._upload_dir, exist_ok=True)
 

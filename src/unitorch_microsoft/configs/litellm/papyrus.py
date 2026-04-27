@@ -56,7 +56,6 @@ class PapyrusHandler(CustomLogger):
                 "papyrus-quota-id": "",
                 "papyrus-timeout-ms": "120000",
             }
-            model 
         
         return kwargs 
 
