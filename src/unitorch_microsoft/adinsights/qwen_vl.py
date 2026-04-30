@@ -34,6 +34,7 @@ from unitorch.cli import WriterOutputs
 from unitorch.cli.models import generation_model_decorator
 from unitorch.cli.models import (
     TensorsInputs,
+    ListTensorsInputs,
     GenerationOutputs,
     GenerationTargets,
 )
