@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
-from unitorch.modules.classifier import reslayer
+from unitorch.modules.classifier import ResLayer
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -107,7 +107,7 @@ class MMDNNBletchleyForClassification(GenericModel):
 
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
-        self.reslayer = reslayer(
+        self.reslayer = ResLayer(
             output_hidden_dim,
             output_hidden_dim // 2,
             output_hidden_dim,
@@ -479,7 +479,7 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
         )
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
-        self.reslayer = reslayer(
+        self.reslayer = ResLayer(
             output_hidden_dim,
             output_hidden_dim // 2,
             output_hidden_dim,
@@ -815,7 +815,7 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
         )
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
-        self.reslayer = reslayer(
+        self.reslayer = ResLayer(
             output_hidden_dim,
             output_hidden_dim // 2,
             output_hidden_dim,
@@ -1129,7 +1129,7 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
         )
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
-        self.reslayer = reslayer(
+        self.reslayer = ResLayer(
             output_hidden_dim,
             output_hidden_dim // 2,
             output_hidden_dim,

@@ -18,7 +18,7 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_process,
 )
-from unitorch.cli.models import TensorsInputs
+from unitorch.cli.models import TensorInputs
 from unitorch_microsoft import cached_path
 
 
@@ -119,7 +119,7 @@ class BletchleyProcessor:
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
 
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)
 
     @register_process("microsoft/process/bletchley/v3/text_classification")
     def _text_classification(
@@ -144,7 +144,7 @@ class BletchleyProcessor:
         )
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)
 
     @register_process("microsoft/process/bletchley/v3/image_classification")
     def _image_classification(
@@ -160,4 +160,4 @@ class BletchleyProcessor:
         )
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)

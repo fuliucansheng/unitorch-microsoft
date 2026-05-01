@@ -28,7 +28,7 @@ from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
 from torch import autocast
 from unitorch.cli import WriterOutputs, register_process
-from unitorch.cli.models import TensorsOutputs, ClassificationOutputs
+from unitorch.cli.models import TensorOutputs, ClassificationOutputs
 
 
 class ClipInterrogatorPipeline(_ClipForPretrain):

@@ -16,7 +16,7 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_process,
 )
-from unitorch.cli.models import TensorsInputs
+from unitorch.cli.models import TensorInputs
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.models.tulr import pretrained_tulr_infos
 
@@ -77,7 +77,7 @@ class TULRV6Processor(HfTextClassificationProcessor):
         max_seq_length: Optional[int] = None,
     ):
         outputs = super().classification(text, text_pair, max_seq_length)
-        return TensorsInputs(
+        return TensorInputs(
             input_ids=outputs.input_ids,
             token_type_ids=outputs.token_type_ids,
             attention_mask=outputs.attention_mask,
@@ -189,4 +189,4 @@ class TULRV6Processor(HfTextClassificationProcessor):
         if nsp_label is not None:
             inputs["nsp_label"] = torch.tensor(int(nsp_label), dtype=torch.long)
 
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)

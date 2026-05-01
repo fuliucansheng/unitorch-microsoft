@@ -19,7 +19,7 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_process,
 )
-from unitorch.cli.models import SegmentationOutputs, TensorsInputs
+from unitorch.cli.models import SegmentationOutputs, TensorInputs
 from unitorch.cli.models.sam import pretrained_sam_infos
 
 
@@ -180,7 +180,7 @@ class SamProcessor:
         # input_boxes = torch.tensor([get_mask_box(mask)]).float()
         input_boxes = torch.tensor([(0, 0, width, height)]).float()
 
-        return TensorsInputs(
+        return TensorInputs(
             pixel_values=pixel_values,
             # input_points=torch.tensor(input_points),
             input_boxes=input_boxes,

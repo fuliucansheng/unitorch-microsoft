@@ -20,7 +20,7 @@ from unitorch.cli import (
 )
 from unitorch.cli import WriterOutputs
 from unitorch.cli.models import (
-    TensorsInputs,
+    TensorInputs,
     GenerationOutputs,
     GenerationTargets,
 )

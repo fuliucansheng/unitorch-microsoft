@@ -11,7 +11,7 @@ from unitorch.cli import (
 )
 from unitorch.cli import WriterOutputs
 from unitorch.cli.models import (
-    TensorsInputs,
+    TensorInputs,
     GenerationOutputs,
     GenerationTargets,
 )
@@ -83,4 +83,4 @@ class VisualBertProcessor(BertProcessor):
         )
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)

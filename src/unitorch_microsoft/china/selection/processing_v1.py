@@ -17,7 +17,7 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_process,
 )
-from unitorch.cli.models import TensorsInputs
+from unitorch.cli.models import TensorInputs
 from unitorch_microsoft import cached_path
 from unitorch_microsoft.models.bletchley.processing_v1 import BletchleyProcessor
 
@@ -71,4 +71,4 @@ class BletchleyProcessorV2(BletchleyProcessor):
 
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)

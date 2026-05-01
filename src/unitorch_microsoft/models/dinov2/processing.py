@@ -13,7 +13,7 @@ from unitorch.cli import (
 )
 from unitorch.cli import WriterOutputs
 from unitorch.cli.models import (
-    TensorsInputs,
+    TensorInputs,
     GenerationOutputs,
     GenerationTargets,
 )
@@ -79,7 +79,7 @@ class DinoV2Processor(_DinoV2Processor):
             image (Union[Image.Image, str]): The input image or path to the image.
 
         Returns:
-            TensorsInputs: The processed input tensors.
+            TensorInputs: The processed input tensors.
         """
 
         if isinstance(image, str):
@@ -89,4 +89,4 @@ class DinoV2Processor(_DinoV2Processor):
         if prefix is not None:
             inputs = {prefix + k: v for k, v in inputs.items()}
 
-        return TensorsInputs(inputs)
+        return TensorInputs(inputs)

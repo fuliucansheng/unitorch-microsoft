@@ -21,7 +21,7 @@ from unitorch.cli import (
     register_process,
 )
 from unitorch.cli import WriterMixin, WriterOutputs
-from unitorch.cli.models import TensorsInputs, SegmentationOutputs, SegmentationTargets
+from unitorch.cli.models import TensorInputs, SegmentationOutputs, SegmentationTargets
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -478,7 +478,7 @@ class BASNetProcessor:
         image = torch.tensor(image) / torch.tensor(image).max()  # 255
         image = (image - self.pixel_mean[[2, 1, 0]]) / self.pixel_std[[2, 1, 0]]
         image = image.permute(2, 0, 1)
-        return TensorsInputs(
+        return TensorInputs(
             image=torch.tensor(image),
             sizes=torch.tensor([height, width]),
         )

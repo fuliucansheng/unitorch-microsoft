@@ -32,7 +32,7 @@ diffusers = ["unitorch[diffusers]"]
 detection = ["unitorch[detection]"]
 megatron = ["unitorch[megatron]"]
 docs = ["unitorch[docs]"]
-agents = [
+copilots = [
     "frontmatter",
     "playwright",
     "beautifulsoup4",
@@ -48,7 +48,7 @@ others = [
     "fastapi>=0.112.2",  
     "uvicorn>=0.30.6",
   ]
-all = ["unitorch_microsoft[deepspeed,diffusers,detection,megatron,docs,agents,others]"]
+all = ["unitorch_microsoft[deepspeed,diffusers,detection,megatron,docs,copilots,others]"]
 
 [project.scripts]
 unitorch-train = "unitorch_microsoft.consoles.train:cli_main"

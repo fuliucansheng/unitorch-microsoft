@@ -22,7 +22,7 @@ pip install --no-deps .
 # Install with optional extras
 pip install ".[deepspeed]"    # distributed training
 pip install ".[diffusers]"    # image generation
-pip install ".[agents]"       # agent tools
+pip install ".[copilots]"       # copilot tools
 pip install ".[others]"       # Azure, FastAPI, Gradio, etc.
 pip install ".[all]"          # everything
 ```
@@ -90,7 +90,7 @@ Models and processors register themselves using decorators from `unitorch.cli`:
 - `picasso/` — Picasso Image Project (classifiers, matting, video, MSAN)
 - `deepgen/` — DeepGen Team Project (finetuning/inference)
 - `omnigpt/`, `omnilora/`, `omnipixel/` — Experimental modules
-- `agents/` — AI agents with flows and component tools
+- `copilots/` — AI copilots with flows and component tools
 - `vpr/` — Visual Place Recognition
 - `fastapis/` — Service API layers
 

@@ -11,7 +11,7 @@ from unitorch.cli import (
     add_default_section_for_function,
     register_process,
 )
-from unitorch.cli.models import TensorsInputs
+from unitorch.cli.models import TensorInputs
 from unitorch_microsoft import cached_path
 
 
@@ -123,7 +123,7 @@ class TribertProcessor:
             max_n_letters,
         )
 
-        return TensorsInputs(
+        return TensorInputs(
             {
                 input_ids_name: torch.tensor(outputs.input_ids, dtype=torch.long),
                 attention_mask_name: torch.tensor(

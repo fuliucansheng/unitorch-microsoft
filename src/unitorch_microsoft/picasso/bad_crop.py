@@ -30,11 +30,11 @@ from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
 from unitorch.cli import WriterOutputs, register_process
 from unitorch.cli.models import (
-    TensorsInputs,
+    TensorInputs,
     GenerationOutputs,
     GenerationTargets,
 )
-from unitorch.cli.models import TensorsOutputs, ClassificationOutputs
+from unitorch.cli.models import TensorOutputs, ClassificationOutputs
 from unitorch.cli.models.siglip import pretrained_siglip_infos
 
 
@@ -396,7 +396,7 @@ class BadCropProcessor(SiglipProcessor):
             image (Union[Image.Image, str]): The input image.
 
         Returns:
-            TensorsInputs: The processed inputs as tensors.
+            TensorInputs: The processed inputs as tensors.
         """
         if isinstance(image, str):
             image = Image.open(image)
@@ -439,4 +439,4 @@ class BadCropProcessor(SiglipProcessor):
             )
         else:
             is_valid = torch.tensor([1.0], dtype=torch.float32)
-        return TensorsInputs(pixel_values=outputs.pixel_values, is_valid=is_valid)
+        return TensorInputs(pixel_values=outputs.pixel_values, is_valid=is_valid)

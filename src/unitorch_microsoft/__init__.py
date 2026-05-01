@@ -4,7 +4,7 @@
 import os
 import logging
 
-VERSION = "0.0.0.2"
+VERSION = "0.0.0.3"
 
 UNITORCH_MS_SKIP_IMPORT = (
     os.environ.get("UNITORCH_MS_SKIP_IMPORT", "FALSE").upper() == "TRUE"
@@ -85,17 +85,14 @@ else:
             local_files_only=local_files_only,
         )
 
-    import unitorch_microsoft.scores
     import unitorch_microsoft.models
     import unitorch_microsoft.modules
-    import unitorch_microsoft.scripts
     import unitorch_microsoft.services
 
     UNITORCH_DEBUG = os.environ.get("UNITORCH_DEBUG", "INFO").upper()
 
     if UNITORCH_DEBUG == "ALL":
         import unitorch_microsoft.adinsights
-        import unitorch_microsoft.adsplus
         import unitorch_microsoft.aether
         import unitorch_microsoft.fastapis
         import unitorch_microsoft.interrogators
@@ -107,16 +104,11 @@ else:
         import unitorch_microsoft.models.tribert
         import unitorch_microsoft.models.tulr
         import unitorch_microsoft.modules
-        import unitorch_microsoft.msan
         import unitorch_microsoft.omnigpt
-        import unitorch_microsoft.omnilora
         import unitorch_microsoft.pa
         import unitorch_microsoft.pa.intl
         import unitorch_microsoft.pa.l2
         import unitorch_microsoft.picasso
-        import unitorch_microsoft.pipelines
-        import unitorch_microsoft.scores
-        import unitorch_microsoft.scripts
         import unitorch_microsoft.services
         import unitorch_microsoft.utils
         import unitorch_microsoft.vpr

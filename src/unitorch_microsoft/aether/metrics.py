@@ -2,14 +2,10 @@
 # Licensed under the MIT License.
 
 import os
-import io
 import re
 import ast
-import json
-import base64
-import zipfile
 import logging
-import hashlib
+import fire
 import numpy as np
 import pandas as pd
 from functools import partial
@@ -28,9 +24,6 @@ from unitorch.scores import (
 )
 from unitorch.scores import bleu_score, rouge1_score, rouge2_score, rougel_score
 from unitorch.scores import map50_score, map_score
-from unitorch.cli import CoreConfigureParser, GenericScript
-from unitorch.cli import register_script
-from unitorch_microsoft import cached_path
 
 
 def prauc_score(y_true, y_pred):
@@ -38,29 +31,29 @@ def prauc_score(y_true, y_pred):
     return auc(recall, precision)
 
 
+class WhiteSpaceTokenizer:
+    def tokenize(self, text: str):
+        return text.split()
+
+
 def rouge_bleu_score(y_true, y_pred, tokenizer, score_fn):
     y_true = y_true.fillna("")
     y_pred = y_pred.fillna("")
-    y_true = [[tokenizer.tokenize(text)] for text in y_true]
-    y_pred = [tokenizer.tokenize(text) for text in y_pred]
-    return score_fn(y_true, y_pred)
+    return score_fn(
+        [[tokenizer.tokenize(t)] for t in y_true],
+        [tokenizer.tokenize(t) for t in y_pred],
+    )
 
 
 def mae_score(y_true, y_pred):
     def convert(x):
         try:
             return ast.literal_eval(x)
-        except:
+        except Exception:
             return list(map(float, re.split(r"[,; ]", x)))
 
-    assert y_true.dtype == y_pred.dtype
     if y_true.dtype == "object":
-        return np.mean(
-            [
-                mean_absolute_error(convert(yt), convert(yp))
-                for yt, yp in zip(y_true, y_pred)
-            ]
-        )
+        return np.mean([mean_absolute_error(convert(yt), convert(yp)) for yt, yp in zip(y_true, y_pred)])
     return mean_absolute_error(y_true, y_pred)
 
 
@@ -68,29 +61,19 @@ def mse_score(y_true, y_pred):
     def convert(x):
         try:
             return ast.literal_eval(x)
-        except:
+        except Exception:
             return list(map(float, re.split(r"[,; ]", x)))
 
-    assert y_true.dtype == y_pred.dtype
     if y_true.dtype == "object":
-        return np.mean(
-            [
-                mean_squared_error(convert(yt), convert(yp))
-                for yt, yp in zip(y_true, y_pred)
-            ]
-        )
+        return np.mean([mean_squared_error(convert(yt), convert(yp)) for yt, yp in zip(y_true, y_pred)])
     return mean_squared_error(y_true, y_pred)
 
 
-class WhiteSpaceTokenizer:
-    def __init__(self):
-        pass
-
-    def tokenize(self, text):
-        return text.split(" ")
+def _bert_tokenizer(model: str):
+    return BertTokenizer.from_pretrained(model)
 
 
-metrics_dict = {
+METRICS = {
     "accuracy": accuracy_score,
     "recall": recall_score,
     "f1": f1_score,
@@ -101,134 +84,79 @@ metrics_dict = {
     "mse": mse_score,
     "mattcorr": matthews_corrcoef,
     "pearsonr": pearsonr,
-    "base-bleu": partial(
-        rouge_bleu_score,
-        tokenizer=WhiteSpaceTokenizer(),
-        score_fn=bleu_score,
-    ),
-    "base-rouge1": partial(
-        rouge_bleu_score,
-        tokenizer=WhiteSpaceTokenizer(),
-        score_fn=rouge1_score,
-    ),
-    "base-rouge2": partial(
-        rouge_bleu_score,
-        tokenizer=WhiteSpaceTokenizer(),
-        score_fn=rouge2_score,
-    ),
-    "base-rougel": partial(
-        rouge_bleu_score,
-        tokenizer=WhiteSpaceTokenizer(),
-        score_fn=rougel_score,
-    ),
-    "bert-bleu": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
-        score_fn=bleu_score,
-    ),
-    "bert-rouge1": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
-        score_fn=rouge1_score,
-    ),
-    "bert-rouge2": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
-        score_fn=rouge2_score,
-    ),
-    "bert-rougel": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-cased"),
-        score_fn=rougel_score,
-    ),
-    "mbert-bleu": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
-        score_fn=bleu_score,
-    ),
-    "mbert-rouge1": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
-        score_fn=rouge1_score,
-    ),
-    "mbert-rouge2": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
-        score_fn=rouge2_score,
-    ),
-    "mbert-rougel": partial(
-        rouge_bleu_score,
-        tokenizer=BertTokenizer.from_pretrained("bert-base-multilingual-cased"),
-        score_fn=rougel_score,
-    ),
+    "base-bleu": partial(rouge_bleu_score, tokenizer=WhiteSpaceTokenizer(), score_fn=bleu_score),
+    "base-rouge1": partial(rouge_bleu_score, tokenizer=WhiteSpaceTokenizer(), score_fn=rouge1_score),
+    "base-rouge2": partial(rouge_bleu_score, tokenizer=WhiteSpaceTokenizer(), score_fn=rouge2_score),
+    "base-rougel": partial(rouge_bleu_score, tokenizer=WhiteSpaceTokenizer(), score_fn=rougel_score),
 }
 
-supported_metrics = metrics_dict.keys()
+_BERT_MODELS = {
+    "bert": "bert-base-cased",
+    "mbert": "bert-base-multilingual-cased",
+}
+_SCORE_FNS = {
+    "bleu": bleu_score,
+    "rouge1": rouge1_score,
+    "rouge2": rouge2_score,
+    "rougel": rougel_score,
+}
+for _prefix, _model_name in _BERT_MODELS.items():
+    _tok = _bert_tokenizer(_model_name)
+    for _sfx, _fn in _SCORE_FNS.items():
+        METRICS[f"{_prefix}-{_sfx}"] = partial(rouge_bleu_score, tokenizer=_tok, score_fn=_fn)
 
 
-@register_script("microsoft/script/aether/metrics")
-class MetricsScript(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
-        self.config = config
+def main(
+    data_file: str,
+    metrics: str,
+    y_true_col: str,
+    y_pred_col: str,
+    output_file: str = "./output.txt",
+    names: str = None,
+    escapechar: str = None,
+):
+    assert os.path.exists(data_file), f"data_file not found: {data_file}"
 
-    def launch(self, **kwargs):
-        config = self.config
-        config.set_default_section("microsoft/script/aether/metrics")
-        metrics = config.getoption("metrics", None)
-        assert metrics is not None
-        if isinstance(metrics, str):
-            metrics = re.split(r"[,;]", metrics)
+    metric_list = [m.strip() for m in re.split(r"[,;]", metrics)]
+    unknown = [m for m in metric_list if m not in METRICS]
+    assert not unknown, f"Unsupported metrics: {unknown}. Supported: {list(METRICS)}"
 
-        assert all(metric in supported_metrics for metric in metrics)
-        data_file = config.getoption("data_file", None)
-        output_file = config.getoption("output_file", "./output.txt")
-        assert data_file is not None and os.path.exists(data_file)
+    if isinstance(names, str) and names.strip() == "*":
+        names = None
+    elif isinstance(names, str):
+        names = [n.strip() for n in re.split(r"[,;]", names)]
 
-        names = config.getoption("names", None)
-        y_true_col = config.getoption("y_true_col", None)
-        y_pred_col = config.getoption("y_pred_col", None)
-        escapechar = config.getoption("escapechar", None)
-        if isinstance(names, str) and names.strip() == "*":
-            names = None
-        elif isinstance(names, str):
-            names = re.split(r"[,;]", names)
-            names = [n.strip() for n in names]
+    data = pd.read_csv(
+        data_file,
+        names=names,
+        sep="\t",
+        quoting=3,
+        header="infer" if names is None else None,
+        escapechar=escapechar,
+    )
 
-        assert y_true_col is not None and y_pred_col is not None
+    cols = data.columns.tolist()
+    assert y_true_col in cols, f"y_true_col '{y_true_col}' not in columns: {cols}"
+    assert y_pred_col in cols, f"y_pred_col '{y_pred_col}' not in columns: {cols}"
 
-        y_true_col = y_true_col.strip()
-        y_pred_col = y_pred_col.strip()
+    y_true = data[y_true_col]
+    y_pred = data[y_pred_col]
 
-        data = pd.read_csv(
-            data_file,
-            names=names,
-            sep="\t",
-            quoting=3,
-            header="infer" if names is None else None,
-            escapechar=escapechar,
-        )
-        names = data.columns.tolist()
-        assert y_true_col in names and y_pred_col in names
+    if y_true.dtype == "object":
+        y_true = y_true.fillna("")
+    if y_pred.dtype == "object":
+        y_pred = y_pred.fillna("")
 
-        y_true = data[y_true_col]
-        y_pred = data[y_pred_col]
+    results = []
+    for metric in metric_list:
+        score = METRICS[metric](y_true, y_pred)
+        logging.info(f"Metric {metric}: {score}")
+        results.append([metric, score])
 
-        if y_true.dtype == "object":
-            y_true.fillna("", inplace=True)
+    pd.DataFrame(results, columns=["metric", "score"]).to_csv(
+        output_file, sep="\t", index=False, quoting=3,
+    )
 
-        if y_pred.dtype == "object":
-            y_pred.fillna("", inplace=True)
 
-        outputs = []
-        for metric in metrics:
-            score = metrics_dict.get(metric)(y_true, y_pred)
-            logging.info(f"Metric {metric} : {score}")
-            outputs.append([metric, score])
-
-        outputs = pd.DataFrame(outputs, columns=["metric", "score"])
-        outputs.to_csv(
-            output_file,
-            sep="\t",
-            index=False,
-            quoting=3,
-        )
+if __name__ == "__main__":
+    fire.Fire(main)

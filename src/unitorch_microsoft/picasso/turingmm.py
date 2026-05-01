@@ -29,7 +29,7 @@ from unitorch.cli import (
     register_process,
 )
 from unitorch.cli import WriterMixin, WriterOutputs
-from unitorch.cli.models import TensorsInputs, ClassificationOutputs
+from unitorch.cli.models import TensorInputs, ClassificationOutputs
 
 os.environ.setdefault("HOME", "/home/decu")
 
@@ -241,7 +241,7 @@ class TuringMMV3Processor:
             truncation=True,
         ).input_ids.squeeze(0)
         # input_ids = self.tokenizer(text, context_length=64).squeeze(0)
-        return TensorsInputs(
+        return TensorInputs(
             input_ids=input_ids,
             pixel_values=pixel_values,
         )

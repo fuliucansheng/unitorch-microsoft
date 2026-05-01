@@ -32,7 +32,7 @@ from unitorch.cli import (
     register_process,
 )
 from unitorch.cli.models import (
-    TensorsInputs,
+    TensorInputs,
 )
 from unitorch.cli.models.diffusers import pretrained_stable_infos
 from unitorch_microsoft import cached_path
@@ -170,7 +170,7 @@ class WanProcessor(HfTextClassificationProcessor):
 
         prompt_outputs = self.classification(prompt, max_seq_length=max_seq_length)
 
-        return TensorsInputs(
+        return TensorInputs(
             pixel_values=pixel_values,
             input_ids=prompt_outputs.input_ids,
             attention_mask=prompt_outputs.attention_mask,
@@ -206,7 +206,7 @@ class WanProcessor(HfTextClassificationProcessor):
 
         vae_pixel_values = self.vae_image_processor.preprocess(image)[0]
 
-        return TensorsInputs(
+        return TensorInputs(
             pixel_values=outputs.pixel_values,
             input_ids=outputs.input_ids,
             attention_mask=outputs.attention_mask,
@@ -225,7 +225,7 @@ class WanProcessor(HfTextClassificationProcessor):
             negative_prompt, max_seq_length=max_seq_length
         )
 
-        return TensorsInputs(
+        return TensorInputs(
             input_ids=prompt_outputs.input_ids,
             attention_mask=prompt_outputs.attention_mask,
             negative_input_ids=negative_prompt_outputs.input_ids,
@@ -269,7 +269,7 @@ class WanProcessor(HfTextClassificationProcessor):
             negative_prompt=negative_prompt,
             max_seq_length=max_seq_length,
         )
-        return TensorsInputs(
+        return TensorInputs(
             input_ids=text_outputs.input_ids,
             attention_mask=text_outputs.attention_mask,
             negative_input_ids=text_outputs.negative_input_ids,

@@ -25,7 +25,7 @@ from unitorch.cli import (
 )
 from unitorch.cli import WriterOutputs
 from unitorch.cli.models import (
-    TensorsInputs,
+    TensorInputs,
     GenerationOutputs,
     GenerationTargets,
 )
@@ -145,7 +145,7 @@ class BloomProcessor(HfTextClassificationProcessor, HfTextGenerationProcessor):
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
 
         assert len(input_ids) == max_seq_length
-        return TensorsInputs(input_ids=torch.tensor(input_ids, dtype=torch.long))
+        return TensorInputs(input_ids=torch.tensor(input_ids, dtype=torch.long))
 
     def generation_labels(
         self,
@@ -241,7 +241,7 @@ class BloomProcessor(HfTextClassificationProcessor, HfTextGenerationProcessor):
         )
         attention_mask_label = [0] * (max_seq_length - 1) + attention_mask_label
 
-        return TensorsInputs(
+        return TensorInputs(
             input_ids=torch.tensor(input_ids, dtype=torch.long),
             attention_mask=torch.tensor(attention_mask, dtype=torch.long),
         ), GenerationTargets(

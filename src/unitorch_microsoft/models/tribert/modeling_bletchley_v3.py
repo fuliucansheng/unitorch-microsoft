@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
-from unitorch.modules.classifier import reslayer
+from unitorch.modules.classifier import ResLayer
 from unitorch.cli import (
     add_default_section_for_init,
     add_default_section_for_function,
@@ -72,7 +72,7 @@ class TwinBertBletchleyForClassification(GenericModel):
 
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
-        self.reslayer = reslayer(
+        self.reslayer = ResLayer(
             self.projection_dim,
             self.projection_dim // 2,
             self.projection_dim,
