@@ -15,12 +15,12 @@ import litellm
 from unitorch.cli import (
     register_fastapi,
 )
-from unitorch.cli import CoreConfigureParser, GenericFastAPI
+from unitorch.cli import Config, GenericFastAPI
 
 
 @register_fastapi("microsoft/apps/spaces/gpt/image-15")
 class GPTImageFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section("microsoft/apps/spaces/gpt/image")
         self._base_url = config.getoption("base_url", "http://127.0.0.1:4000")

@@ -2,16 +2,14 @@
 # Licensed under the MIT License.
 
 import os
-import sys
 import fire
 import logging
-import importlib
 import uvicorn
 import unitorch.cli
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from unitorch.cli import CoreConfigureParser
+from unitorch.cli import Config
 from unitorch.cli import (
     import_library,
     cached_path,
@@ -37,7 +35,7 @@ def fastapi(config_path: str, **kwargs):
             k1 = k
         params.append((k0, k1, v))
 
-    config = CoreConfigureParser(config_path, params=params)
+    config = Config(config_path, params=params)
 
     depends_libraries = config.getdefault("core/cli", "depends_libraries", None)
 
@@ -83,7 +81,6 @@ def fastapi(config_path: str, **kwargs):
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    # 修改 uvicorn 的日志格式器（让 access log 也带时间）
     uvicorn.config.LOGGING_CONFIG["formatters"]["access"][
         "fmt"
     ] = "%(asctime)s | %(levelname)s | %(message)s"

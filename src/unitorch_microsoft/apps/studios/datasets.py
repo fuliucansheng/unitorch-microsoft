@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-from unitorch.cli import register_fastapi, CoreConfigureParser, GenericFastAPI
+from unitorch.cli import register_fastapi, Config, GenericFastAPI
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +251,7 @@ async def _fetch_sample_meta(
 
 @register_fastapi("microsoft/apps/studios/datasets")
 class StudioDatasetsFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section("microsoft/apps/studios/datasets")
         router = config.getoption("router", "/microsoft/apps/studios/datasets")

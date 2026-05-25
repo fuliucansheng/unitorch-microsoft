@@ -20,10 +20,10 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.cli import (
     cached_path,
     register_fastapi,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
-from unitorch.cli import CoreConfigureParser, GenericFastAPI
+from unitorch.cli import Config, GenericFastAPI
 from unitorch_microsoft.models.bletchley.pipeline_v1 import (
     BletchleyForMatchingV2Pipeline as BletchleyV1ForMatchingV2Pipeline,
     BletchleyForMatchingPipeline as BletchleyV1ForMatchingPipeline,
@@ -38,7 +38,7 @@ from unitorch_microsoft.omnipixel.bletchley import BletchleyForImageClickModelPi
 
 @register_fastapi("microsoft/apps/spaces/picasso/bletchley/v1")
 class BletchleyV1FastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section(f"microsoft/apps/spaces/picasso/bletchley/v1")
         self._pipe1 = None
@@ -67,7 +67,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
             and self._pipe2 is not None
         ):
             return "running"
-        self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
+        self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_config(
             self._config,
             config_type="2.5B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
@@ -77,7 +77,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
             },
             act_fn="sigmoid",
         )
-        self._pipe2 = BletchleyV1ForMatchingV2Pipeline.from_core_configure(
+        self._pipe2 = BletchleyV1ForMatchingV2Pipeline.from_config(
             self._config,
             config_type="0.8B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
@@ -135,7 +135,7 @@ class BletchleyV1FastAPI(GenericFastAPI):
 
 @register_fastapi("microsoft/apps/spaces/picasso/bletchley/v3")
 class BletchleyV3FastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section(f"microsoft/apps/spaces/picasso/bletchley/v3")
         self._pipe1 = None
@@ -157,7 +157,7 @@ class BletchleyV3FastAPI(GenericFastAPI):
     def start(self):
         if self._pipe1 is not None:
             return "running"
-        self._pipe1 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
+        self._pipe1 = BletchleyV3ForMatchingV2Pipeline.from_config(
             self._config,
             config_type="2.5B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",

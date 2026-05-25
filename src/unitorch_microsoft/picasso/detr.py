@@ -8,8 +8,8 @@ from unitorch.utils import pop_value, nested_dict_value, is_bfloat16_available
 from unitorch.models.detr import DetrForDetection as _DetrForDetection
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import (
@@ -35,8 +35,8 @@ class DetrForDetection(_DetrForDetection):
         )
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/model/detection/detr")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/model/detection/detr")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/picasso/model/detection/detr")
         pretrained_name = config.getoption("pretrained_name", "detr-resnet-50")
         config_path = config.getoption("config_path", None)
@@ -76,7 +76,7 @@ class DetrForDetection(_DetrForDetection):
         )
         return LossOutputs(loss=outputs)
 
-    @add_default_section_for_function("microsoft/picasso/model/detection/detr")
+    @config_defaults_method("microsoft/picasso/model/detection/detr")
     def detect(
         self,
         images,

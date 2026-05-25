@@ -30,8 +30,8 @@ from transformers.models.roberta.modeling_roberta import (
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import ClassificationOutputs, LossOutputs
@@ -873,8 +873,8 @@ class TULRV6ForClassification(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/tulr/v6")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/classification/tulr/v6")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/tulr/v6")
         pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)
@@ -948,8 +948,8 @@ class TULRV6ForPretrain(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/pretrain/tulr/v6")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/pretrain/tulr/v6")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/pretrain/tulr/v6")
         pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         config_path = config.getoption("config_path", None)

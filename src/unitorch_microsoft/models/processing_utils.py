@@ -7,8 +7,8 @@ import pyarrow as pa
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli import WriterMixin, WriterOutputs
@@ -23,6 +23,6 @@ class PreProcessor:
         self.map_dict = map_dict if map_dict is not None else {}
 
     @classmethod
-    @add_default_section_for_init("microsoft/process")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process")
+    def from_config(cls, config, **kwargs):
         pass

@@ -45,12 +45,12 @@ from unitorch.utils import (
 from unitorch.models import GenericOutputs
 from unitorch.models.diffusers import GenericStableFluxModel
 from unitorch.models.diffusers import StableFluxProcessor
-from unitorch.cli import CoreConfigureParser
+from unitorch.cli import Config
 from unitorch.cli import (
     cached_path,
     register_fastapi,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
 from unitorch.cli.models.diffusers import (
     pretrained_stable_infos,
@@ -134,7 +134,7 @@ class StableFluxForImageInpaintingFastAPIPipeline(GenericStableFluxModel):
             self.to(device=self._device)
 
     @classmethod
-    def from_core_configure(
+    def from_config(
         cls,
         config,
         pretrained_name: Optional[str] = "stable-flux-dev-fill",
@@ -504,8 +504,8 @@ def outpainting(
             )
         ]
 
-    pipe = StableFluxForImageInpaintingFastAPIPipeline.from_core_configure(
-        config=CoreConfigureParser(),
+    pipe = StableFluxForImageInpaintingFastAPIPipeline.from_config(
+        config=Config(),
         pretrained_name=pretrained_name,
         pretrained_weight_folder=pretrained_weight_folder,
         pretrained_lora_names=[lora_name] if lora_name is not None else None,
@@ -516,8 +516,8 @@ def outpainting(
     )
 
     if enable_filters:
-        filter1 = BletchleyV3ForMatchingV2Pipeline.from_core_configure(
-            config=CoreConfigureParser(),
+        filter1 = BletchleyV3ForMatchingV2Pipeline.from_config(
+            config=Config(),
             config_type="2.5B",
             pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
             pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",

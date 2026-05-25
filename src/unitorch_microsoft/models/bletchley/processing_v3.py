@@ -14,8 +14,8 @@ from unitorch.utils import pop_value, truncate_sequence_pair
 from unitorch.models import GenericOutputs
 from unitorch.cli import (
     hf_endpoint_url,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli.models import TensorInputs
@@ -53,8 +53,8 @@ class BletchleyProcessor:
         self.vocab_size = self.tokenizer.vocab_size
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/bletchley/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/bletchley/v3")
+    def from_config(cls, config, **kwargs):
         pass
 
     def _tokenize(

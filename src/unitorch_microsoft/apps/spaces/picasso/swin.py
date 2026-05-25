@@ -20,15 +20,15 @@ from unitorch.models.swin import SwinProcessor, SwinForImageClassification
 from unitorch.cli import (
     cached_path,
     register_fastapi,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
-from unitorch.cli import CoreConfigureParser, GenericFastAPI
+from unitorch.cli import Config, GenericFastAPI
 
 
 @register_fastapi("microsoft/apps/spaces/picasso/swin/googlecate")
 class GoogleCateFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section(f"microsoft/apps/spaces/picasso/swin/googlecate")
         self._model = None

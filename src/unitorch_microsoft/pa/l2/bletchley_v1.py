@@ -19,8 +19,8 @@ from unitorch.cli.models import (
     ClassificationOutputs,
 )
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch_microsoft.models.bletchley.modeling_v1 import (
@@ -112,10 +112,10 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/pa/l2/classification/mmdnn/bletchley/v1/v2"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/pa/l2/classification/mmdnn/bletchley/v1/v2"
         )

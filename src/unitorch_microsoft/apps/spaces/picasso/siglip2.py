@@ -20,16 +20,16 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.cli import (
     cached_path,
     register_fastapi,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
-from unitorch.cli import CoreConfigureParser, GenericFastAPI
+from unitorch.cli import Config, GenericFastAPI
 from unitorch_microsoft.models.siglip.pipeline import Siglip2ForMatchingV2Pipeline
 
 
 @register_fastapi("microsoft/apps/spaces/picasso/siglip2")
 class Siglip2FastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section(f"microsoft/apps/spaces/picasso/siglip2")
         router = config.getoption("router", "/microsoft/apps/spaces/picasso/siglip2")
@@ -54,7 +54,7 @@ class Siglip2FastAPI(GenericFastAPI):
     def start(self):
         if self._pipe1 is not None and self._pipe2 is not None:
             return "running"
-        self._pipe1 = Siglip2ForMatchingV2Pipeline.from_core_configure(
+        self._pipe1 = Siglip2ForMatchingV2Pipeline.from_config(
             self._config,
             pretrained_name="siglip2-so400m-patch14-384",
             pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/siglip/pytorch_model.v2.lora4.badcrop.2506.bin",
@@ -63,7 +63,7 @@ class Siglip2FastAPI(GenericFastAPI):
             },
             act_fn="sigmoid",
         )
-        self._pipe2 = Siglip2ForMatchingV2Pipeline.from_core_configure(
+        self._pipe2 = Siglip2ForMatchingV2Pipeline.from_config(
             self._config,
             pretrained_name="siglip2-so400m-patch14-384",
             pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/siglip/pytorch_model.v2.lora4.badpad.2601.bin",

@@ -15,8 +15,8 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import HfImageClassificationProcessor, GenericOutputs
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli.models import SegmentationOutputs, TensorInputs
@@ -129,8 +129,8 @@ class SamProcessor:
         self.vision_processor = SamImageProcessor.from_json_file(vision_config_path)
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/sam")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/sam")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/process/sam")
         pretrained_name = config.getoption("pretrained_name", "sam-vit-base")
         vision_config_path = config.getoption("vision_config_path", None)

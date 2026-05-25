@@ -7,8 +7,8 @@ import pyarrow as pa
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli import WriterMixin, WriterOutputs
@@ -34,8 +34,8 @@ class ClassificationProcessor:
         self.return_scores = return_scores
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/classification")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/classification")
+    def from_config(cls, config, **kwargs):
         """
         Create a ClassificationProcessor instance from core configuration.
 

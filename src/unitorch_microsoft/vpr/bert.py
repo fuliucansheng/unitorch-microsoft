@@ -13,8 +13,8 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import ClassificationOutputs, EmbeddingOutputs, LossOutputs
@@ -55,8 +55,8 @@ class BertForPretrain(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/pretrain/bert")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/pretrain/bert")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/bert")
         pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
@@ -177,8 +177,8 @@ class BertForPretrainV2(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/pretrain/bert/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/pretrain/bert/v2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/bert/v2")
         pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
@@ -297,8 +297,8 @@ class BertForClassification(GenericModel):
                 param.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/classification/bert")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/classification/bert")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/bert")
         pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)
@@ -405,8 +405,8 @@ class BertForClassificationV2(GenericModel):
                 param.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/classification/bert/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/classification/bert/v2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/bert/v2")
         pretrained_name = config.getoption("pretrained_name", "bert-base-uncased")
         config_path = config.getoption("config_path", None)

@@ -14,7 +14,7 @@ import urllib
 import urllib.parse
 import pandas as pd
 from multiprocessing import Process, Queue
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
@@ -70,7 +70,7 @@ async def crawl(urls, api_token=None):
 
 @register_script("microsoft/script/china/alibaba/crawler/crawlbase/1688/crawling")
 class Alibaba1688Crawler(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):
@@ -127,7 +127,7 @@ class Alibaba1688Crawler(GenericScript):
 
 @register_script("microsoft/script/china/alibaba/crawler/crawlbase/1688/rendering")
 class Alibaba1688Render(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):

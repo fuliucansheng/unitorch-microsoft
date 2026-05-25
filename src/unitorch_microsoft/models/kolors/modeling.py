@@ -11,7 +11,7 @@ from unitorch.models import GenericModel
 from unitorch.models.kolors.modeling import CrossModel
 from unitorch.utils import nested_dict_value, pop_value
 from unitorch.cli import (
-    add_default_section_for_init,
+    config_defaults_init,
     cached_path,
     register_model,
 )
@@ -30,8 +30,8 @@ class KolorsMPSModel(GenericModel):
         self.cross_model = CrossModel(dim=1024, layer_num=4, heads=16)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/kolors/mps")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/classification/kolors/mps")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/kolors/mps")
         pretrained_name = config.getoption("pretrained_name", "kolors-mps-overall")
         config_path = pop_value(

@@ -20,16 +20,16 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.cli import (
     cached_path,
     register_fastapi,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
-from unitorch.cli import CoreConfigureParser, GenericFastAPI
+from unitorch.cli import Config, GenericFastAPI
 from unitorch_microsoft.picasso.basnet import BASNetForSegmentationPipeline
 
 
 @register_fastapi("microsoft/apps/spaces/picasso/basnet")
 class BASNetFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section(f"microsoft/apps/spaces/picasso/basnet")
         router = config.getoption("router", "/microsoft/apps/spaces/picasso/basnet")
@@ -50,7 +50,7 @@ class BASNetFastAPI(GenericFastAPI):
     def start(self):
         if self._pipe1 is not None and self._pipe2 is not None:
             return "running"
-        self._pipe1 = BASNetForSegmentationPipeline.from_core_configure(
+        self._pipe1 = BASNetForSegmentationPipeline.from_config(
             config=self._config,
         )
         return "running"

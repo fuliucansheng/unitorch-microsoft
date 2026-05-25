@@ -40,8 +40,8 @@ from unitorch.models.diffusers import compute_snr
 
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.utils import (
@@ -235,8 +235,8 @@ class WanForText2VideoGeneration(GenericWanModel):
         self.pipeline.set_progress_bar_config(disable=True)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/text2video/wan")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/text2video/wan")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/text2video/wan")
         pretrained_name = config.getoption("pretrained_name", "wan-v2.2-t2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
@@ -449,7 +449,7 @@ class WanForText2VideoGeneration(GenericWanModel):
         loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function("microsoft/model/diffusers/text2video/wan")
+    @config_defaults_method("microsoft/model/diffusers/text2video/wan")
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
         dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),
@@ -546,8 +546,8 @@ class WanForImage2VideoGeneration(GenericWanModel):
         self.pipeline.set_progress_bar_config(disable=True)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/image2video/wan")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/image2video/wan")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/image2video/wan")
         pretrained_name = config.getoption("pretrained_name", "wan-v2.2-i2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
@@ -809,7 +809,7 @@ class WanForImage2VideoGeneration(GenericWanModel):
         loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function("microsoft/model/diffusers/image2video/wan")
+    @config_defaults_method("microsoft/model/diffusers/image2video/wan")
     @autocast(
         device_type=("cuda" if torch.cuda.is_available() else "cpu"),
         dtype=(torch.bfloat16 if is_bfloat16_available() else torch.float32),

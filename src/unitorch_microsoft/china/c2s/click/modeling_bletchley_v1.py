@@ -19,8 +19,8 @@ from unitorch.cli.models import (
     ClassificationOutputs,
 )
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch_microsoft.models.bletchley.modeling_v1 import (
@@ -69,8 +69,8 @@ class BletchleyForPretrain(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/china/msan/pretrain/bletchley/v1")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/china/msan/pretrain/bletchley/v1")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/china/msan/pretrain/bletchley/v1")
         config_type = config.getoption("config_type", "0.15B")
         projection_dim = config.getoption("projection_dim", 32)
@@ -248,8 +248,8 @@ class BletchleyForClassification(GenericModel):
                 param.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/china/msan/classification/bletchley/v1")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/china/msan/classification/bletchley/v1")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/china/msan/classification/bletchley/v1")
         config_type = config.getoption("config_type", "0.15B")
         projection_dim = config.getoption("projection_dim", 32)

@@ -13,8 +13,8 @@ from torch import autocast
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import (
@@ -65,8 +65,8 @@ class BletchleyForPretrain(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/pretrain/bletchley/v1/argus")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/pretrain/bletchley/v1/argus")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/bletchley/v1/argus")
         config_type = config.getoption("config_type", "0.3B")
         image_embed_dim = config.getoption("image_embed_dim", 100)
@@ -187,8 +187,8 @@ class BletchleyForClassification(GenericModel):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/classification/bletchley/v1/argus")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/classification/bletchley/v1/argus")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/bletchley/v1/argus")
         config_type = config.getoption("config_type", "0.3B")
         image_embed_dim = config.getoption("image_embed_dim", 100)

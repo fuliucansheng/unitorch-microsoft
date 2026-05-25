@@ -13,10 +13,10 @@ from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_fi
 from unitorch.cli import (
     hf_endpoint_url,
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft.models.bletchley.modeling_v3 import BletchleyForPretrain
 from unitorch_microsoft.models.bletchley.processing_v3 import BletchleyProcessor
@@ -114,8 +114,8 @@ class BletchleyInterrogatorPipeline(BletchleyForPretrain):
         self.positive_labels_embeds = self.get_text_embeds(self.positive_labels)
 
     @classmethod
-    @add_default_section_for_init("microsoft/interrogators/bletchley")
-    def from_core_configure(
+    @config_defaults_init("microsoft/interrogators/bletchley")
+    def from_config(
         cls,
         config,
         config_type: str = None,
@@ -314,13 +314,13 @@ class BletchleyInterrogatorPipeline(BletchleyForPretrain):
 
 @register_script("microsoft/script/interrogator/bletchley")
 class BletchleyInterrogatorScript(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):
         config = self.config
 
-        pipe = BletchleyInterrogatorPipeline.from_core_configure(config)
+        pipe = BletchleyInterrogatorPipeline.from_config(config)
 
         config.set_default_section("microsoft/script/interrogator/bletchley")
 

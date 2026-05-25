@@ -18,8 +18,8 @@ from unitorch.utils import (
 
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
 from unitorch_microsoft.models.bletchley import (
     pretrained_bletchley_v3_infos,
@@ -72,8 +72,8 @@ class BletchleyForImageClassificationPipeline(_BletchleyForImageClassification):
         self.to(device=self._device)
 
     @classmethod
-    @add_default_section_for_init("microsoft/models/bletchley/pipeline/v3/image")
-    def from_core_configure(
+    @config_defaults_init("microsoft/models/bletchley/pipeline/v3/image")
+    def from_config(
         cls,
         config,
         config_type: Optional[str] = None,
@@ -124,7 +124,7 @@ class BletchleyForImageClassificationPipeline(_BletchleyForImageClassification):
         return inst
 
     @torch.no_grad()
-    @add_default_section_for_function("microsoft/models/bletchley/pipeline/v3/image")
+    @config_defaults_method("microsoft/models/bletchley/pipeline/v3/image")
     def __call__(
         self,
         image: Image.Image,
@@ -180,8 +180,8 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
         self.to(device=self._device)
 
     @classmethod
-    @add_default_section_for_init("microsoft/models/bletchley/pipeline/v3/matching")
-    def from_core_configure(
+    @config_defaults_init("microsoft/models/bletchley/pipeline/v3/matching")
+    def from_config(
         cls,
         config,
         config_type: Optional[str] = None,
@@ -230,7 +230,7 @@ class BletchleyForMatchingPipeline(_BletchleyForMatching):
         return inst
 
     @torch.no_grad()
-    @add_default_section_for_function("microsoft/models/bletchley/pipeline/v3/matching")
+    @config_defaults_method("microsoft/models/bletchley/pipeline/v3/matching")
     def __call__(
         self,
         text: str,
@@ -304,8 +304,8 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForMatchingV2):
         self.to(device=self._device)
 
     @classmethod
-    @add_default_section_for_init("microsoft/models/bletchley/pipeline/v3/matching/v2")
-    def from_core_configure(
+    @config_defaults_init("microsoft/models/bletchley/pipeline/v3/matching/v2")
+    def from_config(
         cls,
         config,
         config_type: Optional[str] = None,
@@ -363,7 +363,7 @@ class BletchleyForMatchingV2Pipeline(_BletchleyForMatchingV2):
         return inst
 
     @torch.no_grad()
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/models/bletchley/pipeline/v3/matching/v2"
     )
     def __call__(

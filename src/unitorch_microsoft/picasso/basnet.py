@@ -15,8 +15,8 @@ from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, Comp
 from unitorch.models import GenericModel
 from unitorch.cli import cached_path
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
     register_process,
 )
@@ -322,8 +322,8 @@ class BASNetForSegmentation(GenericModel):
         self.refunet = RefUnet(1, 64)
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/model/segmentation/basnet")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/model/segmentation/basnet")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/picasso/model/segmentation/basnet")
         n_channels = config.getoption("n_channels", 3)
         n_classes = config.getoption("n_classes", 1)
@@ -466,8 +466,8 @@ class BASNetProcessor:
         self.return_mask = return_mask
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/process/basnet")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/process/basnet")
+    def from_config(cls, config, **kwargs):
         pass
 
     @register_process("microsoft/picasso/process/basnet/segmentation_inputs")
@@ -540,8 +540,8 @@ class BASNetForSegmentationPipeline(BASNetForSegmentation):
         self.eval()
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/pipeline/basnet")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/pipeline/basnet")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/picasso/pipeline/basnet")
         n_channels = config.getoption("n_channels", 3)
         n_classes = config.getoption("n_classes", 1)

@@ -23,8 +23,8 @@ from unitorch.models.peft import (
 )
 from unitorch.cli import cached_path
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
     register_process,
 )
@@ -75,8 +75,8 @@ class TuringMMV3ForMatching(GenericModel):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/model/turingmm/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/model/turingmm/v3")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/picasso/model/turingmm/v3")
         pretrained_weight_path = config.getoption(
             "pretrained_weight_path",
@@ -143,8 +143,8 @@ class TuringMMV3LoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/model/turingmm/v3/lora")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/model/turingmm/v3/lora")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/picasso/model/turingmm/v3/lora")
         lora_r = config.getoption("lora_r", 16)
         lora_alpha = config.getoption("lora_alpha", 32)
@@ -226,8 +226,8 @@ class TuringMMV3Processor:
         self.clean_fn = get_clean_fn("whitespace")
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/process/turingmm/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/process/turingmm/v3")
+    def from_config(cls, config, **kwargs):
         pass
 
     @register_process("microsoft/picasso/process/turingmm/v3/classification")

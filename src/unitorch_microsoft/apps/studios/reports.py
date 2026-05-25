@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-from unitorch.cli import register_fastapi, CoreConfigureParser, GenericFastAPI
+from unitorch.cli import register_fastapi, Config, GenericFastAPI
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ def _build_report_info(row) -> ReportInfo:
 
 @register_fastapi("microsoft/apps/studios/reports")
 class StudioReportsFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section("microsoft/apps/studios/reports")
         router = config.getoption("router", "/microsoft/apps/studios/reports")

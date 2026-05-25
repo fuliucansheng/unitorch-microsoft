@@ -48,8 +48,8 @@ from unitorch.models.diffusers.modeling_stable_flux import (
     _unpack_latents,
 )
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import DiffusionOutputs, LossOutputs
@@ -110,8 +110,8 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
         self.guidance_scale = guidance_scale
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/text2image/stable_flux")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/text2image/stable_flux")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/text2image/stable_flux")
         pretrained_name = config.getoption("pretrained_name", "stable-flux-dev")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
@@ -335,7 +335,7 @@ class StableFluxForText2ImageGeneration(GenericStableFluxModel):
         loss = loss.mean()
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/model/diffusers/text2image/stable_flux"
     )
     @autocast(
@@ -443,10 +443,10 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
         self.pipeline.set_progress_bar_config(disable=True)
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/diffusers/peft/lora/text2image/stable_flux"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/diffusers/peft/lora/text2image/stable_flux"
         )
@@ -708,7 +708,7 @@ class StableFluxLoraForText2ImageGeneration(GenericStableFluxLoraModel):
         loss = loss.mean()
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/model/diffusers/peft/lora/text2image/stable_flux"
     )
     @autocast(
@@ -797,8 +797,8 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
         self.num_channels_transformer = self.transformer.config.in_channels
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/inpainting/stable_flux")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/inpainting/stable_flux")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/inpainting/stable_flux")
         pretrained_name = config.getoption("pretrained_name", "stable-flux-dev-fill")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
@@ -1053,7 +1053,7 @@ class StableFluxForImageInpainting(GenericStableFluxModel):
         loss = loss.mean()
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/model/diffusers/inpainting/stable_flux"
     )
     @autocast(
@@ -1173,10 +1173,10 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
                 param.requires_grad = True
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/diffusers/peft/lora/inpainting/stable_flux"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/diffusers/peft/lora/inpainting/stable_flux"
         )
@@ -1472,7 +1472,7 @@ class StableFluxLoraForImageInpainting(GenericStableFluxLoraModel):
         loss = loss.mean()
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/model/diffusers/peft/lora/inpainting/stable_flux"
     )
     @autocast(

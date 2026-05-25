@@ -14,7 +14,7 @@ import urllib
 import urllib.parse
 import pandas as pd
 from multiprocessing import Process, Queue
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
@@ -32,7 +32,7 @@ except ImportError:
 
 @register_script("microsoft/script/china/slab/crawler")
 class SLABCrawler(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):

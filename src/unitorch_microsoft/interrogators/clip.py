@@ -19,11 +19,11 @@ from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_fi
 from unitorch.cli import (
     hf_endpoint_url,
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
 from torch import autocast
@@ -131,8 +131,8 @@ class ClipInterrogatorPipeline(_ClipForPretrain):
         self.positive_labels_embeds = self.get_text_embeds(self.positive_labels)
 
     @classmethod
-    @add_default_section_for_init("microsoft/interrogator/clip")
-    def from_core_configure(
+    @config_defaults_init("microsoft/interrogator/clip")
+    def from_config(
         cls,
         config,
         pretrained_name: str = None,
@@ -366,13 +366,13 @@ class ClipInterrogatorPipeline(_ClipForPretrain):
 
 @register_script("microsoft/script/interrogator/clip")
 class ClipInterrogatorScript(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):
         config = self.config
 
-        pipe = ClipInterrogatorPipeline.from_core_configure(config)
+        pipe = ClipInterrogatorPipeline.from_config(config)
 
         config.set_default_section("microsoft/script/interrogator/clip")
 

@@ -13,7 +13,7 @@ from typing import List, Optional
 from unitorch.cli import (
     register_fastapi,
 )
-from unitorch.cli import CoreConfigureParser, GenericFastAPI
+from unitorch.cli import Config, GenericFastAPI
 
 
 class CommandInfo(BaseModel):
@@ -88,7 +88,7 @@ class ChatHistory(BaseModel):
 
 @register_fastapi("microsoft/apps/studios/chats")
 class StudioAgentFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section("microsoft/apps/studios/chats")
         router = config.getoption("router", "/microsoft/apps/studios/chats")

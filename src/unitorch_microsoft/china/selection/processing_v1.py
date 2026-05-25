@@ -13,8 +13,8 @@ from transformers import XLMRobertaTokenizer
 from unitorch.utils import pop_value, truncate_sequence_pair
 from unitorch.models import GenericOutputs
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli.models import TensorInputs
@@ -38,8 +38,8 @@ class BletchleyProcessorV2(BletchleyProcessor):
         self.max_num_text = max_num_text
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/china/selection/bletchley/v1")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/china/selection/bletchley/v1")
+    def from_config(cls, config, **kwargs):
         pass
 
     @register_process(

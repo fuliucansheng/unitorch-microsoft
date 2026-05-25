@@ -8,8 +8,8 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models.llama import LlamaProcessor as _LlamaProcessor
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli import WriterOutputs
@@ -45,8 +45,8 @@ class LlamaProcessor(_LlamaProcessor):
         )
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/llama")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/llama")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/process/llama")
         pretrained_name = config.getoption("pretrained_name", "llama-7b")
         vocab_path = config.getoption("vocab_path", None)

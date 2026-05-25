@@ -21,11 +21,11 @@ from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.cli import (
     hf_endpoint_url,
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
 from unitorch.cli import WriterOutputs, register_process
@@ -118,8 +118,8 @@ class SiglipForBadCropModel(GenericModel, PeftWeightLoaderMixin):
         }
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/model/bad_crop/siglip")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/model/bad_crop/siglip")
+    def from_config(cls, config, **kwargs):
         """
         Create an instance of SiglipForClassification from a core configuration.
 
@@ -253,8 +253,8 @@ class BadCropProcessor(SiglipProcessor):
         )
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/process/bad_crop")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/process/bad_crop")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/picasso/process/bad_crop")
         pretrained_name = config.getoption("pretrained_name", "siglip-base-patch16-224")
         vocab_path = config.getoption("vocab_path", None)

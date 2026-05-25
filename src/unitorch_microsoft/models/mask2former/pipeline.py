@@ -9,8 +9,8 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
 from unitorch_microsoft.models.mask2former import pretrained_mask2former_infos
 from unitorch_microsoft.models.mask2former import (
@@ -41,8 +41,8 @@ class Mask2FormerPipeline(_Mask2FormerForSegmentation):
         self.eval()
 
     @classmethod
-    @add_default_section_for_init("microsoft/pipeline/mask2former")
-    def from_core_configure(
+    @config_defaults_init("microsoft/pipeline/mask2former")
+    def from_config(
         cls,
         config,
         pretrained_name: Optional[str] = "mask2former-swin-tiny-ade-semantic",
@@ -90,7 +90,7 @@ class Mask2FormerPipeline(_Mask2FormerForSegmentation):
         return inst
 
     @torch.no_grad()
-    @add_default_section_for_function("microsoft/pipeline/mask2former")
+    @config_defaults_method("microsoft/pipeline/mask2former")
     def __call__(
         self,
         image: Union[Image.Image, str],

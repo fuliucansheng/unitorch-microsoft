@@ -29,34 +29,18 @@ dynamic = ["version", "dependencies"]
 [project.optional-dependencies]
 deepspeed = ["unitorch[deepspeed]"]
 diffusers = ["unitorch[diffusers]"]
-detection = ["unitorch[detection]"]
+fastapis = ["unitorch[fastapis]"]
 megatron = ["unitorch[megatron]"]
 docs = ["unitorch[docs]"]
-copilots = [
-    "frontmatter",
-    "playwright",
-    "beautifulsoup4",
-    "browser_use<=0.5.11",
-    "googlesearch-python",
-    "tenacity",
-  ]
-others = [
-    "unitorch[others]",
-    "azure-storage-blob", 
-    "google-genai",
-    "diffusers>=0.35.0",
-    "fastapi>=0.112.2",  
-    "uvicorn>=0.30.6",
-  ]
-all = ["unitorch_microsoft[deepspeed,diffusers,detection,megatron,docs,copilots,others]"]
+all = ["unitorch_microsoft[deepspeed,diffusers,fastapis,megatron,docs]"]
 
 [project.scripts]
 unitorch-train = "unitorch_microsoft.consoles.train:cli_main"
 unitorch-eval = "unitorch_microsoft.consoles.eval:cli_main"
 unitorch-infer = "unitorch_microsoft.consoles.infer:cli_main"
-unitorch-launch= "unitorch_microsoft.consoles.launch:cli_main"
 unitorch-fastapi= "unitorch_microsoft.consoles.fastapi:cli_main"
-unitorch-service = "unitorch_microsoft.consoles.service:cli_main"
+unitorch-copilot = "unitorch_microsoft.consoles.copilot:main"
+unitorch-copilot-cli = "unitorch_microsoft.consoles.copilot:cli_main"
 
 [tool.setuptools]
 include-package-data = true

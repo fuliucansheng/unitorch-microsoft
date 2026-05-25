@@ -16,8 +16,8 @@ from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
 from unitorch.modules.classifier import ResLayer
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import (
@@ -146,10 +146,10 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v1/reslayer"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v1/reslayer"
         )
@@ -352,10 +352,10 @@ class MMDNNBletchleyForDistillation(GenericModel):
             p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/distillation/mmdnn/bletchley/v1/reslayer"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/distillation/mmdnn/bletchley/v1/reslayer"
         )
@@ -525,10 +525,10 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v1/v2/reslayer"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v1/v2/reslayer"
         )
@@ -855,10 +855,10 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v1/v2/text/reslayer"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v1/v2/text/reslayer"
         )
@@ -1169,10 +1169,10 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v1/v2/text/v2/reslayer"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v1/v2/text/v2/reslayer"
         )

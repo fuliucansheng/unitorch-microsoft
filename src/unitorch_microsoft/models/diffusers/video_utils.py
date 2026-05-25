@@ -18,8 +18,8 @@ from random import random
 from PIL import Image, ImageOps, ImageFile, ImageFilter
 from unitorch.utils import is_opencv_available
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from decord import cpu, gpu
@@ -54,8 +54,8 @@ class VideoProcessor:
         self.http_url = http_url
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/video")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/video")
+    def from_config(cls, config, **kwargs):
         """
         Creates a new instance of the ImageProcessor using the configuration from the core.
 

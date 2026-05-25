@@ -14,8 +14,8 @@ from unitorch.utils import pop_value, nested_dict_value, is_opencv_available
 from unitorch.models import HfImageClassificationProcessor, GenericOutputs
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli import WriterOutputs
@@ -60,8 +60,8 @@ class Mask2FormerProcessor(HfImageClassificationProcessor):
         self.foreground_filter_alpha = foreground_filter_alpha
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/mask2former")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/mask2former")
+    def from_config(cls, config, **kwargs):
         """
         Create an instance of Mask2FormerProcessor from a core configuration.
 

@@ -7,8 +7,8 @@ import torch
 from unitorch.utils import pop_value
 from unitorch.models import GenericOutputs
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli.models import TensorInputs
@@ -89,8 +89,8 @@ class TribertProcessor:
         self.tokenizer = TriTokenizer(vocab_file=vocab_file)
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/tribert")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/tribert")
+    def from_config(cls, config, **kwargs):
         vocab_file = config.getdefault(
             "microsoft/process/tribert",
             "vocab_file",

@@ -7,7 +7,7 @@ import asyncio
 import aiofiles
 from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
-from unitorch.cli import register_fastapi, CoreConfigureParser, GenericFastAPI
+from unitorch.cli import register_fastapi, Config, GenericFastAPI
 
 
 class UploadResponse(BaseModel):
@@ -18,7 +18,7 @@ class UploadResponse(BaseModel):
 
 @register_fastapi("microsoft/apps/studios/utils")
 class StudioUtilsFastAPI(GenericFastAPI):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self._config = config
         config.set_default_section("microsoft/apps/studios/utils")
         router = config.getoption("router", "/microsoft/apps/studios/utils")

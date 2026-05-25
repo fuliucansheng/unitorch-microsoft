@@ -12,8 +12,8 @@ from unitorch.utils import pop_value, nested_dict_value, truncate_sequence_pair
 from unitorch.models import GenericOutputs, HfTextClassificationProcessor
 from unitorch.models.bert.processing import get_random_mask_indexes, get_random_word
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli.models import TensorInputs
@@ -54,8 +54,8 @@ class TULRV6Processor(HfTextClassificationProcessor):
         self.vocab_words = list(self.tokenizer.get_vocab().keys())
 
     @classmethod
-    @add_default_section_for_init("microsoft/process/tulr/v6")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/process/tulr/v6")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/process/tulr/v6")
         pretrained_name = config.getoption("pretrained_name", "tulrv6-base")
         vocab_path = config.getoption("vocab_path", None)

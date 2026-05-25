@@ -22,8 +22,8 @@ from unitorch.utils import (
 )
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import DiffusionOutputs, LossOutputs
@@ -85,8 +85,8 @@ class VAEForDiffusion(GenericModel):
             self.lpips_model.eval()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/vae")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/vae")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/vae")
         pretrained_name = config.getoption("pretrained_name", "stable-v1.5")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)

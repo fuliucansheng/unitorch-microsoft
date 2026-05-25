@@ -23,8 +23,8 @@ from unitorch.cli.models import (
     ClassificationOutputs,
 )
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     cached_path,
     register_model,
 )
@@ -292,8 +292,8 @@ class BletchleyLoraForPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/pretrain/peft/lora/bletchley/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/pretrain/peft/lora/bletchley/v3")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/pretrain/peft/lora/bletchley/v3")
         config_type = config.getoption("config_type", "0.8B")
 
@@ -429,8 +429,8 @@ class BletchleyLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/peft/lora/bletchley/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/peft/lora/bletchley/v3")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/peft/lora/bletchley/v3")
         config_type = config.getoption("config_type", "0.8B")
 
@@ -559,8 +559,8 @@ class BletchleyLoraForMatchingV2(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/peft/lora/bletchley/v3/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/peft/lora/bletchley/v3/v2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/peft/lora/bletchley/v3/v2")
         config_type = config.getoption("config_type", "0.8B")
 
@@ -699,10 +699,10 @@ class BletchleyLoraForTextPretrain(GenericPeftModel, PeftWeightLoaderMixin):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/pretrain/peft/lora/bletchley/v3/text"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/pretrain/peft/lora/bletchley/v3/text"
         )
@@ -859,10 +859,10 @@ class BletchleyLoraForTextMatching(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/matching/peft/lora/bletchley/v3/text"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/matching/peft/lora/bletchley/v3/text"
         )
@@ -1003,10 +1003,10 @@ class BletchleyLoraForImageMatching(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/matching/peft/lora/bletchley/v3/image"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/matching/peft/lora/bletchley/v3/image"
         )

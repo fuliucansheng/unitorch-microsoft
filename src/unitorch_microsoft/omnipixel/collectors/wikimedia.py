@@ -15,7 +15,7 @@ import urllib
 import urllib.parse
 import pandas as pd
 from multiprocessing import Process, Queue
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 

@@ -48,8 +48,8 @@ from unitorch.utils import (
 )
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import DiffusionOutputs, LossOutputs
@@ -281,8 +281,8 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         self.latent_option = latent_option
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/peft/lora/text2video/wan")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/peft/lora/text2video/wan")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/peft/lora/text2video/wan")
         pretrained_name = config.getoption("pretrained_name", "wan-v2.2-t2v-14b")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
@@ -547,7 +547,7 @@ class WanLoraForText2VideoGeneration(GenericWanLoraModel):
         # loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/model/diffusers/peft/lora/text2video/wan"
     )
     @autocast(
@@ -654,8 +654,8 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         self.latent_option = latent_option
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/peft/lora/image2video/wan")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/peft/lora/image2video/wan")
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/diffusers/peft/lora/image2video/wan"
         )
@@ -966,7 +966,7 @@ class WanLoraForImage2VideoGeneration(GenericWanLoraModel):
         # loss = F.mse_loss(outputs, noise, reduction="mean")
         return LossOutputs(loss=loss)
 
-    @add_default_section_for_function(
+    @config_defaults_method(
         "microsoft/model/diffusers/peft/lora/image2video/wan"
     )
     @autocast(

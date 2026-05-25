@@ -10,8 +10,8 @@ from PIL import Image, ImageOps, ImageFile, ImageFilter, ImageChops, ImageDraw
 from random import randint, shuffle, choice
 
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 
@@ -112,8 +112,8 @@ class OmniGPTProcessor:
         pass
 
     @classmethod
-    @add_default_section_for_init("microsoft/omnigpt/process")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/omnigpt/process")
+    def from_config(cls, config, **kwargs):
         """
         Creates a new instance of the ImageProcessor using the configuration from the core.
 

@@ -14,8 +14,8 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from transformers.models.siglip.modeling_siglip import (
     SiglipConfig,
-    SiglipTextTransformer,
-    SiglipVisionTransformer,
+    SiglipTextModel as SiglipTextTransformer,
+    SiglipVisionModel as SiglipVisionTransformer,
 )
 from peft import LoraConfig
 from unitorch.utils import pop_value, nested_dict_value
@@ -29,8 +29,8 @@ from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.models.clip.modeling import _clip_loss, AllGather
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import ClassificationOutputs, LossOutputs
@@ -171,8 +171,8 @@ class SiglipLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/peft/lora/siglip")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/peft/lora/siglip")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/peft/lora/siglip")
         pretrained_name = config.getoption("pretrained_name", "siglip-base-patch16-224")
         config_path = config.getoption("config_path", None)

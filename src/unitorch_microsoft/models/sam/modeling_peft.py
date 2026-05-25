@@ -18,8 +18,8 @@ from unitorch.models.sam import SamProcessor
 from unitorch.cli.models import SegmentationOutputs, LossOutputs
 from unitorch.cli.models import segmentation_model_decorator
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     cached_path,
     register_model,
 )
@@ -135,8 +135,8 @@ class SamLoraForSegmentation(GenericPeftModel):
         # self.ssim_loss = SSIMLoss()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/segmentation/peft/lora/sam")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/segmentation/peft/lora/sam")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/segmentation/peft/lora/sam")
         pretrained_name = config.getoption("pretrained_name", "sam-vit-base")
         config_path = config.getoption("config_path", None)

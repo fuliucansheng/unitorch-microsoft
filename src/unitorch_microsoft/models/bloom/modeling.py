@@ -14,8 +14,8 @@ from unitorch.models import GenericModel
 from unitorch.models.peft import PeftWeightLoaderMixin, GenericPeftModel
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import generation_model_decorator
@@ -49,8 +49,8 @@ class BloomForGeneration(GenericModel, PeftWeightLoaderMixin):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/generation/bloom")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/generation/bloom")
+    def from_config(cls, config, **kwargs):
         """
         Create an instance of BloomForGeneration from the core configuration.
 
@@ -129,7 +129,7 @@ class BloomForGeneration(GenericModel, PeftWeightLoaderMixin):
         logits = outputs.logits
         return GenerationOutputs(sequences=logits)
 
-    @add_default_section_for_function("microsoft/model/generation/bloom")
+    @config_defaults_method("microsoft/model/generation/bloom")
     @torch.no_grad()
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def generate(
@@ -269,8 +269,8 @@ class BloomLoraForGeneration(GenericPeftModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/generation/peft/lora/bloom")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/generation/peft/lora/bloom")
+    def from_config(cls, config, **kwargs):
         """
         Create an instance of BloomLoraForGeneration from a core configuration.
 
@@ -361,7 +361,7 @@ class BloomLoraForGeneration(GenericPeftModel):
         logits = outputs.logits
         return GenerationOutputs(sequences=logits)
 
-    @add_default_section_for_function("microsoft/model/generation/peft/lora/bloom")
+    @config_defaults_method("microsoft/model/generation/peft/lora/bloom")
     @torch.no_grad()
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def generate(

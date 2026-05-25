@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import logging
 import pandas as pd
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch_microsoft import cached_path
 
@@ -28,7 +28,7 @@ except ImportError:
 
 @register_script("microsoft/script/china/c2s/whoosh")
 class WhooshScript(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):

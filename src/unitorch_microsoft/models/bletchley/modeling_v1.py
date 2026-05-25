@@ -25,8 +25,8 @@ from unitorch.cli.models import (
     ClassificationOutputs,
 )
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     cached_path,
     register_model,
 )
@@ -291,8 +291,8 @@ class BletchleyForPretrain(GenericModel, PeftWeightLoaderMixin):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/pretrain/bletchley/v1")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/pretrain/bletchley/v1")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/pretrain/bletchley/v1")
         config_type = config.getoption("config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 1024)
@@ -440,8 +440,8 @@ class BletchleyForTextPretrain(GenericModel, PeftWeightLoaderMixin):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/pretrain/bletchley/v1/text")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/pretrain/bletchley/v1/text")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/pretrain/bletchley/v1/text")
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
@@ -605,8 +605,8 @@ class BletchleyForClassification(GenericModel, PeftWeightLoaderMixin):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/bletchley/v1")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/classification/bletchley/v1")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/bletchley/v1")
         config_type = config.getoption("config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 1024)
@@ -679,8 +679,8 @@ class BletchleyForTextClassification(GenericModel, PeftWeightLoaderMixin):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/bletchley/v1/text")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/classification/bletchley/v1/text")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/bletchley/v1/text")
         config_type = config.getoption("config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 1024)
@@ -759,8 +759,8 @@ class BletchleyForImageClassification(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/bletchley/v1/image")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/classification/bletchley/v1/image")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/bletchley/v1/image")
         config_type = config.getoption("config_type", "0.8B")
         projection_dim = config.getoption("projection_dim", 1024)
@@ -858,8 +858,8 @@ class BletchleyForMatching(GenericModel, PeftWeightLoaderMixin):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/bletchley/v1")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/bletchley/v1")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/bletchley/v1")
         config_type = config.getoption("config_type", "0.8B")
 
@@ -999,8 +999,8 @@ class BletchleyForMatchingText(GenericModel, PeftWeightLoaderMixin):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/bletchley/v1/text")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/bletchley/v1/text")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/bletchley/v1/text")
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
@@ -1158,8 +1158,8 @@ class BletchleyForTextSelection(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/selection/bletchley/v1/text")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/selection/bletchley/v1/text")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/selection/bletchley/v1/text")
         query_config_type = config.getoption("query_config_type", "0.8B")
         doc_config_type = config.getoption("doc_config_type", "0.8B")
@@ -1359,8 +1359,8 @@ class BletchleyForMatchingV2(GenericModel, PeftWeightLoaderMixin):
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/bletchley/v1/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/bletchley/v1/v2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/bletchley/v1/v2")
         config_type = config.getoption("config_type", "0.8B")
 

@@ -18,11 +18,11 @@ from unitorch.utils import pop_value, nested_dict_value, read_file, read_json_fi
 from unitorch.cli import (
     hf_endpoint_url,
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 from unitorch.cli.models.clip import pretrained_clip_infos
 from torch import autocast
@@ -116,8 +116,8 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         self.classname_embeds = self.get_text_embeds()
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/clip/zero_classification")
-    def from_core_configure(
+    @config_defaults_init("microsoft/picasso/clip/zero_classification")
+    def from_config(
         cls,
         config,
         pretrained_name: str = None,
@@ -319,8 +319,8 @@ class ClipZeroClassificationProcessor:
         self.topk = topk
 
     @classmethod
-    @add_default_section_for_init("microsoft/picasso/clip/process/zero_classification")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/picasso/clip/process/zero_classification")
+    def from_config(cls, config, **kwargs):
         classname = config.getoption(
             "classname",
             "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt",

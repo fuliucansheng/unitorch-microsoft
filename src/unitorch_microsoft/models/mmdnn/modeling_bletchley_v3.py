@@ -15,8 +15,8 @@ from torch import autocast
 from transformers.activations import quick_gelu
 from unitorch.models import GenericModel
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import (
@@ -132,8 +132,8 @@ class MMDNNBletchleyForClassification(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/classification/mmdnn/bletchley/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/classification/mmdnn/bletchley/v3")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/classification/mmdnn/bletchley/v3")
         query_config_type = config.getoption("query_config_type", "0.8B")
         offer_config_type = config.getoption("offer_config_type", "0.8B")
@@ -325,8 +325,8 @@ class MMDNNBletchleyForDistillation(GenericModel):
             p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/distillation/mmdnn/bletchley/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/distillation/mmdnn/bletchley/v3")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/distillation/mmdnn/bletchley/v3")
         config_type = config.getoption("config_type", "0.8B")
         new_config_type = config.getoption("new_config_type", "0.8B")
@@ -484,10 +484,10 @@ class MMDNNBletchleyForClassificationV2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v3/v2"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v3/v2"
         )
@@ -795,10 +795,10 @@ class MMDNNBletchleyTextForClassificationV2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v3/v2/text"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v3/v2/text"
         )
@@ -1090,10 +1090,10 @@ class MMDNNBletchleyTextForClassificationV2_2(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init(
+    @config_defaults_init(
         "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2"
     )
-    def from_core_configure(cls, config, **kwargs):
+    def from_config(cls, config, **kwargs):
         config.set_default_section(
             "microsoft/model/classification/mmdnn/bletchley/v3/v2/text/v2"
         )

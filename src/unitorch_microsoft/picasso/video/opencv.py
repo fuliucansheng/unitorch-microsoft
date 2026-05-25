@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from torch.hub import download_url_to_file
 from unitorch import mktempfile
-from unitorch.cli import CoreConfigureParser, GenericScript
+from unitorch.cli import Config, GenericScript
 from unitorch.cli import register_script
 
 
@@ -59,7 +59,7 @@ def zoom_in_effect(image, start_coords, end_coords, output_video, num_frames=60)
 
 @register_script("microsoft/picasso/script/video/opencv/zoom_in")
 class OpenCVZoomInScript(GenericScript):
-    def __init__(self, config: CoreConfigureParser):
+    def __init__(self, config: Config):
         self.config = config
 
     def launch(self, **kwargs):

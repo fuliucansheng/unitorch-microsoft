@@ -15,8 +15,8 @@ from unitorch.models import GenericOutputs
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import DiffusionOutputs, LossOutputs
@@ -86,8 +86,8 @@ class StableForImageResolution(GenericStableModel):
         )
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/diffusers/resolution/stable")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/diffusers/resolution/stable")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/diffusers/resolution/stable")
         pretrained_name = config.getoption("pretrained_name", "stable-v1.5-x4-upscaler")
         pretrained_infos = nested_dict_value(pretrained_stable_infos, pretrained_name)
@@ -264,7 +264,7 @@ class StableForImageResolution(GenericStableModel):
             loss = F.l1_loss(outputs, noise, reduction="mean")
         return loss
 
-    @add_default_section_for_function("microsoft/model/diffusers/resolution/stable")
+    @config_defaults_method("microsoft/model/diffusers/resolution/stable")
     @autocast(device_type=("cuda" if torch.cuda.is_available() else "cpu"))
     def generate(
         self,

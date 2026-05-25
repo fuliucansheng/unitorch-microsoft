@@ -18,8 +18,8 @@ from unitorch.models.peft import (
 )
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import ClassificationOutputs, GenerationOutputs, LossOutputs
@@ -121,8 +121,8 @@ class DinoV2LoraForImageMatching(GenericPeftModel, PeftWeightLoaderMixin):
         self.classifier.weight.data.fill_(5.0)
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/peft/lora/dinov2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/peft/lora/dinov2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/matching/peft/lora/dinov2")
         pretrained_name = config.getoption("pretrained_name", "dinov2-base")
         config_path = config.getoption("config_path", None)

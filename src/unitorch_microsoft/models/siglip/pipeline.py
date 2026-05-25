@@ -9,8 +9,8 @@ from PIL import Image
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from transformers.models.siglip.modeling_siglip import (
     SiglipConfig,
-    SiglipTextTransformer,
-    SiglipVisionTransformer,
+    SiglipTextModel as SiglipTextTransformer,
+    SiglipVisionModel as SiglipVisionTransformer,
 )
 from unitorch.models import GenericModel
 from unitorch.models.siglip import SiglipProcessor
@@ -25,8 +25,8 @@ from unitorch.utils import (
 
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
 )
 from unitorch_microsoft.models.siglip import (
     pretrained_siglip_infos,
@@ -87,8 +87,8 @@ class Siglip2ForMatchingV2Pipeline(SiglipForMatchingV2):
         self.to(device=self._device)
 
     @classmethod
-    @add_default_section_for_init("microsoft/models/siglip/pipeline/matching/v2")
-    def from_core_configure(
+    @config_defaults_init("microsoft/models/siglip/pipeline/matching/v2")
+    def from_config(
         cls,
         config,
         pretrained_name: Optional[str] = None,
@@ -172,7 +172,7 @@ class Siglip2ForMatchingV2Pipeline(SiglipForMatchingV2):
         return inst
 
     @torch.no_grad()
-    @add_default_section_for_function("microsoft/models/siglip/pipeline/matching/v2")
+    @config_defaults_method("microsoft/models/siglip/pipeline/matching/v2")
     def __call__(
         self,
         image,

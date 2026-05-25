@@ -18,8 +18,8 @@ from unitorch.cli.models import (
     ClassificationOutputs,
 )
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch_microsoft import cached_path
@@ -97,8 +97,8 @@ class BletchleyForMatching(GenericModel):
                 p.requires_grad = False
 
     @classmethod
-    @add_default_section_for_init("microsoft/pa/intl/matching/bletchley/v3")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/pa/intl/matching/bletchley/v3")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/pa/intl/matching/bletchley/v3")
         config_type = config.getoption("config_type", "0.8B")
 

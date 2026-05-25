@@ -18,8 +18,8 @@ from transformers.models.mask2former.modeling_mask2former import (
 )
 from unitorch.models import GenericModel, GenericOutputs
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import SegmentationOutputs, LossOutputs
@@ -52,8 +52,8 @@ class Mask2FormerForSegmentation(GenericModel):
         self.init_weights()
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/segmentation/mask2former")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/segmentation/mask2former")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/model/segmentation/mask2former")
         pretrained_name = config.getoption(
             "pretrained_name", "mask2former-swin-tiny-ade-semantic"
@@ -88,7 +88,7 @@ class Mask2FormerForSegmentation(GenericModel):
         """
         raise NotImplementedError
 
-    @add_default_section_for_function("microsoft/model/segmentation/mask2former")
+    @config_defaults_method("microsoft/model/segmentation/mask2former")
     @torch.no_grad()
     def segment(
         self,

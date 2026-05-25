@@ -5,8 +5,8 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models.bert import BertProcessor
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_process,
 )
 from unitorch.cli import WriterOutputs
@@ -43,8 +43,8 @@ class VisualBertProcessor(BertProcessor):
         )
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/process/visualbert")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/process/visualbert")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/process/visualbert")
         pretrained_name = config.getoption("pretrained_name", "visualbert-vqa-coco-pre")
         vocab_path = config.getoption("vocab_path", None)

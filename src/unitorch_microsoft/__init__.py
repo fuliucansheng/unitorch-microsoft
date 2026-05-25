@@ -59,11 +59,7 @@ else:
         force_download=False,
         proxies=None,
         resume_download=False,
-        user_agent: Union[Dict, str, None] = None,
-        extract_compressed_file=False,
-        force_extract=False,
         use_auth_token: Union[bool, str, None] = None,
-        local_files_only=False,
     ) -> Optional[str]:
         if not is_remote_url(url_or_filename):
             pkg_filename = os.path.join(
@@ -78,11 +74,7 @@ else:
             force_download=force_download,
             proxies=proxies,
             resume_download=resume_download,
-            user_agent=user_agent,
-            extract_compressed_file=extract_compressed_file,
-            force_extract=force_extract,
             use_auth_token=use_auth_token,
-            local_files_only=local_files_only,
         )
 
     import unitorch_microsoft.models

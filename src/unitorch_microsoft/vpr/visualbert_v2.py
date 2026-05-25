@@ -17,8 +17,8 @@ from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
 from unitorch.models.clip.modeling import AllGather, _clip_loss
 from unitorch.cli import (
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import ClassificationOutputs, EmbeddingOutputs, LossOutputs
@@ -67,8 +67,8 @@ class VisualBertForPretrainV2(GenericModel):
         super().from_pretrained(state_dict=state_dict)
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/pretrain/visualbert/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/pretrain/visualbert/v2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/pretrain/visualbert/v2")
         pretrained_name = config.getoption("pretrained_name", "visualbert-vqa-coco-pre")
         config_path = config.getoption("config_path", None)
@@ -212,8 +212,8 @@ class VisualBertForClassificationV2(GenericModel):
         super().from_pretrained(state_dict=state_dict)
 
     @classmethod
-    @add_default_section_for_init("microsoft/vpr/classification/visualbert/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/vpr/classification/visualbert/v2")
+    def from_config(cls, config, **kwargs):
         config.set_default_section("microsoft/vpr/classification/visualbert/v2")
         pretrained_name = config.getoption("pretrained_name", "visualbert-vqa-coco-pre")
         config_path = config.getoption("config_path", None)

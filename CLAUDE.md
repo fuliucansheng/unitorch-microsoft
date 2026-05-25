@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`unitorch_microsoft` is a Microsoft extension library for [unitorch](https://fuliucansheng.github.io/unitorch) that adds state-of-the-art models from Ads & Microsoft domains. It covers NLU, NLG, computer vision, CTR prediction, multimodal learning, and more. Built on PyTorch, integrating with transformers, deepspeed, diffusers, and detectron2.
+`unitorch_microsoft` is a Microsoft extension library for [unitorch](https://fuliucansheng.github.io/unitorch) that adds state-of-the-art models from Ads & Microsoft domains. It covers NLU, NLG, computer vision, CTR prediction, multimodal learning, and more. Built on PyTorch, integrating with transformers, deepspeed, diffusers, etc.
 
 - **Python**: 3.10, 3.11, 3.12
 - **Package source**: `src/unitorch_microsoft/`
@@ -37,9 +37,7 @@ All CLI tools accept an INI config file as the first argument, with overridable 
 unitorch-train <config.ini> [--key=value ...]
 unitorch-eval <config.ini> [--key=value ...]
 unitorch-infer <config.ini> [--key=value ...]
-unitorch-launch <config.ini> [--key=value ...]
 unitorch-fastapi <config.ini>
-unitorch-service <config.ini>
 ```
 
 Multi-GPU training uses `torchrun`:
@@ -62,10 +60,10 @@ The framework is configuration-driven. INI files (in `src/unitorch_microsoft/con
 ### Module Registration Pattern
 
 Models and processors register themselves using decorators from `unitorch.cli`:
-- `@add_default_section_for_init` — binds a class to a config section name
+- `@config_defaults_init` — binds a class to a config section name
 - `@register_process` — registers a preprocessing function
 - `@register_score` — registers a scoring function
-- Classes use `from_core_configure(cls, config, **kwargs)` classmethods for INI-based instantiation
+- Classes use `from_config(cls, config, **kwargs)` classmethods for INI-based instantiation
 
 ### Import Control
 

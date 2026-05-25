@@ -14,8 +14,8 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from transformers.models.siglip.modeling_siglip import (
     SiglipConfig,
-    SiglipTextTransformer,
-    SiglipVisionTransformer,
+    SiglipTextModel as SiglipTextTransformer,
+    SiglipVisionModel as SiglipVisionTransformer,
 )
 from unitorch.utils import pop_value, nested_dict_value
 from unitorch.models import GenericModel
@@ -24,8 +24,8 @@ from unitorch.models.peft import PeftWeightLoaderMixin
 from unitorch.models.clip.modeling import _clip_loss, AllGather
 from unitorch.cli import (
     cached_path,
-    add_default_section_for_init,
-    add_default_section_for_function,
+    config_defaults_init,
+    config_defaults_method,
     register_model,
 )
 from unitorch.cli.models import ClassificationOutputs, LossOutputs
@@ -112,8 +112,8 @@ class SiglipForMatchingV2(GenericModel, PeftWeightLoaderMixin):
         }
 
     @classmethod
-    @add_default_section_for_init("microsoft/model/matching/siglip/v2")
-    def from_core_configure(cls, config, **kwargs):
+    @config_defaults_init("microsoft/model/matching/siglip/v2")
+    def from_config(cls, config, **kwargs):
         """
         Create an instance of SiglipForClassification from a core configuration.
 
