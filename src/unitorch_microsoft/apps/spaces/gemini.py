@@ -24,6 +24,7 @@ class GeminiImageFastAPI(GenericFastAPI):
         self._config = config
         config.set_default_section("microsoft/apps/spaces/gemini/image")
         self._base_url = config.getoption("base_url", "http://127.0.0.1:4000")
+        self._api_key = config.getoption("api_key", "litellm")
         self._generate_model = config.getoption("generate_model", "gemini-3-pro-image-preview")
         self._edit_model = config.getoption("edit_model", "gemini-3-pro-image-preview")
         router = config.getoption("router", "/microsoft/apps/spaces/gemini/image")
@@ -69,7 +70,7 @@ class GeminiImageFastAPI(GenericFastAPI):
                 request = client.build_request(
                     "POST",
                     f"{self._base_url}/v1/images/generations",
-                    headers={"Authorization": "Bearer litellm"},
+                    headers={"Authorization": f"Bearer {self._api_key}"},
                     json=data,
                     timeout=120,
                 )
@@ -103,7 +104,7 @@ class GeminiImageFastAPI(GenericFastAPI):
                 request = client.build_request(
                     "POST",
                     f"{self._base_url}/v1/images/edits",
-                    headers={"Authorization": "Bearer litellm"},
+                    headers={"Authorization": f"Bearer {self._api_key}"},
                     files=files,
                     data=data,
                     timeout=120,

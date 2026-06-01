@@ -114,9 +114,7 @@ unitorch-infer examples/configs/generation/bart.ini --test_file path/to/test.tsv
 | `unitorch-train` | Train models (supports `torchrun`) |
 | `unitorch-eval` | Evaluate models |
 | `unitorch-infer` | Run batch inference |
-| `unitorch-launch` | Launch a quick script defined in config |
 | `unitorch-fastapi` | Start a FastAPI model server |
-| `unitorch-service` | Run a background service |
 | `unitorch-copilot` | unitorch-native agent (similar to Claude / OpenCode) |
 | `unitorch-copilot-cli` | CLI tool for agent use — invokes registered copilot tools |
 

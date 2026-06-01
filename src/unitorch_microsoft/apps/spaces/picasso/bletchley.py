@@ -33,7 +33,6 @@ from unitorch_microsoft.models.bletchley.pipeline_v3 import (
     BletchleyForMatchingV2Pipeline as BletchleyV3ForMatchingV2Pipeline,
     BletchleyForImageClassificationPipeline as BletchleyV3ForImageClassificationPipeline,
 )
-from unitorch_microsoft.omnipixel.bletchley import BletchleyForImageClickModelPipeline
 
 
 @register_fastapi("microsoft/apps/spaces/picasso/bletchley/v1")

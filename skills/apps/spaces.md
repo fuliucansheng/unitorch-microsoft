@@ -1,6 +1,7 @@
 # Spaces Skills
 
 Image inference services: classification, quality scoring, object detection, generation, editing.
+GPT chat with optional vision input. used for image understanding and instruction following.
 
 ```python
 from unitorch_microsoft.apps.skills.spaces import SpacesClient
@@ -120,4 +121,37 @@ img_bytes = spaces.edit_image_gemini(
     ["logo.png", "background.png"],
     prompt="put the logo on the top-right corner of the background",
 )
+```
+
+---
+
+## GPT Chat (text + optional vision)
+
+### `chat_generate(prompt, model=None, system=None, images=None, max_tokens=None, temperature=None)`
+
+Calls GPT chat completion. Pass `images` (list of file paths) for vision input.
+
+Returns `{"content": str, "model": str, "usage": {"prompt_tokens", "completion_tokens", "total_tokens"}}`.
+
+```python
+# Text only
+result = spaces.chat_generate("What is the capital of France?")
+print(result["content"])   # "Paris"
+
+# With image input
+result = spaces.chat_generate(
+    "Describe what you see in this image.",
+    images=["photo.jpg"],
+)
+print(result["content"])
+
+# Override model and system prompt
+result = spaces.chat_generate(
+    "Rate the image quality from 1 to 10.",
+    model="github_copilot/gpt-5.5",
+    system="You are an image quality expert.",
+    images=["photo.jpg"],
+)
+print(result["content"])
+print(result["usage"])   # {"prompt_tokens": 512, "completion_tokens": 32, "total_tokens": 544}
 ```

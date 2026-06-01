@@ -4,7 +4,7 @@
 import os
 import logging
 
-VERSION = "0.0.0.3"
+VERSION = "0.0.2.0"
 
 UNITORCH_MS_SKIP_IMPORT = (
     os.environ.get("UNITORCH_MS_SKIP_IMPORT", "FALSE").upper() == "TRUE"
@@ -79,7 +79,6 @@ else:
 
     import unitorch_microsoft.models
     import unitorch_microsoft.modules
-    import unitorch_microsoft.services
 
     UNITORCH_DEBUG = os.environ.get("UNITORCH_DEBUG", "INFO").upper()
 
@@ -87,7 +86,6 @@ else:
         import unitorch_microsoft.adinsights
         import unitorch_microsoft.aether
         import unitorch_microsoft.fastapis
-        import unitorch_microsoft.interrogators
         import unitorch_microsoft.models.bletchley
         import unitorch_microsoft.models.bloom
         import unitorch_microsoft.models.llama
@@ -101,6 +99,5 @@ else:
         import unitorch_microsoft.pa.intl
         import unitorch_microsoft.pa.l2
         import unitorch_microsoft.picasso
-        import unitorch_microsoft.services
         import unitorch_microsoft.utils
         import unitorch_microsoft.vpr

@@ -1,13 +1,13 @@
 model_list:
-  - model_name: copilot-gemini-3.1-pro-preview
+  - model_name: github_copilot/gemini-3.1-pro-preview
     litellm_params:
       model: github_copilot/gemini-3.1-pro-preview
-  - model_name: copilot-gpt-5.4
+  - model_name: github_copilot/gpt-5.4
     model_info:
       mode: responses
     litellm_params:
       model: github_copilot/gpt-5.4
-  - model_name: copilot-gpt-5.5
+  - model_name: github_copilot/gpt-5.5
     model_info:
       mode: responses
     litellm_params:

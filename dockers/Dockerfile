@@ -32,7 +32,8 @@ RUN apt update && \
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools && \
     python -m pip install --no-cache-dir mkl ninja
 
-RUN python -m pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1
+RUN python -m pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.≈
+RUN python -m pip install --no-cache-dir git+https://github.com/fuliucansheng/unitorch-microsoft
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen

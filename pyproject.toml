@@ -41,6 +41,7 @@ unitorch-infer = "unitorch_microsoft.consoles.infer:cli_main"
 unitorch-fastapi= "unitorch_microsoft.consoles.fastapi:cli_main"
 unitorch-copilot = "unitorch_microsoft.consoles.copilot:main"
 unitorch-copilot-cli = "unitorch_microsoft.consoles.copilot:cli_main"
+unitorch-dlis-server = "unitorch_microsoft.consoles.dlis:cli_server"
 
 [tool.setuptools]
 include-package-data = true

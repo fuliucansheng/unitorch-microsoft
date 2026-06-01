@@ -14,8 +14,7 @@ import pandas as pd
 from PIL import Image, ImageOps
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from torch.hub import download_url_to_file
-from unitorch.cli import Config, GenericScript
-from unitorch.cli import register_script, cached_path
+from unitorch.cli import Config, cached_path
 
 try:
     from openai import OpenAI

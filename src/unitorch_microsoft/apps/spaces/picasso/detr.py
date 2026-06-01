@@ -24,7 +24,7 @@ from unitorch.cli import (
     config_defaults_method,
 )
 from unitorch.cli import Config, GenericFastAPI
-from unitorch.cli.pipelines.detr import DetrForDetectionPipeline
+from unitorch.cli.fastapis.detr import DetrForDetectionPipeline
 import unitorch_microsoft.models.detr
 
 

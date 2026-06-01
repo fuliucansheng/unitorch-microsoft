@@ -28,6 +28,10 @@ Usage:
     img_bytes = client.edit_image_gpt(["logo.png", "bg.png"], prompt="put logo on top-right", size="1536x1024")
     img_bytes = client.generate_image_gemini("a red house")
     img_bytes = client.edit_image_gemini(["logo.png", "bg.png"], prompt="put logo on top-right")
+
+    # GPT chat (text + optional vision)
+    result = client.chat_generate("describe this image", images=["photo.jpg"])
+    print(result["content"])
 """
 
 import httpx
@@ -163,7 +167,7 @@ class SpacesClient:
         """
         resp = httpx.post(
             self._url(
-                f"/microsoft/apps/spaces/gpt/image-15/generate"
+                f"/microsoft/apps/spaces/gpt/image/generate"
                 f"?prompt={httpx.URL('', params={'prompt': prompt}).params['prompt']}"
                 f"&size={size}&background={background}"
             ),
@@ -193,7 +197,7 @@ class SpacesClient:
         try:
             resp = httpx.post(
                 self._url(
-                    f"/microsoft/apps/spaces/gpt/image-15/edit"
+                    f"/microsoft/apps/spaces/gpt/image/edit"
                     f"?prompt={httpx.URL('', params={'prompt': prompt}).params['prompt']}"
                     f"&size={size}&background={background}"
                 ),
@@ -210,7 +214,57 @@ class SpacesClient:
                     pass
 
     # ------------------------------------------------------------------
-    # Image generation / editing — Gemini
+    # Chat — GPT Chat (text + optional vision)
+    # ------------------------------------------------------------------
+
+    def chat_generate(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        images: Optional[List[str]] = None,
+        max_tokens: Optional[int] = None,
+    ) -> dict:
+        """Call GPT chat completion, optionally with image inputs.
+
+        Returns {"content": str, "model": str, "usage": {"prompt_tokens", "completion_tokens", "total_tokens"}}.
+        """
+        params: dict = {"prompt": prompt}
+        if model is not None:
+            params["model"] = model
+        if system is not None:
+            params["system"] = system
+        if max_tokens is not None:
+            params["max_tokens"] = max_tokens
+
+        if images:
+            files = [
+                ("images", (Path(p).name, open(p, "rb"), "image/png"))
+                for p in images
+            ]
+            try:
+                resp = httpx.post(
+                    self._url("/microsoft/apps/spaces/gpt/chat/generate"),
+                    params=params,
+                    files=files,
+                    timeout=self._timeout,
+                )
+                resp.raise_for_status()
+                return resp.json()
+            finally:
+                for _, (_, fobj, _) in files:
+                    try:
+                        fobj.close()
+                    except Exception:
+                        pass
+        else:
+            resp = httpx.post(
+                self._url("/microsoft/apps/spaces/gpt/chat/generate"),
+                params=params,
+                timeout=self._timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()
     # ------------------------------------------------------------------
 
     def generate_image_gemini(

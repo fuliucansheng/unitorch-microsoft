@@ -7,7 +7,6 @@ import unitorch.cli
 from unitorch.cli import Config
 from unitorch.cli import (
     import_library,
-    cached_path,
     registered_task,
     init_registered_module,
 )

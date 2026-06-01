@@ -39,7 +39,6 @@ from unitorch.models import (
     GenericOutputs,
 )
 from unitorch.models.peft import GenericPeftModel
-from unitorch.models.diffusers import compute_snr
 from unitorch.utils import (
     pop_value,
     nested_dict_value,

@@ -25,8 +25,7 @@ from unitorch.cli import (
     config_defaults_method,
     register_model,
 )
-from unitorch.cli import Config, GenericScript
-from unitorch.cli import register_script
+from unitorch.cli import Config
 from unitorch.cli.models.clip import pretrained_clip_infos
 from unitorch.cli import WriterOutputs, register_process
 from unitorch.cli.models import (

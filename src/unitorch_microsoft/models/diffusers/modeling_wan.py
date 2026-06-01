@@ -36,7 +36,6 @@ from unitorch.models import (
     GenericOutputs,
 )
 from unitorch.models.peft import PeftWeightLoaderMixin
-from unitorch.models.diffusers import compute_snr
 
 from unitorch.cli import (
     cached_path,

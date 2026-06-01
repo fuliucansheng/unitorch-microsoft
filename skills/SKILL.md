@@ -15,7 +15,7 @@ studios = StudiosClient("http://127.0.0.1:5000")
 
 ## spaces.md → [Spaces Skills](apps/spaces.md)
 
-Covers: image classification, quality scoring, object detection, image generation/editing.
+Covers: image classification, quality scoring, object detection, image generation/editing, GPT chat with optional vision input.
 
 ## studios.md → [Studios Skills](apps/studios.md)
 
