@@ -12,6 +12,7 @@ import fire
 import httpx
 import uvicorn
 import unitorch.cli
+import unitorch.cli.fastapis
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from unitorch.cli import Config
