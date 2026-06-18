@@ -32,8 +32,8 @@ RUN apt update && \
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools && \
     python -m pip install --no-cache-dir mkl ninja
 
-RUN python -m pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.≈
-RUN python -m pip install --no-cache-dir git+https://github.com/fuliucansheng/unitorch-microsoft
+RUN python -m pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1
+RUN python -m pip install --no-cache-dir unitorch_microsoft[fastapis]@git+https://github.com/fuliucansheng/unitorch-microsoft
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen
@@ -43,6 +43,6 @@ ENV LC_ALL en_US.UTF-8
 
 ENV PATH "$PATH:~/.local/bin"
 
-WORKDIR /workspace
-
-CMD ["/bin/bash"]
+ENTRYPOINT []
+WORKDIR /
+EXPOSE 8888

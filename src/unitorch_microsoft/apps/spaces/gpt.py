@@ -5,14 +5,24 @@ import io
 import base64
 import asyncio
 import httpx
+from pydantic import BeforeValidator
 from PIL import Image
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import StreamingResponse
-from typing import List, Optional
+from typing import Annotated, Any, List, Optional
 from unitorch.cli import (
     register_fastapi,
 )
 from unitorch.cli import Config, GenericFastAPI
+
+
+def _normalize_upload_files(value: Any):
+    if value in (None, ""):
+        return None
+    if isinstance(value, list):
+        files = [item for item in value if item not in (None, "")]
+        return files or None
+    return value
 
 
 @register_fastapi("microsoft/apps/spaces/gpt/image")
@@ -174,7 +184,11 @@ class GPTChatFastAPI(GenericFastAPI):
         prompt: str,
         model: Optional[str] = None,
         system: Optional[str] = None,
-        images: Optional[List[UploadFile]] = File(default=None),
+        images: Annotated[
+            Optional[List[UploadFile]],
+            BeforeValidator(_normalize_upload_files),
+            File(),
+        ] = None,
         max_tokens: Optional[int] = None,
     ):
         content = [{"type": "text", "text": prompt}]
@@ -203,7 +217,7 @@ class GPTChatFastAPI(GenericFastAPI):
                     json={
                         "model": model or self._model,
                         "messages": messages,
-                        "max_tokens": max_tokens or self._max_tokens,
+                        "max_tokens": max(max_tokens or self._max_tokens, 32),
                     },
                     timeout=120,
                 )

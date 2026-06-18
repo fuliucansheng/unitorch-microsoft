@@ -127,7 +127,7 @@ img_bytes = spaces.edit_image_gemini(
 
 ## GPT Chat (text + optional vision)
 
-### `chat_generate(prompt, model=None, system=None, images=None, max_tokens=None, temperature=None)`
+### `chat_generate(prompt, model=None, system=None, images=None, max_tokens=None)`
 
 Calls GPT chat completion. Pass `images` (list of file paths) for vision input.
 

@@ -132,6 +132,7 @@ class SiglipLoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
     replace_keys_in_peft_state_dict = {
         ".weight": ".base_layer.weight",
         ".bias": ".base_layer.bias",
+        "classifier.base_layer.": "classifier.",
     }
 
     def __init__(

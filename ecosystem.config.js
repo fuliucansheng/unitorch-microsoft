@@ -13,6 +13,7 @@ if (!match) throw new Error("无法获取 unitorch_microsoft 路径");
 const pythonPath = match[1].trim();
 
 // 构造 litellm 路径和配置路径
+const litellm_entry_path = path.join(__dirname, "scripts/litellm_proxy.py");
 const litellm_config_path = path.join(pythonPath, "configs/litellm/config.yaml");
 
 const appsDir = path.join(__dirname, "apps");
@@ -31,8 +32,8 @@ module.exports = {
   apps: [
     {
       name: "litellm",
-      script: "litellm",
-      args: `--config ${litellm_config_path}`,
+      script: litellm_entry_path,
+      args: `--config ${litellm_config_path} --port 4000`,
       autorestart: true,
       watch: false,
       interpreter: process.env.PYTHON_BIN
