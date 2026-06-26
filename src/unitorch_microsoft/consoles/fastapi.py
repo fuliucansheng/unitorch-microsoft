@@ -1,4 +1,4 @@
-# Copyright (c) MICROSOFT.
+# Copyright (c) FULIUCANSHENG.
 # Licensed under the MIT License.
 
 import os
@@ -15,12 +15,8 @@ import logging
 import time
 import urllib.error
 import urllib.request
-import uvicorn
 import hashlib
 import unitorch.cli
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 from unitorch.cli import Config
 from unitorch.cli import (
     import_library,
@@ -168,6 +164,10 @@ def _health_check_url(config):
     return f"http://{host}:{port}/health-check"
 
 
+def _health_check_timeout(config):
+    return float(config.getdefault("core/cli", "health_check_timeout", 30))
+
+
 def _terminate_process(process):
     if process.poll() is not None:
         return
@@ -180,7 +180,8 @@ def _terminate_process(process):
             pass
 
 
-def _wait_for_health_check(config, process, log_file, timeout=30):
+def _wait_for_health_check(config, process, log_file, timeout=None):
+    timeout = _health_check_timeout(config) if timeout is None else timeout
     url = _health_check_url(config)
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -205,6 +206,11 @@ def _wait_for_health_check(config, process, log_file, timeout=30):
 
 
 def _run_foreground(config, pid_file):
+    import uvicorn
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.middleware.cors import CORSMiddleware
+
     with open(pid_file, "w") as f:
         f.write(str(os.getpid()))
     atexit.register(lambda: os.path.exists(pid_file) and os.remove(pid_file))
@@ -387,7 +393,6 @@ def fastapi(fastapi_action_or_config: str, config_path: str = None, **kwargs):
         restart(qualified_name, config, daemon_mode)
     else:
         raise ValueError(f"unknown fastapi action: {fastapi_action!r}")
-
 
 def cli_main():
     import traceback
