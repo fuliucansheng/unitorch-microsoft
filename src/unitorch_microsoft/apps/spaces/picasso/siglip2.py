@@ -57,7 +57,7 @@ class Siglip2FastAPI(GenericFastAPI):
         self._pipe1 = Siglip2ForMatchingV2Pipeline.from_config(
             self._config,
             pretrained_name="siglip2-so400m-patch14-384",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/siglip/pytorch_model.v2.lora4.badcrop.2506.bin",
+            pretrained_lora_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/adsplus/lora/siglip/pytorch_model.v2.lora4.badcrop.2506.bin",
             label_dict={
                 "Bad Cropped": "bad cropped, cut off, mutilated",
             },
@@ -66,7 +66,7 @@ class Siglip2FastAPI(GenericFastAPI):
         self._pipe2 = Siglip2ForMatchingV2Pipeline.from_config(
             self._config,
             pretrained_name="siglip2-so400m-patch14-384",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/siglip/pytorch_model.v2.lora4.badpad.2601.bin",
+            pretrained_lora_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/adsplus/lora/siglip/pytorch_model.v2.lora4.badpad.2601.bin",
             label_dict={
                 "Bad Padding": "bad padding",
             },

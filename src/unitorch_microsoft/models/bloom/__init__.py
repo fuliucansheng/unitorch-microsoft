@@ -104,7 +104,7 @@ pretrained_bloom_infos = {
 pretrained_bloom_extensions_infos = {
     "bloom-lora-3b-slab-cn": {
         "text": "Generate a short title and description for the given landing page. # Input: {Input} # Output:",
-        "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/adsplus/lora/bloom/pytorch_model.bloom.slab.cn.lora16.bin",
+        "weight": "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/adsplus/lora/bloom/pytorch_model.bloom.slab.cn.lora16.bin",
     },
 }
 

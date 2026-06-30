@@ -70,7 +70,7 @@ class GoogleCateFastAPI(GenericFastAPI):
         )
         self._model.from_pretrained(
             cached_path(
-                "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/pytorch_model.swin.base.patch4.window7.224.0.79.bin"
+                "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/pytorch_model.swin.base.patch4.window7.224.0.79.bin"
             ),
         )
         return "running"

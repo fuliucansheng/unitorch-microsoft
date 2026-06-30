@@ -62,7 +62,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         Categorys = read_file(
             cached_path(
                 # hf_endpoint_url(
-                classname  # "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt"
+                classname  # "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/ImageCategorys.txt"
                 # )
             ),
             lines=True,
@@ -134,7 +134,7 @@ class ClipZeroClassificationPipeline(_ClipForPretrain):
         topk = config.getoption("topk", 3)
         classname = config.getoption(
             "classname",
-            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt",
+            "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/ImageCategorys.txt",
         )
         config_path = pop_value(
             config_path,
@@ -267,7 +267,7 @@ class ClipZeroClassificationProcessor:
         Categorys = read_file(
             cached_path(
                 # hf_endpoint_url(
-                classname  # "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt"
+                classname  # "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/ImageCategorys.txt"
                 # )
             ),
             lines=True,
@@ -322,7 +322,7 @@ class ClipZeroClassificationProcessor:
     def from_config(cls, config, **kwargs):
         classname = config.getoption(
             "classname",
-            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/data/ImageCategorys.txt",
+            "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/ImageCategorys.txt",
         )
         topk = config.getoption("topk", 3)
         inst = cls(topk=topk, classname=classname)

@@ -80,7 +80,7 @@ class TuringMMV3ForMatching(GenericModel):
         config.set_default_section("microsoft/picasso/model/turingmm/v3")
         pretrained_weight_path = config.getoption(
             "pretrained_weight_path",
-            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/pytorch_model.turingmm_v3.bin",
+            "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/pytorch_model.turingmm_v3.bin",
         )
         pretrained_weight_path = cached_path(pretrained_weight_path)
         inst = cls(
@@ -153,7 +153,7 @@ class TuringMMV3LoraForMatching(GenericPeftModel, PeftWeightLoaderMixin):
         target_modules = config.getoption("target_modules", ["out_proj"])
         pretrained_weight_path = config.getoption(
             "pretrained_weight_path",
-            "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/pytorch_model.turingmm_v3.bin",
+            "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/pytorch_model.turingmm_v3.bin",
         )
 
         pretrained_weight_path = cached_path(pretrained_weight_path)

@@ -6,9 +6,9 @@ from unitorch.cli.models.mask2former import pretrained_mask2former_infos
 pretrained_mask2former_infos.update(
     {
         "picasso-mask2former-swin-base-ade-semantic": {
-            "config": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/mask2former/config.json",
-            "vision_config": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/mask2former/preprocessor_config.json",
-            "weight": "https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/mask2former/pytorch_model.bin",
+            "config": "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/picasso/mask2former/config.json",
+            "vision_config": "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/picasso/mask2former/preprocessor_config.json",
+            "weight": "https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/picasso/mask2former/pytorch_model.bin",
         }
     }
 )

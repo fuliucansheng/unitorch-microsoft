@@ -69,8 +69,8 @@ class BletchleyV1FastAPI(GenericFastAPI):
         self._pipe1 = BletchleyV1ForMatchingV2Pipeline.from_config(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.2.5B.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
+            pretrained_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/bletchley/v1/pytorch_model.2.5B.bin",
+            pretrained_lora_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/adsplus/lora/bletchley/pytorch_model.v1.lora4.blurry.2409.bin",
             label_dict={
                 "Blurry": "blurry",
             },
@@ -79,8 +79,8 @@ class BletchleyV1FastAPI(GenericFastAPI):
         self._pipe2 = BletchleyV1ForMatchingV2Pipeline.from_config(
             self._config,
             config_type="0.8B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v1/pytorch_model.0.8B.bin",
-            pretrained_lora_weight_path="https://huggingface.co/datasets/fuliucansheng/unitorchblobfuse/resolve/main/models/picasso/pytorch_model.bletchley.background.classification.202504.bin",
+            pretrained_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/bletchley/v1/pytorch_model.0.8B.bin",
+            pretrained_lora_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/picasso/pytorch_model.bletchley.background.classification.202504.bin",
             label_dict={
                 "Complex": "A product, poster, or lifestyle image with a complex background that contains many visual elements and textures",
                 "Simple": "objects on a plain or softly blurred background with soft colors or smooth gradients",
@@ -159,8 +159,8 @@ class BletchleyV3FastAPI(GenericFastAPI):
         self._pipe1 = BletchleyV3ForMatchingV2Pipeline.from_config(
             self._config,
             config_type="2.5B",
-            pretrained_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/bletchley/v3/pytorch_model.large.bin",
-            pretrained_lora_weight_path="https://unitorchazureblob.blob.core.windows.net/shares/models/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
+            pretrained_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/bletchley/v3/pytorch_model.large.bin",
+            pretrained_lora_weight_path="https://huggingface.co/buckets/fuliucansheng/unitorchblobfuse/resolve/adsplus/lora/bletchley/pytorch_model.v3.2.5B.lora4.watermark.2410.bin",
             label_dict={
                 "Watermark": "watermarked, no watermark signature, brand logo",
             },
